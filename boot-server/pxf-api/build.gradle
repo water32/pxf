@@ -1,0 +1,46 @@
+apply plugin: "java-library"
+
+jar {
+    enabled = true
+}
+
+dependencies {
+
+    /*******************************
+     * Annotation Processors
+     *******************************/
+
+    annotationProcessor("org.springframework.boot:spring-boot-autoconfigure-processor")
+    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
+
+    /*******************************
+     * API Dependencies
+     *******************************/
+
+    api("org.apache.hadoop:hadoop-common:${hadoopVersion}") {
+        exclude group: 'commons-codec'
+    }
+    api("org.springframework.boot:spring-boot-starter-log4j2")
+    api("org.springframework.boot:spring-boot-starter")
+    api("org.springframework.boot:spring-boot-starter-web")
+
+    /*******************************
+     * Implementation Dependencies
+     *******************************/
+
+    implementation("commons-codec:commons-codec")
+    implementation("com.fasterxml.jackson.core:jackson-core:2.9.10")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.9.10.3")
+
+    /*******************************
+     * Test Dependencies
+     *******************************/
+
+    testImplementation('org.springframework.boot:spring-boot-starter-test') {
+        exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
+    }
+}
+
+test {
+    useJUnitPlatform()
+}

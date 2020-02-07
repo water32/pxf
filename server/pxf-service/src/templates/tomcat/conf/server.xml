@@ -54,7 +54,8 @@ under the License.
                    maxHttpHeaderSize="1048576"
                    port="${connector.http.port}"
                    protocol="org.apache.coyote.http11.Http11Protocol"
-                   redirectPort="${connector.https.port}"/>
+                   redirectPort="${connector.https.port}"
+                   socket.txBufSize="65536"/>
     </Service>
     <Listener className="org.apache.catalina.core.ThreadLocalLeakPreventionListener"/>
 </Server>

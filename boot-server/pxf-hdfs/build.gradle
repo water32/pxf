@@ -1,0 +1,66 @@
+apply plugin: "java-library"
+
+jar {
+    enabled = true
+}
+
+dependencies {
+    /*******************************
+     * API Dependencies
+     *******************************/
+
+    api(project(':pxf-api'))
+
+    /*******************************
+     * Implementation Dependencies
+     *******************************/
+
+    implementation("org.apache.hadoop:hadoop-mapreduce-client-core:${hadoopVersion}")
+
+    implementation("org.apache.hadoop:hadoop-common:${hadoopVersion}")
+    implementation("org.apache.hadoop:hadoop-hdfs:${hadoopVersion}")
+    implementation("org.apache.hadoop:hadoop-hdfs-client:${hadoopVersion}")
+
+    implementation("org.apache.htrace:htrace-core4:${htraceVersion}")
+
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.9.10")
+    implementation("com.fasterxml.jackson.core:jackson-core:2.9.10")
+    implementation("com.fasterxml.jackson.core:jackson-annotations:2.9.10")
+
+    implementation("org.apache.parquet:parquet-format:2.7.0")
+    implementation("org.apache.parquet:parquet-column:${parquetVersion}")
+    implementation("org.apache.parquet:parquet-common:${parquetVersion}")
+    implementation("org.apache.parquet:parquet-encoding:${parquetVersion}")
+    implementation("org.apache.parquet:parquet-generator:${parquetVersion}")
+    implementation("org.apache.parquet:parquet-hadoop:${parquetVersion}")
+
+    // for parquet writing
+    implementation("org.apache.hive:hive-storage-api:2.4.0")
+
+    implementation("org.apache.avro:avro:1.7.7")
+
+    // Dependencies in hadoop 2.10.0
+    implementation("com.fasterxml.woodstox:woodstox-core:5.0.3")
+    implementation("org.codehaus.woodstox:stax2-api:3.1.4")
+
+    /****************************************
+     * Kerberos implementation dependencies
+     ****************************************/
+
+    implementation("org.apache.hadoop:hadoop-yarn-api:${hadoopVersion}")
+    implementation("org.apache.hadoop:hadoop-yarn-client:${hadoopVersion}")
+
+    /*******************************
+     * Test Dependencies
+     *******************************/
+
+    testImplementation("org.apache.parquet:parquet-pig:${parquetVersion}")
+
+    testImplementation('org.springframework.boot:spring-boot-starter-test') {
+        exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
+    }
+}
+
+test {
+    useJUnitPlatform()
+}

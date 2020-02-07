@@ -1,0 +1,14 @@
+<configuration>
+    <property>
+        <name>test.red</name>
+        <value>red</value>
+    </property>
+    <property>
+        <name>test.red.key</name>
+        <value>redvaluefromred</value>
+    </property>
+    <property>
+        <name>test.red.interpolated.key</name>
+        <value>${pxf.session.user}-red</value>
+    </property>
+</configuration>

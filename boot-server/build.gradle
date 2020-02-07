@@ -1,0 +1,78 @@
+buildscript {
+    repositories {
+        jcenter()
+    }
+}
+
+plugins {
+    id "com.github.hierynomus.license-report" version "0.15.0"
+    id "io.franzbecker.gradle-lombok" version "3.3.0"
+    id "org.springframework.boot" version "${spring_boot_version}" apply false
+}
+
+downloadLicenses {
+    dependencyConfiguration = 'bundleJars'
+}
+
+def javaProjects = subprojects.findAll {
+    it.name.startsWith("pxf-")
+}
+
+allprojects {
+    apply plugin: "jacoco"
+    apply plugin: "idea"
+    apply plugin: "eclipse"
+
+    repositories {
+        jcenter()
+    }
+}
+
+idea {
+    project {
+        jdkName = "1.8"
+        languageLevel = "8"
+        vcs = "Git"
+    }
+}
+
+configure(javaProjects) {
+    apply plugin: 'java'
+    apply plugin: 'io.spring.dependency-management'
+    apply plugin: "io.franzbecker.gradle-lombok"
+
+    group = 'org.greenplum.pxf'
+    version = "${version}"
+
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+
+    dependencyManagement {
+        imports {
+            mavenBom("org.springframework.boot:spring-boot-dependencies:${spring_boot_version}")
+        }
+        dependencies {
+            dependency("commons-lang:commons-lang:2.6")
+            dependency("com.google.guava:guava:20.0")
+            dependency("commons-collections:commons-collections:3.2.2")
+            dependency("commons-configuration:commons-configuration:1.10")
+            dependency("commons-codec:commons-codec:1.14")
+        }
+    }
+
+    task removeIdeaOutDirectory(type: Delete) {
+        file("${projectDir}/out").deleteDir()
+    }
+
+    clean {
+        dependsOn(removeIdeaOutDirectory)
+    }
+
+    configurations {
+        all*.exclude group: "javax.servlet", module: "servlet-api"
+        all*.exclude module: 'spring-boot-starter-logging'
+        all*.exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+//        all*.exclude group: 'log4j', module: 'log4j'
+    }
+}
+

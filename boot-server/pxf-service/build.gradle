@@ -1,0 +1,47 @@
+apply plugin: "org.springframework.boot"
+
+configurations {
+    developmentOnly
+    runtimeClasspath {
+        extendsFrom developmentOnly
+    }
+}
+
+dependencies {
+    /*******************************
+     * API Dependencies
+     *******************************/
+
+    /*******************************
+     * Implementation Dependencies
+     *******************************/
+
+    implementation(project(':pxf-api'))
+    implementation(project(':pxf-hdfs'))
+
+    implementation("commons-lang:commons-lang")
+    implementation('org.springframework.boot:spring-boot-starter-actuator')
+    implementation('org.springframework.boot:spring-boot-starter-webflux')
+
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+    testImplementation('org.springframework.boot:spring-boot-starter-test') {
+        exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
+    }
+    testImplementation('io.projectreactor:reactor-test')
+}
+
+bootJar {
+    manifest {
+        attributes("Implementation-Title": project.name)
+        attributes("Implementation-Version": project.version)
+    }
+}
+
+springBoot {
+    mainClassName = "org.greenplum.pxf.service.PxfServiceApplication"
+    buildInfo()
+}
+
+test {
+    useJUnitPlatform()
+}
