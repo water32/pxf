@@ -5,7 +5,7 @@ and through the [Foreign Data Wrapper Framework](https://gpdb.docs.pivotal.io/la
 This section provides examples on how to access external data residing on S3 using:
 
 - [Foreign Data Wrappers](#foreign-data-wrappers)
-- [External Tables](#external-tab les)
+- [External Tables](#external-tables)
 
 The examples include syntax and the configuration parameters required to access S3.
 
