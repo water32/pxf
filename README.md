@@ -40,6 +40,9 @@ Contains the end-to-end (integration) tests for PXF against the various datasour
 ## downloads/
 An empty directory that serves as a staging location for Greenplum RPMs for the development Docker image
 
+## examples/
+The examples directory provides useful examples on how to use PXF to access different external datasources.
+
 PXF Development
 =================
 Below are the steps to build and install PXF along with its dependencies including Greenplum and Hadoop.
