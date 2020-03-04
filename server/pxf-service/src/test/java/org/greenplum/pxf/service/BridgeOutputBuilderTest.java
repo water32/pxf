@@ -440,7 +440,7 @@ public class BridgeOutputBuilderTest {
     }
 
     @Test
-    public void testWritableIterator() throws IOException {
+    public void testWritableIterator() throws IOException, InterruptedException {
         setStreamingResolver(new String[]{"FOO", "BAR", "BAZ"});
         records = new ArrayList<OneField>() {{
             add(new OneField(DataType.FLOAT8.getOID(), 0.123456789));
@@ -461,7 +461,7 @@ public class BridgeOutputBuilderTest {
     }
 
     @Test
-    public void testWritableIterator_StreamingFieldFirst() throws IOException {
+    public void testWritableIterator_StreamingFieldFirst() throws IOException, InterruptedException {
         setStreamingResolver(new String[]{"FOO", "BAR", "BAZ"});
         records = new ArrayList<OneField>() {{
             add(new ArrayStreamingField(resolver));
@@ -483,7 +483,7 @@ public class BridgeOutputBuilderTest {
     }
 
     @Test
-    public void testWritableIterator_EscapeNeeded() throws IOException {
+    public void testWritableIterator_EscapeNeeded() throws IOException, InterruptedException {
         setStreamingResolver(new String[]{"FOO", "BA\"R", "BAZ"});
         records = new ArrayList<OneField>() {{
             add(new OneField(DataType.TEXT.getOID(), "just \"some text"));
@@ -504,7 +504,7 @@ public class BridgeOutputBuilderTest {
     }
 
     @Test
-    public void testWritableIterator_StreamingScalarField() throws IOException {
+    public void testWritableIterator_StreamingScalarField() throws IOException, InterruptedException {
         setStreamingResolver(new String[]{"FOO", "BA\"R", "BAZ"});
         records = new ArrayList<OneField>() {{
             add(new OneField(DataType.BIGINT.getOID(), 1234567890));
@@ -525,7 +525,7 @@ public class BridgeOutputBuilderTest {
     }
 
     @Test
-    public void testWritableIterator_StreamingScalarField_StreamingFieldFirst() throws IOException {
+    public void testWritableIterator_StreamingScalarField_StreamingFieldFirst() throws IOException, InterruptedException {
         setStreamingResolver(new String[]{"FOO", "BA\"R", "BAZ"});
         records = new ArrayList<OneField>() {{
             add(new StreamingField(DataType.TEXT.getOID(), resolver));

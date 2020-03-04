@@ -49,10 +49,19 @@ public class StreamingImageAccessor extends BasePlugin implements Accessor {
     private FileSystem fs;
     private boolean served = false;
     int currentPath = 0;
+    private int NUM_THREADS;
+    private BufferedImage[] currentImages;
+    private Thread[] threads;
+    private int currentImage;
+    private static final String CONCURRENT_IMAGE_READS_OPTION = "ACCESSOR_THREADS";
 
     @Override
     public void initialize(RequestContext requestContext) {
         super.initialize(requestContext);
+        NUM_THREADS = Integer.parseInt(context.getOption(CONCURRENT_IMAGE_READS_OPTION, "1"));
+        currentImages = new BufferedImage[NUM_THREADS];
+        threads = new Thread[NUM_THREADS];
+        currentImage = NUM_THREADS;
         fileSplit = HdfsUtilities.parseFileSplit(context);
     }
 
@@ -95,13 +104,46 @@ public class StreamingImageAccessor extends BasePlugin implements Accessor {
         return new OneRow(paths, this);
     }
 
-    public BufferedImage next() throws IOException {
+    public class FetchImageRunnable implements Runnable {
+        private int cnt;
+
+        public FetchImageRunnable(int cnt) {
+            this.cnt = cnt;
+        }
+
+        @Override
+        public void run() {
+            try (InputStream stream = fs.open(new Path(paths.get(currentPath + cnt)))) {
+                currentImages[cnt] = ImageIO.read(stream);
+            } catch (IOException e) {
+                throw new RuntimeException(String.format("Caught an IOException reading image in thread %d", cnt), e);
+            }
+        }
+    }
+
+    public BufferedImage next() throws InterruptedException {
         if (currentPath == paths.size()) {
             return null;
         }
-        try (InputStream stream = fs.open(new Path(paths.get(currentPath++)))) {
-            return ImageIO.read(stream);
+
+        if (currentImage == NUM_THREADS) {
+            for (int i = 0; i < NUM_THREADS; i++) {
+                if (currentPath + i == paths.size()) {
+                    break;
+                }
+                threads[i] = new Thread(new FetchImageRunnable(i));
+                threads[i].start();
+            }
+            for (int i = 0; i < NUM_THREADS; i++) {
+                if (currentPath + i == paths.size()) {
+                    break;
+                }
+                threads[i].join();
+            }
+            currentImage = 0;
         }
+        currentPath++;
+        return currentImages[currentImage++];
     }
 
     public boolean hasNext() {

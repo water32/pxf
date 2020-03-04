@@ -45,7 +45,7 @@ public class StreamingImageResolverTest {
     List<String> imageStrings;
 
     @Before
-    public void setup() throws IOException {
+    public void setup() throws IOException, InterruptedException {
         context = new RequestContext();
         context.setTupleDescription(new ArrayList<ColumnDescriptor>() {{
             add(new ColumnDescriptor("foo", DataType.TEXTARRAY.getOID(), 0, "foo", null));
@@ -123,7 +123,7 @@ public class StreamingImageResolverTest {
     }
 
     @Test
-    public void testGetFields() throws IOException {
+    public void testGetFields() throws IOException, InterruptedException {
         List<OneField> fields = resolver.getFields(row);
 
         assertEquals(5, fields.size());
@@ -147,7 +147,7 @@ public class StreamingImageResolverTest {
     }
 
     @Test
-    public void testGetFields_byteArray() throws IOException {
+    public void testGetFields_byteArray() throws IOException, InterruptedException {
         context.setTupleDescription(new ArrayList<ColumnDescriptor>() {{
             add(new ColumnDescriptor("foo", DataType.TEXTARRAY.getOID(), 0, "foo", null));
             add(new ColumnDescriptor("foo", DataType.TEXTARRAY.getOID(), 1, "foo", null));
@@ -179,7 +179,7 @@ public class StreamingImageResolverTest {
     }
 
     @Test
-    public void testGetNextAndHasNext() throws IOException {
+    public void testGetNextAndHasNext() throws IOException, InterruptedException {
         resolver.getFields(row);
         for (String image : imageStrings) {
             assertTrue(resolver.hasNext());
@@ -196,7 +196,7 @@ public class StreamingImageResolverTest {
         }
     }
 
-    private void assertImages() throws IOException {
+    private void assertImages() throws IOException, InterruptedException {
         int cnt = 0;
         while (resolver.hasNext()) {
             Object o = resolver.next();

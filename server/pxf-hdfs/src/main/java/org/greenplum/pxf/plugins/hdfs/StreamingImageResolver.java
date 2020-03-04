@@ -32,11 +32,8 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
     private static final int IMAGE_DATA_COLUMN = 4;
     private StreamingImageAccessor accessor;
     private List<String> paths;
-    private int currentImage = 0;
-    private int numImages;
-    private int w;
-    private int h;
-    private static final int INTENSITIES = 256;
+    private int currentImage = 0, numImages, w, h;
+    private static final int INTENSITIES = 256, NUM_COL = 3;
     // cache of strings for RGB arrays going to Greenplum
     private static String[] r = new String[INTENSITIES];
     private static String[] g = new String[INTENSITIES];
@@ -60,7 +57,7 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
      * of image files.
      */
     @Override
-    public List<OneField> getFields(OneRow row) throws IOException {
+    public List<OneField> getFields(OneRow row) throws InterruptedException {
         imageColumnType = context.getColumn(IMAGE_DATA_COLUMN).getDataType();
         if (imageColumnType != DataType.INT2ARRAY && imageColumnType != DataType.INT4ARRAY &&
                 imageColumnType != DataType.INT8ARRAY && imageColumnType != DataType.BYTEA) {
@@ -95,11 +92,12 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
                 add(new ArrayField(DataType.TEXTARRAY.getOID(), fileNames));
                 add(new ArrayField(DataType.INT8ARRAY.getOID(), new ArrayList<Integer>() {{
                     add(numImages);
-                    add(w);
                     add(h);
+                    add(w);
+                    add(NUM_COL);
                 }}));
                 if (imageColumnType == DataType.BYTEA) {
-                    add(new StreamingField(DataType.BYTEA.getOID(),StreamingImageResolver.this));
+                    add(new StreamingField(DataType.BYTEA.getOID(), StreamingImageResolver.this));
                 } else {
                     add(new ArrayStreamingField(StreamingImageResolver.this));
                 }
@@ -107,7 +105,7 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
         };
     }
 
-    private void getNextImage() throws IOException {
+    private void getNextImage() throws InterruptedException {
         image = accessor.next();
         currentImage++;
         hasNext = image != null;
@@ -124,7 +122,7 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
      * will end up in the same tuple.
      */
     @Override
-    public Object next() throws IOException {
+    public Object next() throws IOException, InterruptedException {
         if (image == null) {
             if (currentImage < numImages) {
                 throw new IOException(
@@ -171,7 +169,7 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
     }
 
     private byte[] imageToByteArray(BufferedImage image, int w, int h) {
-        byte[] bytea = new byte[w * h * 3];
+        byte[] bytea = new byte[w * h * NUM_COL];
         int cnt = 0;
         for (int pixel : image.getRGB(0, 0, w, h, null, 0, w)) {
             bytea[cnt++] = (byte) ((pixel >> 16) & 0xff);

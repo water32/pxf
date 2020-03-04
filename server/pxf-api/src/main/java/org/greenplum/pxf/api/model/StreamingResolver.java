@@ -14,7 +14,7 @@ public interface StreamingResolver extends Resolver {
     /**
      * @return the next piece of data
      */
-    Object next() throws IOException;
+    Object next() throws IOException, InterruptedException;
 
     /**
      * @return whether or not the streaming field has any more data

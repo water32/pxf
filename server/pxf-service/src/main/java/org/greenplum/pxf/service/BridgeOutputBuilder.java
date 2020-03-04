@@ -200,7 +200,7 @@ public class BridgeOutputBuilder {
             return false;
         }
 
-        public Writable next() throws IOException {
+        public Writable next() throws IOException, InterruptedException {
             StringBuilder sb = new StringBuilder();
             if (!currentlyStreaming && numFields > fieldCounter) {
                 // we have more fields, get the next field
