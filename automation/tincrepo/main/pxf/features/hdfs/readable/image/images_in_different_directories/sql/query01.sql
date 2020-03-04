@@ -1,0 +1,8 @@
+-- @description query01 for PXF HDFS Readable images
+
+SELECT image_test_images_in_different_directories.names, compare_table_images_in_different_directories.directories FROM image_test_images_in_different_directories, compare_table_images_in_different_directories
+    WHERE image_test_images_in_different_directories.fullpaths = compare_table_images_in_different_directories.fullpaths
+    AND image_test_images_in_different_directories.directories = compare_table_images_in_different_directories.directories
+    AND image_test_images_in_different_directories.names = compare_table_images_in_different_directories.names
+    AND image_test_images_in_different_directories.images = compare_table_images_in_different_directories.images
+    ORDER BY names, directories;

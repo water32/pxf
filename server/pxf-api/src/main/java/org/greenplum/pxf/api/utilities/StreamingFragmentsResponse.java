@@ -20,16 +20,15 @@ package org.greenplum.pxf.api.utilities;
  */
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.greenplum.pxf.api.model.Fragment;
+import org.greenplum.pxf.api.model.StreamingFragmenter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.StreamingOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.List;
 
 /**
  * Class for serializing fragments metadata in JSON format. The class implements
@@ -37,19 +36,15 @@ import java.util.List;
  * in one bulk, this in order to avoid running out of memory when processing a
  * lot of fragments.
  */
-public class FragmentsResponse implements StreamingOutput {
+public class StreamingFragmentsResponse implements StreamingOutput {
 
-    private static final Log Log = LogFactory.getLog(FragmentsResponse.class);
+    private final Logger LOG = LoggerFactory.getLogger(this.getClass());
 
-    private List<Fragment> fragments;
+    private StreamingFragmenter fragmenter;
 
-    /**
-     * Constructs fragments response out of a list of fragments
-     *
-     * @param fragments fragment list
-     */
-    public FragmentsResponse(List<Fragment> fragments) {
-        this.fragments = fragments;
+    public StreamingFragmentsResponse(StreamingFragmenter fragmenter) throws Exception {
+        this.fragmenter = fragmenter;
+        fragmenter.searchForDirs();
     }
 
     /**
@@ -66,29 +61,17 @@ public class FragmentsResponse implements StreamingOutput {
      * }]}</code>
      */
     @Override
-    public void write(OutputStream output) throws IOException,
-            WebApplicationException {
+    public void write(OutputStream output) throws IOException, WebApplicationException {
         DataOutputStream dos = new DataOutputStream(output);
         ObjectMapper mapper = new ObjectMapper();
 
         dos.write("{\"PXFFragments\":[".getBytes());
 
         String prefix = "";
-        for (Fragment fragment : fragments) {
-            StringBuilder result = new StringBuilder();
-            /* metaData and userData are automatically converted to Base64 */
-            result.append(prefix).append(mapper.writeValueAsString(fragment));
+        while (fragmenter.hasNext()) {
+            dos.write((prefix + mapper.writeValueAsString(fragmenter.next())).getBytes());
             prefix = ",";
-            dos.write(result.toString().getBytes());
         }
-
         dos.write("]}".getBytes());
-    }
-
-    /**
-     * @return the list of fragments for the response
-     */
-    public List<Fragment> getFragments() {
-        return fragments;
     }
 }

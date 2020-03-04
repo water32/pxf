@@ -1,0 +1,16 @@
+-- @description query01 for PXF HDFS Readable images
+SELECT image_test_batchsize_1.names, image_test_batchsize_1.directories FROM image_test_batchsize_1, compare_table_batchsize_1
+    WHERE image_test_batchsize_1.fullpaths = compare_table_batchsize_1.fullpaths
+    AND image_test_batchsize_1.directories = compare_table_batchsize_1.directories
+    AND image_test_batchsize_1.names = compare_table_batchsize_1.names
+    AND image_test_batchsize_1.images = compare_table_batchsize_1.images
+    ORDER BY names;
+  names  |   directories   
+---------+-----------------
+ {0.png} | {readableImage}
+ {1.png} | {readableImage}
+ {2.png} | {readableImage}
+ {3.png} | {readableImage}
+ {4.png} | {readableImage}
+(5 rows)
+

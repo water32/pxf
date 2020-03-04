@@ -23,9 +23,12 @@ import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.ObjectUtils;
 import org.apache.commons.lang.StringUtils;
+import org.greenplum.pxf.api.ArrayField;
+import org.greenplum.pxf.api.ArrayStreamingField;
 import org.greenplum.pxf.api.BadRecordException;
 import org.greenplum.pxf.api.GreenplumDateTime;
 import org.greenplum.pxf.api.OneField;
+import org.greenplum.pxf.api.StreamingField;
 import org.greenplum.pxf.api.io.BufferWritable;
 import org.greenplum.pxf.api.io.DataType;
 import org.greenplum.pxf.api.io.GPDBWritable;
@@ -34,12 +37,14 @@ import org.greenplum.pxf.api.io.Writable;
 import org.greenplum.pxf.api.model.GreenplumCSV;
 import org.greenplum.pxf.api.model.OutputFormat;
 import org.greenplum.pxf.api.model.RequestContext;
+import org.greenplum.pxf.api.model.StreamingResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Array;
 import java.sql.Timestamp;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
@@ -68,7 +73,6 @@ public class BridgeOutputBuilder {
     private int[] schema;
     private String[] colNames;
     private boolean samplingEnabled;
-    private boolean isPartialLine = false;
     private GreenplumCSV greenplumCSV;
 
     /**
@@ -162,11 +166,75 @@ public class BridgeOutputBuilder {
         return outputList;
     }
 
+
     /**
-     * Returns whether or not this is a partial line.
+     * Can take a list of non-streaming and at most one streaming field,
+     * returning a lazy iterator over the data. Only supports CSV format.
      *
-     * @return true for a partial line
+     * @param fields List of fields to create an iterator over
+     * @return Lazy iterator of writables for the given record list
      */
+    public Iterator<Writable> makeStreamingOutput(List<OneField> fields) {
+        return new Iterator<Writable>() {
+            private int recordCounter = 0;
+            private int numRecords = fields.size();
+            private OneField field;
+            private StreamingResolver resolver = null;
+            boolean currentlyStreaming = false;
+            String newline = greenplumCSV.getNewline();
+            String quote = String.valueOf(greenplumCSV.getQuote());
+            String delimiter = String.valueOf(greenplumCSV.getDelimiter());
+
+            @Override
+            public boolean hasNext() {
+                if (recordCounter < numRecords) {
+                    return true;
+                }
+                // we are on the last record, check if it's a streaming type
+                if (StreamingField.class.isAssignableFrom(field.getClass()) && resolver != null) {
+                    return resolver.hasNext();
+                }
+                return false;
+            }
+
+            @Override
+            public Writable next() {
+                StringBuilder sb = new StringBuilder();
+                if (!currentlyStreaming && numRecords > recordCounter) {
+                    // we have more fields, get the next field
+                    field = fields.get(recordCounter++);
+                }
+                String csvDelimOrNewline = (recordCounter == numRecords) ? newline : delimiter;
+                if (StreamingField.class.isAssignableFrom(field.getClass())) {
+                    if (!currentlyStreaming) {
+                        currentlyStreaming = true;
+                        resolver = ((StreamingField) field).getResolver();
+                        sb.
+                                append(quote).
+                                append(field.getPrefix());
+                    }
+                    sb.append(greenplumCSV.toCsvField(resolver.next(), false, false, true));
+                    if (!resolver.hasNext()) {
+                        currentlyStreaming = false;
+                        resolver = null;
+                        sb.
+                                append(field.getSuffix()).
+                                append(quote).
+                                append(csvDelimOrNewline);
+                    } else if (field instanceof ArrayStreamingField) {
+                        // element separator for array
+                        sb.append(((ArrayStreamingField) field).getSeparator());
+                    }
+                } else {
+                    // non-streaming cases are handled by usual methods
+                    sb.append(fieldToCSVElement(field)).append(csvDelimOrNewline);
+                }
+
+                return new BufferWritable(sb.toString().getBytes());
+            }
+        };
+    }
+
     public Writable getPartialLine() {
         return partialLine;
     }
@@ -325,12 +393,13 @@ public class BridgeOutputBuilder {
     void convertTextDataToLines(byte[] val) {
         int len = val.length;
         int start = 0;
-        int end = 0;
+        int end;
         byte[] line;
         BufferWritable writable;
 
         while (start < len) {
             end = ArrayUtils.indexOf(val, DELIM, start);
+            boolean isPartialLine = false;
             if (end == ArrayUtils.INDEX_NOT_FOUND) {
                 // data finished in the middle of the line
                 end = len;
@@ -431,20 +500,28 @@ public class BridgeOutputBuilder {
      */
     private String fieldListToCSVString(List<OneField> fields) {
         return fields.stream()
-                .map(field -> {
-                    if (field.val == null)
-                        return greenplumCSV.getValueOfNull();
-                    else if (field.type == DataType.BYTEA.getOID())
-                        return "\\x" + Hex.encodeHexString((byte[]) field.val);
-                    else if (field.type == DataType.NUMERIC.getOID() || !DataType.isTextForm(field.type))
-                        return Objects.toString(field.val, null);
-                    else if (field.type == DataType.TIMESTAMP.getOID())
-                        return ((Timestamp) field.val).toLocalDateTime().format(GreenplumDateTime.DATETIME_FORMATTER);
-                    else if (field.type == DataType.DATE.getOID())
-                        return field.val.toString();
-                    else
-                        return greenplumCSV.toCsvField((String) field.val, true, true, true);
-                })
+                .map(this::fieldToCSVElement)
                 .collect(Collectors.joining(String.valueOf(greenplumCSV.getDelimiter()), "", greenplumCSV.getNewline()));
+    }
+
+    private String fieldToCSVElement(OneField field) {
+        if (field.val == null)
+            return greenplumCSV.getValueOfNull();
+        else if (field.type == DataType.BYTEA.getOID())
+            return "\\x" + Hex.encodeHexString((byte[]) field.val);
+        else if (field.type == DataType.NUMERIC.getOID() || !DataType.isTextForm(field.type))
+            return Objects.toString(field.val, null);
+        else if (field.type == DataType.TIMESTAMP.getOID())
+            return ((Timestamp) field.val).toLocalDateTime().format(GreenplumDateTime.DATETIME_FORMATTER);
+        else if (field.type == DataType.DATE.getOID())
+            return field.val.toString();
+        else if (field instanceof ArrayField) {
+            List<?> list = (List<?>) field.val;
+            String arrayString = ((ArrayField) field).getPrefix() +
+                    list.stream().map(Object::toString).collect(Collectors.joining(((ArrayField) field).getSeparator())) +
+                    ((ArrayField) field).getSuffix();
+            return greenplumCSV.toCsvField(arrayString, true, true, true);
+        }
+        return greenplumCSV.toCsvField((String) field.val, true, true, true);
     }
 }

@@ -1,0 +1,14 @@
+-- @description query01 for PXF HDFS Readable images
+SELECT image_test_small_batchsize_streaming_fragments.names, image_test_small_batchsize_streaming_fragments.directories FROM image_test_small_batchsize_streaming_fragments, compare_table_small_batchsize_streaming_fragments
+WHERE image_test_small_batchsize_streaming_fragments.fullpaths = compare_table_small_batchsize_streaming_fragments.fullpaths
+  AND image_test_small_batchsize_streaming_fragments.directories = compare_table_small_batchsize_streaming_fragments.directories
+  AND image_test_small_batchsize_streaming_fragments.names = compare_table_small_batchsize_streaming_fragments.names
+  AND image_test_small_batchsize_streaming_fragments.images = compare_table_small_batchsize_streaming_fragments.images
+ORDER BY names;
+  names              |   directories
+---------------------+-----------------
+ {0.png,1.png,2.png} | {dir1,dir1,dir1}
+ {1.png,2.png,3.png} | {dir2,dir2,dir2}
+ {3.png,4.png,0.png} | {dir1,dir1,dir2}
+ {4.png}             | {dir2}
+(4 rows)

@@ -1,0 +1,8 @@
+-- @description query01 for PXF HDFS Readable images
+
+SELECT image_test_large_batchsize_streaming_fragments.names, image_test_large_batchsize_streaming_fragments.directories FROM image_test_large_batchsize_streaming_fragments, compare_table_large_batchsize_streaming_fragments
+    WHERE image_test_large_batchsize_streaming_fragments.fullpaths = compare_table_large_batchsize_streaming_fragments.fullpaths
+    AND image_test_large_batchsize_streaming_fragments.directories = compare_table_large_batchsize_streaming_fragments.directories
+    AND image_test_large_batchsize_streaming_fragments.names = compare_table_large_batchsize_streaming_fragments.names
+    AND image_test_large_batchsize_streaming_fragments.images = compare_table_large_batchsize_streaming_fragments.images
+    ORDER BY names;
