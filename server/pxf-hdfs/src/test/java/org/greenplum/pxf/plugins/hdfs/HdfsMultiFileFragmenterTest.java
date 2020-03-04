@@ -12,9 +12,9 @@ import java.util.Objects;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-public class BatchHdfsFileFragmenterTest {
+public class HdfsMultiFileFragmenterTest {
 
-    private BatchHdfsFileFragmenter batchHdfsFileFragmenter;
+    private HdfsMultiFileFragmenter hdfsMultiFileFragmenter;
     private List<Fragment> fragments;
     private List<Fragment> correctFragments;
     private RequestContext context;
@@ -22,7 +22,7 @@ public class BatchHdfsFileFragmenterTest {
 
     @Before
     public void setup() {
-        batchHdfsFileFragmenter = new BatchHdfsFileFragmenter();
+        hdfsMultiFileFragmenter = new HdfsMultiFileFragmenter();
         context = new RequestContext();
         context.setConfig("default");
         context.setUser("user");
@@ -33,23 +33,23 @@ public class BatchHdfsFileFragmenterTest {
 
     @Test
     public void testInitializeFilePerFragmentNotGiven() {
-        batchHdfsFileFragmenter.initialize(context);
+        hdfsMultiFileFragmenter.initialize(context);
 
-        assertEquals(1, batchHdfsFileFragmenter.getFilesPerFragment());
+        assertEquals(1, hdfsMultiFileFragmenter.getFilesPerFragment());
     }
 
     @Test
     public void testInitializeFilePerFragmentGiven() {
-        context.addOption(BatchHdfsFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "100");
-        batchHdfsFileFragmenter.initialize(context);
+        context.addOption(HdfsMultiFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "100");
+        hdfsMultiFileFragmenter.initialize(context);
 
-        assertEquals(100, batchHdfsFileFragmenter.getFilesPerFragment());
+        assertEquals(100, hdfsMultiFileFragmenter.getFilesPerFragment());
     }
 
     @Test
     public void testGetFragmentsFilePerFragmentNotGiven() throws Exception {
-        batchHdfsFileFragmenter.initialize(context);
-        fragments = batchHdfsFileFragmenter.getFragments();
+        hdfsMultiFileFragmenter.initialize(context);
+        fragments = hdfsMultiFileFragmenter.getFragments();
         correctFragments = new ArrayList<>();
         correctFragments.add(new Fragment("file://" + path + "empty.csv"));
         correctFragments.add(new Fragment("file://" + path + "quoted.csv"));
@@ -62,10 +62,10 @@ public class BatchHdfsFileFragmenterTest {
     }
 
     @Test
-    public void testGetFragmentsLargerFilePerFragmentGiven() throws Exception {
-        context.addOption(BatchHdfsFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "100");
-        batchHdfsFileFragmenter.initialize(context);
-        fragments = batchHdfsFileFragmenter.getFragments();
+    public void testGetFragmentsLargeFilePerFragmentGiven() throws Exception {
+        context.addOption(HdfsMultiFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "100");
+        hdfsMultiFileFragmenter.initialize(context);
+        fragments = hdfsMultiFileFragmenter.getFragments();
         correctFragments = new ArrayList<>();
         correctFragments.add(new Fragment(
                 "file://" + path + "empty.csv" + ","
@@ -81,10 +81,10 @@ public class BatchHdfsFileFragmenterTest {
     }
 
     @Test
-    public void testGetFragmentsSmallerFilePerFragmentGiven() throws Exception {
-        context.addOption(BatchHdfsFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "2");
-        batchHdfsFileFragmenter.initialize(context);
-        fragments = batchHdfsFileFragmenter.getFragments();
+    public void testGetFragmentsSmallFilePerFragmentGiven() throws Exception {
+        context.addOption(HdfsMultiFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "2");
+        hdfsMultiFileFragmenter.initialize(context);
+        fragments = hdfsMultiFileFragmenter.getFragments();
         correctFragments = new ArrayList<>();
         correctFragments.add(new Fragment(
                 "file://" + path + "empty.csv" + ","

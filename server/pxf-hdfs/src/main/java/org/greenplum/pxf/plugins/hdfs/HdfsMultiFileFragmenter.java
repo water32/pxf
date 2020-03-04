@@ -9,9 +9,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class BatchHdfsFileFragmenter extends HdfsDataFragmenter {
+public class HdfsMultiFileFragmenter extends HdfsDataFragmenter {
     public final static String FILES_PER_FRAGMENT_OPTION_NAME = "FILES_PER_FRAGMENT";
-    private int filesPerFragment;
+    protected int filesPerFragment;
 
     public int getFilesPerFragment() {
         return filesPerFragment;

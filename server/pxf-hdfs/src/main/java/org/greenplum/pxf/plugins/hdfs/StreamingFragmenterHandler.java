@@ -4,7 +4,7 @@ import org.greenplum.pxf.api.model.ProtocolHandler;
 import org.greenplum.pxf.api.model.RequestContext;
 
 public class StreamingFragmenterHandler implements ProtocolHandler {
-    private static final String STREAMING_FRAGMENTER = StreamingHdfsFileFragmenter.class.getName();
+    private static final String STREAMING_FRAGMENTER = StreamingHdfsMultiFileFragmenter.class.getName();
 
     @Override
     public String getFragmenterClassName(RequestContext context) {

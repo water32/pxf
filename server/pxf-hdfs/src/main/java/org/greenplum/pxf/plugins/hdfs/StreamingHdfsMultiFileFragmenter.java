@@ -1,15 +1,11 @@
 package org.greenplum.pxf.plugins.hdfs;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RemoteIterator;
-import org.apache.hadoop.mapred.JobConf;
-import org.greenplum.pxf.api.model.BaseFragmenter;
 import org.greenplum.pxf.api.model.Fragment;
 import org.greenplum.pxf.api.model.FragmentStats;
-import org.greenplum.pxf.api.model.RequestContext;
 import org.greenplum.pxf.api.model.StreamingFragmenter;
 
 import java.io.IOException;
@@ -20,40 +16,16 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class StreamingHdfsFileFragmenter extends BaseFragmenter implements StreamingFragmenter {
-    public final static String FILES_PER_FRAGMENT_OPTION_NAME = "FILES_PER_FRAGMENT";
-    private int filesPerFragment;
+public class StreamingHdfsMultiFileFragmenter extends HdfsMultiFileFragmenter implements StreamingFragmenter {
     private List<String> files = new ArrayList<>();
     private List<Path> dirs = new ArrayList<>();
     private int currentDir = 0;
     private int currentFile = 0;
+    private FileSystem fs;
 
     @Override
     public List<Path> getDirs() {
         return dirs;
-    }
-
-    HcfsType hcfsType;
-    Configuration jobConf;
-    FileSystem fs;
-
-    public int getFilesPerFragment() {
-        return filesPerFragment;
-    }
-
-    @Override
-    public void initialize(RequestContext context) {
-        super.initialize(context);
-
-        // Check if the underlying configuration is for HDFS
-        hcfsType = HcfsType.getHcfsType(configuration, context);
-        jobConf = new JobConf(configuration, this.getClass());
-
-        filesPerFragment = 1;
-        final String filesPerFragmentOptionString = context.getOption(FILES_PER_FRAGMENT_OPTION_NAME);
-        if (filesPerFragmentOptionString != null) {
-            filesPerFragment = Integer.parseInt(filesPerFragmentOptionString);
-        }
     }
 
     @Override
@@ -128,7 +100,7 @@ public class StreamingHdfsFileFragmenter extends BaseFragmenter implements Strea
     }
 
     /**
-     * Not implemented, see StreamingHdfsFileFragmenter#next() and StreamingHdfsFileFragmenter#hasNext()
+     * Not implemented, see StreamingHdfsMultiFileFragmenter#next() and StreamingHdfsMultiFileFragmenter#hasNext()
      */
     @Override
     public List<Fragment> getFragments() {

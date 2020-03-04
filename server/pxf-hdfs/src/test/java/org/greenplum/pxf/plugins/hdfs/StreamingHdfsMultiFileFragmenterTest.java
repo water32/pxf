@@ -17,8 +17,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-public class StreamingHdfsFileFragmenterTest {
-    StreamingHdfsFileFragmenter streamingHdfsFileFragmenter;
+public class StreamingHdfsMultiFileFragmenterTest {
+    StreamingHdfsMultiFileFragmenter streamingHdfsFileFragmenter;
     private RequestContext context;
     private String path;
 
@@ -31,7 +31,7 @@ public class StreamingHdfsFileFragmenterTest {
         context.setConfig("default");
         context.setUser("user");
         context.setProfileScheme("localfile");
-        streamingHdfsFileFragmenter = new StreamingHdfsFileFragmenter();
+        streamingHdfsFileFragmenter = new StreamingHdfsMultiFileFragmenter();
         tempFolder = new TemporaryFolder();
         tempFolder.create();
         path = tempFolder.getRoot().toString() + "/";
@@ -60,7 +60,7 @@ public class StreamingHdfsFileFragmenterTest {
 
     @Test
     public void testInitializeFilesPerFragmentGiven() {
-        context.addOption(StreamingHdfsFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "100");
+        context.addOption(StreamingHdfsMultiFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "100");
         streamingHdfsFileFragmenter.initialize(context);
 
         assertEquals(100, streamingHdfsFileFragmenter.getFilesPerFragment());
@@ -111,7 +111,7 @@ public class StreamingHdfsFileFragmenterTest {
         tempFolder.newFolder("test");
         tempFolder.newFile("test/1.csv");
         tempFolder.newFile("test/2.csv");
-        context.addOption(StreamingHdfsFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "10");
+        context.addOption(StreamingHdfsMultiFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "10");
         context.setDataSource(path + "test");
         initFragmenter();
 
@@ -134,7 +134,7 @@ public class StreamingHdfsFileFragmenterTest {
         tempFolder.newFile("test/dir2/3.csv");
         tempFolder.newFile("test/dir2/4.csv");
         tempFolder.newFile("test/dir2/5.csv");
-        context.addOption(StreamingHdfsFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "10");
+        context.addOption(StreamingHdfsMultiFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "10");
         context.setDataSource(path + "test");
         initFragmenter();
 
@@ -154,8 +154,8 @@ public class StreamingHdfsFileFragmenterTest {
     }
 
     @Test
-    public void testNextAndHasNext_LargerFilesPerFragmentGiven() throws Exception {
-        context.addOption(StreamingHdfsFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "100");
+    public void testNextAndHasNext_LargeFilesPerFragmentGiven() throws Exception {
+        context.addOption(StreamingHdfsMultiFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "100");
         initFragmenter();
 
         assertFragment(new Fragment(
@@ -173,8 +173,8 @@ public class StreamingHdfsFileFragmenterTest {
     }
 
     @Test
-    public void testNextAndHasNext_SmallerFilesPerFragmentGiven() throws Exception {
-        context.addOption(StreamingHdfsFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "2");
+    public void testNextAndHasNext_SmallFilesPerFragmentGiven() throws Exception {
+        context.addOption(StreamingHdfsMultiFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "2");
         initFragmenter();
 
         assertFragment(new Fragment(

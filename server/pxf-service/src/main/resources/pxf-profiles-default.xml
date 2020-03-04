@@ -754,7 +754,7 @@ under the License.
         <name>hdfs:image</name>
         <description>This profile is suitable for using when reading image files from HDFS</description>
         <plugins>
-            <fragmenter>org.greenplum.pxf.plugins.hdfs.BatchHdfsFileFragmenter</fragmenter>
+            <fragmenter>org.greenplum.pxf.plugins.hdfs.HdfsMultiFileFragmenter</fragmenter>
             <accessor>org.greenplum.pxf.plugins.hdfs.StreamingImageAccessor</accessor>
             <resolver>org.greenplum.pxf.plugins.hdfs.StreamingImageResolver</resolver>
         </plugins>
@@ -764,7 +764,7 @@ under the License.
         <name>gs:image</name>
         <description>This profile is suitable for using when reading image files from GCS</description>
         <plugins>
-            <fragmenter>org.greenplum.pxf.plugins.hdfs.BatchHdfsFileFragmenter</fragmenter>
+            <fragmenter>org.greenplum.pxf.plugins.hdfs.HdfsMultiFileFragmenter</fragmenter>
             <accessor>org.greenplum.pxf.plugins.hdfs.StreamingImageAccessor</accessor>
             <resolver>org.greenplum.pxf.plugins.hdfs.StreamingImageResolver</resolver>
         </plugins>
@@ -775,7 +775,7 @@ under the License.
         <name>adl:image</name>
         <description>This profile is suitable for using when reading image files from Azure Data Lake</description>
         <plugins>
-            <fragmenter>org.greenplum.pxf.plugins.hdfs.BatchHdfsFileFragmenter</fragmenter>
+            <fragmenter>org.greenplum.pxf.plugins.hdfs.HdfsMultiFileFragmenter</fragmenter>
             <accessor>org.greenplum.pxf.plugins.hdfs.StreamingImageAccessor</accessor>
             <resolver>org.greenplum.pxf.plugins.hdfs.StreamingImageResolver</resolver>
         </plugins>
@@ -786,7 +786,7 @@ under the License.
         <name>s3:image</name>
         <description>This profile is suitable for using when reading image files from Amazon S3</description>
         <plugins>
-            <fragmenter>org.greenplum.pxf.plugins.hdfs.BatchHdfsFileFragmenter</fragmenter>
+            <fragmenter>org.greenplum.pxf.plugins.hdfs.HdfsMultiFileFragmenter</fragmenter>
             <accessor>org.greenplum.pxf.plugins.hdfs.StreamingImageAccessor</accessor>
             <resolver>org.greenplum.pxf.plugins.hdfs.StreamingImageResolver</resolver>
         </plugins>
