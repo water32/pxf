@@ -87,10 +87,10 @@ public class StreamingImageAccessorTest {
         StreamingImageAccessor passedAccessor = (StreamingImageAccessor) row.getData();
         for (BufferedImage image : images) {
             assertTrue(accessor.hasNext());
-            assertImageEquals(image, passedAccessor.readNextImage());
+            assertImageEquals(image, passedAccessor.next());
         }
         assertFalse(accessor.hasNext());
-        assertNull(passedAccessor.readNextImage());
+        assertNull(passedAccessor.next());
     }
 
     private static void assertImageEquals(BufferedImage image, BufferedImage readImage) {

@@ -48,7 +48,6 @@ import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -64,7 +63,7 @@ public class BridgeOutputBuilderTest {
     private static final int UN_SUPPORTED_TYPE = -1;
     private GPDBWritable output = null;
     private RequestContext context;
-    private Iterator<Writable> streamingOutput;
+    private BridgeOutputBuilder.WritableIterator writableIterator;
     private List<OneField> records;
     BridgeOutputBuilder builder;
     @Mock
@@ -193,7 +192,6 @@ public class BridgeOutputBuilderTest {
 
     @Test
     public void testRecordSmallerThanSchema() throws Exception {
-
         addColumn(0, DataType.INTEGER, "col0");
         addColumn(1, DataType.INTEGER, "col1");
         addColumn(2, DataType.INTEGER, "col2");
@@ -442,7 +440,7 @@ public class BridgeOutputBuilderTest {
     }
 
     @Test
-    public void testMakeStreamingOutput() throws IOException {
+    public void testWritableIterator() throws IOException {
         setStreamingResolver(new String[]{"FOO", "BAR", "BAZ"});
         records = new ArrayList<OneField>() {{
             add(new OneField(DataType.FLOAT8.getOID(), 0.123456789));
@@ -454,16 +452,16 @@ public class BridgeOutputBuilderTest {
             add(new ArrayStreamingField(resolver));
         }};
         builder = makeBuilder(new RequestContext());
-        streamingOutput = builder.makeStreamingOutput(records);
-        assertOutputStream("0.123456789,", streamingOutput.next());
-        assertOutputStream("\"{100,200,300}\",", streamingOutput.next());
-        assertOutputStream("\"{FOO,", streamingOutput.next());
-        assertOutputStream("BAR,", streamingOutput.next());
-        assertOutputStream("BAZ}\"\n", streamingOutput.next());
+        writableIterator = builder.new WritableIterator(records);
+        assertOutputStream("0.123456789,", writableIterator.next());
+        assertOutputStream("\"{100,200,300}\",", writableIterator.next());
+        assertOutputStream("\"{FOO,", writableIterator.next());
+        assertOutputStream("BAR,", writableIterator.next());
+        assertOutputStream("BAZ}\"\n", writableIterator.next());
     }
 
     @Test
-    public void testMakeStreamingOutput_StreamingFieldFirst() throws IOException {
+    public void testWritableIterator_StreamingFieldFirst() throws IOException {
         setStreamingResolver(new String[]{"FOO", "BAR", "BAZ"});
         records = new ArrayList<OneField>() {{
             add(new ArrayStreamingField(resolver));
@@ -475,17 +473,17 @@ public class BridgeOutputBuilderTest {
             }}));
         }};
         builder = makeBuilder(new RequestContext());
-        streamingOutput = builder.makeStreamingOutput(records);
-        assertOutputStream("\"{FOO,", streamingOutput.next());
-        assertOutputStream("BAR,", streamingOutput.next());
-        assertOutputStream("BAZ}\",", streamingOutput.next());
-        assertOutputStream("true,", streamingOutput.next());
-        assertOutputStream("\"{foo,bar,baz}\"\n", streamingOutput.next());
+        writableIterator = builder.new WritableIterator(records);
+        assertOutputStream("\"{FOO,", writableIterator.next());
+        assertOutputStream("BAR,", writableIterator.next());
+        assertOutputStream("BAZ}\",", writableIterator.next());
+        assertOutputStream("true,", writableIterator.next());
+        assertOutputStream("\"{foo,bar,baz}\"\n", writableIterator.next());
 
     }
 
     @Test
-    public void testMakeStreamingOutput_EscapeNeeded() throws IOException {
+    public void testWritableIterator_EscapeNeeded() throws IOException {
         setStreamingResolver(new String[]{"FOO", "BA\"R", "BAZ"});
         records = new ArrayList<OneField>() {{
             add(new OneField(DataType.TEXT.getOID(), "just \"some text"));
@@ -497,16 +495,16 @@ public class BridgeOutputBuilderTest {
             }}));
         }};
         builder = makeBuilder(new RequestContext());
-        streamingOutput = builder.makeStreamingOutput(records);
-        assertOutputStream("\"just \"\"some text\",", streamingOutput.next());
-        assertOutputStream("\"{FOO,", streamingOutput.next());
-        assertOutputStream("BA\"\"R,", streamingOutput.next());
-        assertOutputStream("BAZ}\",", streamingOutput.next());
-        assertOutputStream("\"{foo,bar,baz}\"\n", streamingOutput.next());
+        writableIterator = builder.new WritableIterator(records);
+        assertOutputStream("\"just \"\"some text\",", writableIterator.next());
+        assertOutputStream("\"{FOO,", writableIterator.next());
+        assertOutputStream("BA\"\"R,", writableIterator.next());
+        assertOutputStream("BAZ}\",", writableIterator.next());
+        assertOutputStream("\"{foo,bar,baz}\"\n", writableIterator.next());
     }
 
     @Test
-    public void testMakeStreamingOutput_StreamingScalarField() throws IOException {
+    public void testWritableIterator_StreamingScalarField() throws IOException {
         setStreamingResolver(new String[]{"FOO", "BA\"R", "BAZ"});
         records = new ArrayList<OneField>() {{
             add(new OneField(DataType.BIGINT.getOID(), 1234567890));
@@ -518,16 +516,16 @@ public class BridgeOutputBuilderTest {
             add(new StreamingField(DataType.TEXT.getOID(), resolver));
         }};
         builder = makeBuilder(new RequestContext());
-        streamingOutput = builder.makeStreamingOutput(records);
-        assertOutputStream("1234567890,", streamingOutput.next());
-        assertOutputStream("\"{true,false,true}\",", streamingOutput.next());
-        assertOutputStream("\"FOO", streamingOutput.next());
-        assertOutputStream("BA\"\"R", streamingOutput.next());
-        assertOutputStream("BAZ\"\n", streamingOutput.next());
+        writableIterator = builder.new WritableIterator(records);
+        assertOutputStream("1234567890,", writableIterator.next());
+        assertOutputStream("\"{true,false,true}\",", writableIterator.next());
+        assertOutputStream("\"FOO", writableIterator.next());
+        assertOutputStream("BA\"\"R", writableIterator.next());
+        assertOutputStream("BAZ\"\n", writableIterator.next());
     }
 
     @Test
-    public void testMakeStreamingOutput_StreamingScalarField_StreamingFieldFirst() throws IOException {
+    public void testWritableIterator_StreamingScalarField_StreamingFieldFirst() throws IOException {
         setStreamingResolver(new String[]{"FOO", "BA\"R", "BAZ"});
         records = new ArrayList<OneField>() {{
             add(new StreamingField(DataType.TEXT.getOID(), resolver));
@@ -538,11 +536,11 @@ public class BridgeOutputBuilderTest {
             }}));
         }};
         builder = makeBuilder(new RequestContext());
-        streamingOutput = builder.makeStreamingOutput(records);
-        assertOutputStream("\"FOO", streamingOutput.next());
-        assertOutputStream("BA\"\"R", streamingOutput.next());
-        assertOutputStream("BAZ\",", streamingOutput.next());
-        assertOutputStream("\"{0.123456789,1.123456789,2.123456789}\"\n", streamingOutput.next());
+        writableIterator = builder.new WritableIterator(records);
+        assertOutputStream("\"FOO", writableIterator.next());
+        assertOutputStream("BA\"\"R", writableIterator.next());
+        assertOutputStream("BAZ\",", writableIterator.next());
+        assertOutputStream("\"{0.123456789,1.123456789,2.123456789}\"\n", writableIterator.next());
     }
 
     private void setStreamingResolver(String[] responses) {

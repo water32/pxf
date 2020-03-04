@@ -24,6 +24,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.FileSplit;
 import org.greenplum.pxf.api.OneRow;
+import org.greenplum.pxf.api.io.BufferWritable;
 import org.greenplum.pxf.api.model.Accessor;
 import org.greenplum.pxf.api.model.BasePlugin;
 import org.greenplum.pxf.api.model.RequestContext;
@@ -108,16 +109,13 @@ public class StreamingImageAccessor extends BasePlugin implements Accessor {
         return new OneRow(paths, this);
     }
 
-    public BufferedImage readNextImage() {
+    public BufferedImage next() throws IOException {
         if (currentImage == inputStreams.size()) {
             return null;
         }
 
         try (InputStream stream = inputStreams.get(currentImage++)){
             return ImageIO.read(stream);
-        } catch (IOException e) {
-            LOG.info("Couldn't read image", e);
-            return null;
         }
     }
 

@@ -41,6 +41,7 @@ import org.greenplum.pxf.api.model.StreamingResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.lang.reflect.Array;
 import java.sql.Timestamp;
 import java.util.Arrays;
@@ -166,73 +167,74 @@ public class BridgeOutputBuilder {
         return outputList;
     }
 
-
     /**
      * Can take a list of non-streaming and at most one streaming field,
      * returning a lazy iterator over the data. Only supports CSV format.
-     *
-     * @param fields List of fields to create an iterator over
-     * @return Lazy iterator of writables for the given record list
      */
-    public Iterator<Writable> makeStreamingOutput(List<OneField> fields) {
-        return new Iterator<Writable>() {
-            private int recordCounter = 0;
-            private int numRecords = fields.size();
-            private OneField field;
-            private StreamingResolver resolver = null;
-            boolean currentlyStreaming = false;
-            String newline = greenplumCSV.getNewline();
-            String quote = String.valueOf(greenplumCSV.getQuote());
-            String delimiter = String.valueOf(greenplumCSV.getDelimiter());
+    public class WritableIterator {
+        private int recordCounter = 0;
+        private int numRecords;
+        private OneField field;
+        private StreamingResolver resolver = null;
+        boolean currentlyStreaming = false;
+        String newline = greenplumCSV.getNewline();
+        String quote = String.valueOf(greenplumCSV.getQuote());
+        String delimiter = String.valueOf(greenplumCSV.getDelimiter());
+        private List<OneField> fields;
 
-            @Override
-            public boolean hasNext() {
-                if (recordCounter < numRecords) {
-                    return true;
+        /**
+         * @param fields List of fields to create an iterator over
+         */
+        public WritableIterator(List<OneField> fields) {
+            this.fields = fields;
+            numRecords = fields.size();
+        }
+
+        public boolean hasNext() {
+            if (recordCounter < numRecords) {
+                return true;
+            }
+            // we are on the last record, check if it's a streaming type
+            if (StreamingField.class.isAssignableFrom(field.getClass()) && resolver != null) {
+                return resolver.hasNext();
+            }
+            return false;
+        }
+
+        public Writable next() throws IOException {
+            StringBuilder sb = new StringBuilder();
+            if (!currentlyStreaming && numRecords > recordCounter) {
+                // we have more fields, get the next field
+                field = fields.get(recordCounter++);
+            }
+            String csvDelimOrNewline = (recordCounter == numRecords) ? newline : delimiter;
+            if (StreamingField.class.isAssignableFrom(field.getClass())) {
+                if (!currentlyStreaming) {
+                    currentlyStreaming = true;
+                    resolver = ((StreamingField) field).getResolver();
+                    sb.
+                            append(quote).
+                            append(field.getPrefix());
                 }
-                // we are on the last record, check if it's a streaming type
-                if (StreamingField.class.isAssignableFrom(field.getClass()) && resolver != null) {
-                    return resolver.hasNext();
+                sb.append(greenplumCSV.toCsvField(resolver.next(), false, false, true));
+                if (!resolver.hasNext()) {
+                    currentlyStreaming = false;
+                    resolver = null;
+                    sb.
+                            append(field.getSuffix()).
+                            append(quote).
+                            append(csvDelimOrNewline);
+                } else if (field instanceof ArrayStreamingField) {
+                    // element separator for array
+                    sb.append(((ArrayStreamingField) field).getSeparator());
                 }
-                return false;
+            } else {
+                // non-streaming cases are handled by usual methods
+                sb.append(fieldToCSVElement(field)).append(csvDelimOrNewline);
             }
 
-            @Override
-            public Writable next() {
-                StringBuilder sb = new StringBuilder();
-                if (!currentlyStreaming && numRecords > recordCounter) {
-                    // we have more fields, get the next field
-                    field = fields.get(recordCounter++);
-                }
-                String csvDelimOrNewline = (recordCounter == numRecords) ? newline : delimiter;
-                if (StreamingField.class.isAssignableFrom(field.getClass())) {
-                    if (!currentlyStreaming) {
-                        currentlyStreaming = true;
-                        resolver = ((StreamingField) field).getResolver();
-                        sb.
-                                append(quote).
-                                append(field.getPrefix());
-                    }
-                    sb.append(greenplumCSV.toCsvField(resolver.next(), false, false, true));
-                    if (!resolver.hasNext()) {
-                        currentlyStreaming = false;
-                        resolver = null;
-                        sb.
-                                append(field.getSuffix()).
-                                append(quote).
-                                append(csvDelimOrNewline);
-                    } else if (field instanceof ArrayStreamingField) {
-                        // element separator for array
-                        sb.append(((ArrayStreamingField) field).getSeparator());
-                    }
-                } else {
-                    // non-streaming cases are handled by usual methods
-                    sb.append(fieldToCSVElement(field)).append(csvDelimOrNewline);
-                }
-
-                return new BufferWritable(sb.toString().getBytes());
-            }
-        };
+            return new BufferWritable(sb.toString().getBytes());
+        }
     }
 
     public Writable getPartialLine() {

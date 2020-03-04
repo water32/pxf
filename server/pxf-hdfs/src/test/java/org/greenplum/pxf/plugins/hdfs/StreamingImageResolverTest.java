@@ -79,7 +79,7 @@ public class StreamingImageResolverTest {
                 }
                 return images.get(cnt++);
             }
-        }).when(accessor).readNextImage();
+        }).when(accessor).next();
         row = new OneRow(paths, accessor);
     }
 
@@ -104,7 +104,7 @@ public class StreamingImageResolverTest {
     }
 
     @Test
-    public void testGetNext() {
+    public void testGetNext() throws IOException {
         resolver.getFields(row);
         for (String image : imageStrings) {
             assertEquals(image, resolver.next());
@@ -125,5 +125,4 @@ public class StreamingImageResolverTest {
             assertEquals(c, val.get(cnt++));
         }
     }
-
 }

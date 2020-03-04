@@ -1,5 +1,7 @@
 package org.greenplum.pxf.api.model;
 
+import java.io.IOException;
+
 /**
  * Interface that adds Iterable behavior to a Resolver for
  * the purpose of streaming large chunks of data. A large
@@ -12,7 +14,7 @@ public interface StreamingResolver extends Resolver {
     /**
      * @return the next piece of data
      */
-    String next();
+    String next() throws IOException;
 
     /**
      * @return whether or not the streaming field has any more data

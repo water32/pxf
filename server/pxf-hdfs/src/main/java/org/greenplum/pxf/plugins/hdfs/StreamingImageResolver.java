@@ -5,11 +5,11 @@ import org.greenplum.pxf.api.ArrayStreamingField;
 import org.greenplum.pxf.api.OneField;
 import org.greenplum.pxf.api.OneRow;
 import org.greenplum.pxf.api.io.DataType;
-import org.greenplum.pxf.api.model.Accessor;
 import org.greenplum.pxf.api.model.BasePlugin;
 import org.greenplum.pxf.api.model.StreamingResolver;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -20,14 +20,16 @@ import java.util.List;
  * This implementation of StreamingResolver works with the StreamingImageAccessor to
  * fetch and encode images into a string, one by one, placing multiple images into a single
  * field.
- *
+ * <p>
  * It hands off a reference to itself in a ArrayStreamingField so that the field can be used to
  * call back to the StreamingImageResolver in the BridgeOutputBuilder class. The resolver in turn
  * calls back to the StreamingImageAccessor to fetch images when needed.
  */
 @SuppressWarnings("unchecked")
 public class StreamingImageResolver extends BasePlugin implements StreamingResolver {
-    Accessor accessor;
+    StreamingImageAccessor accessor;
+    List<String> paths;
+    int currentImage = 0;
     // cache of strings for RGB arrays going to Greenplum
     private static String[] r = new String[256];
     private static String[] g = new String[256];
@@ -49,7 +51,7 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
      */
     @Override
     public List<OneField> getFields(OneRow row) {
-        List<String> paths = (ArrayList<String>) row.getKey();
+        paths = (ArrayList<String>) row.getKey();
         accessor = (StreamingImageAccessor) row.getData();
         List<String> fullPaths = new ArrayList<>();
         List<String> parentDirs = new ArrayList<>();
@@ -76,7 +78,7 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
 
     @Override
     public boolean hasNext() {
-        return ((StreamingImageAccessor) accessor).hasNext();
+        return accessor.hasNext();
     }
 
     /**
@@ -85,9 +87,13 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
      * will end up in the same tuple.
      */
     @Override
-    public String next() {
-        BufferedImage image = ((StreamingImageAccessor) accessor).readNextImage();
+    public String next() throws IOException {
+        currentImage++;
+        BufferedImage image = accessor.next();
         if (image == null) {
+            if (currentImage < paths.size()) {
+                throw new IOException("File " + paths.get(currentImage) + " yielded a null image, check contents");
+            }
             return null;
         }
 

@@ -7,7 +7,6 @@ import org.greenplum.pxf.api.utilities.ResolverFactory;
 import org.greenplum.pxf.service.BridgeOutputBuilder;
 
 import java.io.DataInputStream;
-import java.util.Iterator;
 
 /**
  * A read bridge for co-ordinating the StreamingImageAccessor and StreamingImageResolver,
@@ -18,7 +17,7 @@ import java.util.Iterator;
  */
 public class StreamingImageReadBridge extends BaseBridge {
     final BridgeOutputBuilder outputBuilder;
-    Iterator<Writable> iterator;
+    BridgeOutputBuilder.WritableIterator writableIterator;
 
     public StreamingImageReadBridge(RequestContext context) {
         this(context, AccessorFactory.getInstance(), ResolverFactory.getInstance());
@@ -36,13 +35,13 @@ public class StreamingImageReadBridge extends BaseBridge {
 
     @Override
     public Writable getNext() throws Exception {
-        if (iterator == null) {
-            iterator = outputBuilder.makeStreamingOutput(resolver.getFields(accessor.readNextObject()));
-        } else if (!iterator.hasNext()) {
+        if (writableIterator == null) {
+            writableIterator = outputBuilder.new WritableIterator(resolver.getFields(accessor.readNextObject()));
+        } else if (!writableIterator.hasNext()) {
             return null;
         }
 
-        return iterator.next();
+        return writableIterator.next();
     }
 
     @Override
