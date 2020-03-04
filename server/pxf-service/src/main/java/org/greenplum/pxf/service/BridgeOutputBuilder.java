@@ -215,7 +215,12 @@ public class BridgeOutputBuilder {
                             append(quote).
                             append(field.getPrefix());
                 }
-                sb.append(greenplumCSV.toCsvField(resolver.next(), false, false, true));
+                Object next = resolver.next();
+                if (next instanceof String) {
+                    sb.append(greenplumCSV.toCsvField((String) next, false, false, true));
+                } else {
+                    sb.append(Hex.encodeHexString((byte[]) next));
+                }
                 if (!resolver.hasNext()) {
                     currentlyStreaming = false;
                     resolver = null;
@@ -231,7 +236,6 @@ public class BridgeOutputBuilder {
                 // non-streaming cases are handled by usual methods
                 sb.append(fieldToCSVElement(field)).append(csvDelimOrNewline);
             }
-
             return new BufferWritable(sb.toString().getBytes());
         }
     }

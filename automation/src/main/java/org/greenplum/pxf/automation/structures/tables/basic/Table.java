@@ -166,7 +166,7 @@ public class Table {
      */
     public void addRow(List<String> row) {
         if (data == null) {
-            data = new ArrayList<List<String>>();
+            data = new ArrayList<>();
         }
 
         data.add(row);

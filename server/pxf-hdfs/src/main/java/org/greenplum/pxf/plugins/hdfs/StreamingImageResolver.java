@@ -4,6 +4,8 @@ import org.greenplum.pxf.api.ArrayField;
 import org.greenplum.pxf.api.ArrayStreamingField;
 import org.greenplum.pxf.api.OneField;
 import org.greenplum.pxf.api.OneRow;
+import org.greenplum.pxf.api.StreamingField;
+import org.greenplum.pxf.api.UnsupportedTypeException;
 import org.greenplum.pxf.api.io.DataType;
 import org.greenplum.pxf.api.model.BasePlugin;
 import org.greenplum.pxf.api.model.StreamingResolver;
@@ -27,14 +29,21 @@ import java.util.List;
  */
 @SuppressWarnings("unchecked")
 public class StreamingImageResolver extends BasePlugin implements StreamingResolver {
-    StreamingImageAccessor accessor;
-    List<String> paths;
-    int currentImage = 0;
+    private static final int IMAGE_DATA_COLUMN = 4;
+    private StreamingImageAccessor accessor;
+    private List<String> paths;
+    private int currentImage = 0;
+    private int numImages;
+    private int w;
+    private int h;
     private static final int INTENSITIES = 256;
     // cache of strings for RGB arrays going to Greenplum
     private static String[] r = new String[INTENSITIES];
     private static String[] g = new String[INTENSITIES];
     private static String[] b = new String[INTENSITIES];
+    private DataType imageColumnType;
+    private BufferedImage image;
+    private boolean hasNext;
 
     static {
         String intStr;
@@ -51,7 +60,12 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
      * of image files.
      */
     @Override
-    public List<OneField> getFields(OneRow row) {
+    public List<OneField> getFields(OneRow row) throws IOException {
+        imageColumnType = context.getColumn(IMAGE_DATA_COLUMN).getDataType();
+        if (imageColumnType != DataType.INT2ARRAY && imageColumnType != DataType.INT4ARRAY &&
+                imageColumnType != DataType.INT8ARRAY && imageColumnType != DataType.BYTEA) {
+            throw new UnsupportedTypeException("image data column must be an integer or byte array");
+        }
         paths = (ArrayList<String>) row.getKey();
         accessor = (StreamingImageAccessor) row.getData();
         List<String> fullPaths = new ArrayList<>();
@@ -67,19 +81,41 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
             fileNames.add(path.getFileName().toString());
         }
 
+        numImages = fileNames.size();
+        // get the first image since we need the width and height early
+        getNextImage();
+        w = image.getWidth();
+        h = image.getHeight();
+        LOG.debug("Image size {}w {}h", w, h);
+
         return new ArrayList<OneField>() {
             {
                 add(new ArrayField(DataType.TEXTARRAY.getOID(), fullPaths));
                 add(new ArrayField(DataType.TEXTARRAY.getOID(), parentDirs));
                 add(new ArrayField(DataType.TEXTARRAY.getOID(), fileNames));
-                add(new ArrayStreamingField(StreamingImageResolver.this));
+                add(new ArrayField(DataType.INT8ARRAY.getOID(), new ArrayList<Integer>() {{
+                    add(numImages);
+                    add(w);
+                    add(h);
+                }}));
+                if (imageColumnType == DataType.BYTEA) {
+                    add(new StreamingField(DataType.BYTEA.getOID(),StreamingImageResolver.this));
+                } else {
+                    add(new ArrayStreamingField(StreamingImageResolver.this));
+                }
             }
         };
     }
 
+    private void getNextImage() throws IOException {
+        image = accessor.next();
+        currentImage++;
+        hasNext = image != null;
+    }
+
     @Override
     public boolean hasNext() {
-        return accessor.hasNext();
+        return hasNext;
     }
 
     /**
@@ -88,20 +124,36 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
      * will end up in the same tuple.
      */
     @Override
-    public String next() throws IOException {
-        currentImage++;
-        BufferedImage image = accessor.next();
+    public Object next() throws IOException {
         if (image == null) {
-            if (currentImage < paths.size()) {
-                throw new IOException("File " + paths.get(currentImage) + " yielded a null image, check contents");
+            if (currentImage < numImages) {
+                throw new IOException(
+                        String.format("File %s yielded a null image, check contents", paths.get(currentImage))
+                );
             }
             return null;
         }
 
+        if (w != image.getWidth() || h != image.getHeight()) {
+            throw new IOException(
+                    String.format(
+                            "Image from file %s has an inconsistent size %dx%d, should be %dx%d",
+                            paths.get(currentImage),
+                            image.getWidth(),
+                            image.getHeight(),
+                            w,
+                            h
+                    )
+            );
+        }
+
+        if (imageColumnType == DataType.BYTEA) {
+            byte[] imageByteArray = imageToByteArray(image, w, h);
+            getNextImage();
+            return imageByteArray;
+        }
+
         StringBuilder sb;
-        int w = image.getWidth();
-        int h = image.getHeight();
-        LOG.debug("Image size {}w {}h", w, h);
         // avoid arrayCopy() in sb.append() by pre-calculating max image size
         sb = new StringBuilder(
                 w * h * 13 +  // each RGB is at most 13 chars: {255,255,255}
@@ -114,7 +166,19 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
         processImage(sb, image, w, h);
         LOG.debug("Image length: {}, cap: {}", sb.length(), sb.capacity());
 
+        getNextImage();
         return sb.toString();
+    }
+
+    private byte[] imageToByteArray(BufferedImage image, int w, int h) {
+        byte[] bytea = new byte[w * h * 3];
+        int cnt = 0;
+        for (int pixel : image.getRGB(0, 0, w, h, null, 0, w)) {
+            bytea[cnt++] = (byte) ((pixel >> 16) & 0xff);
+            bytea[cnt++] = (byte) ((pixel >> 8) & 0xff);
+            bytea[cnt++] = (byte) (pixel & 0xff);
+        }
+        return bytea;
     }
 
     private static void processImage(StringBuilder sb, BufferedImage image, int w, int h) {
