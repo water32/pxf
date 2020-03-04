@@ -82,12 +82,12 @@ public class StreamingImageAccessorTest {
         assertNull(passedAccessor.next());
     }
 
-    private static void assertImageEquals(BufferedImage image, BufferedImage readImage) {
+    private static void assertImageEquals(BufferedImage image, BufferedImage[] readImage) {
         int h = image.getHeight();
         int w = image.getWidth();
         for (int i = 0; i < w; i++) {
             for (int j = 0; j < h; j++) {
-                assertEquals(image.getRGB(i, j), readImage.getRGB(i, j));
+                assertEquals(image.getRGB(i, j), readImage[0].getRGB(i, j));
             }
         }
     }

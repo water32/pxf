@@ -32,15 +32,16 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
     private static final int IMAGE_DATA_COLUMN = 4;
     private StreamingImageAccessor accessor;
     private List<String> paths;
-    private int currentImage = 0, numImages, w, h;
+    private int currentImage = 0, currentThread = 0, numImages, w, h;
     private static final int INTENSITIES = 256, NUM_COL = 3;
     // cache of strings for RGB arrays going to Greenplum
     private static String[] r = new String[INTENSITIES];
     private static String[] g = new String[INTENSITIES];
     private static String[] b = new String[INTENSITIES];
     private DataType imageColumnType;
-    private BufferedImage image;
-    private boolean hasNext;
+    private BufferedImage[] currentImages;
+    private Thread[] threads;
+    private Object[] imageArrays;
 
     static {
         String intStr;
@@ -80,10 +81,14 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
 
         numImages = fileNames.size();
         // get the first image since we need the width and height early
-        getNextImage();
-        w = image.getWidth();
-        h = image.getHeight();
+        getNextImages();
+        w = currentImages[0].getWidth();
+        h = currentImages[0].getHeight();
         LOG.debug("Image size {}w {}h", w, h);
+
+        currentThread = currentImages.length;
+        threads = new Thread[currentImages.length];
+        imageArrays = new Object[currentImages.length];
 
         return new ArrayList<OneField>() {
             {
@@ -105,78 +110,103 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
         };
     }
 
-    private void getNextImage() throws InterruptedException {
-        image = accessor.next();
-        currentImage++;
-        hasNext = image != null;
+    private void getNextImages() throws InterruptedException {
+        currentImages = accessor.next();
     }
 
     @Override
     public boolean hasNext() {
-        return hasNext;
+        return currentImage < numImages;
     }
 
     /**
-     * Returns Postgres-style multi-dimensional array, piece by piece. Each
+     * Returns Postgres-style multi-dimensional int array or Postgres BYTEA, piece by piece. Each
      * time this method is called it returns another image, where multiple images
      * will end up in the same tuple.
      */
     @Override
-    public Object next() throws IOException, InterruptedException {
-        if (image == null) {
-            if (currentImage < numImages) {
-                throw new IOException(
-                        String.format("File %s yielded a null image, check contents", paths.get(currentImage))
-                );
+    public Object next() throws InterruptedException {
+        // if ((currentImages == null && currentThread == imageArrays.length) || (currentThread < currentImages.length && currentImages[currentThread] == null)) {
+        //     if (currentImage < numImages) {
+        //         throw new IOException(
+        //                 String.format("File %s yielded a null image, check contents", paths.get(currentImage))
+        //         );
+        //     }
+        //     return null;
+        // }
+
+        if (currentThread == imageArrays.length) {
+            for (int i = 0; i < currentImages.length; i++) {
+                threads[i] = new Thread(new ProcessImageRunnable(i));
+                threads[i].start();
             }
-            return null;
+            for (int i = 0; i < currentImages.length; i++) {
+                threads[i].join();
+            }
+            currentThread = 0;
+            getNextImages();
         }
 
-        if (w != image.getWidth() || h != image.getHeight()) {
-            throw new IOException(
-                    String.format(
-                            "Image from file %s has an inconsistent size %dx%d, should be %dx%d",
-                            paths.get(currentImage),
-                            image.getWidth(),
-                            image.getHeight(),
-                            w,
-                            h
-                    )
-            );
-        }
+        // checkCurrentImageSize();
 
-        if (imageColumnType == DataType.BYTEA) {
-            byte[] imageByteArray = imageToByteArray(image, w, h);
-            getNextImage();
-            return imageByteArray;
-        }
-
-        StringBuilder sb;
-        // avoid arrayCopy() in sb.append() by pre-calculating max image size
-        sb = new StringBuilder(
-                w * h * 13 +  // each RGB is at most 13 chars: {255,255,255}
-                        (w - 1) * h + // commas separating RGBs
-                        h * 2 +       // curly braces surrounding each row of RGBs
-                        h - 1 +       // commas separating each row
-                        2             // outer curly braces for the image
-        );
-        LOG.debug("Image length: {}, cap: {}", sb.length(), sb.capacity());
-        processImage(sb, image, w, h);
-        LOG.debug("Image length: {}, cap: {}", sb.length(), sb.capacity());
-
-        getNextImage();
-        return sb.toString();
+        currentImage++;
+        return imageArrays[currentThread++];
     }
 
-    private byte[] imageToByteArray(BufferedImage image, int w, int h) {
-        byte[] bytea = new byte[w * h * NUM_COL];
-        int cnt = 0;
-        for (int pixel : image.getRGB(0, 0, w, h, null, 0, w)) {
-            bytea[cnt++] = (byte) ((pixel >> 16) & 0xff);
-            bytea[cnt++] = (byte) ((pixel >> 8) & 0xff);
-            bytea[cnt++] = (byte) (pixel & 0xff);
+    // private void checkCurrentImageSize() throws IOException {
+    //     if (w != currentImages[currentThread].getWidth() || h != currentImages[currentThread].getHeight()) {
+    //         throw new IOException(
+    //                 String.format(
+    //                         "Image from file %s has an inconsistent size %dx%d, should be %dx%d",
+    //                         paths.get(currentImage),
+    //                         currentImages[currentThread].getWidth(),
+    //                         currentImages[currentThread].getHeight(),
+    //                         w,
+    //                         h
+    //                 )
+    //         );
+    //     }
+    // }
+
+    class ProcessImageRunnable implements Runnable {
+        private int cnt;
+
+        public ProcessImageRunnable(int cnt) {
+            this.cnt = cnt;
         }
-        return bytea;
+
+        private byte[] imageToByteArray(BufferedImage image) {
+            byte[] bytea = new byte[w * h * NUM_COL];
+            int cnt = 0;
+            for (int pixel : image.getRGB(0, 0, w, h, null, 0, w)) {
+                bytea[cnt++] = (byte) ((pixel >> 16) & 0xff);
+                bytea[cnt++] = (byte) ((pixel >> 8) & 0xff);
+                bytea[cnt++] = (byte) (pixel & 0xff);
+            }
+            return bytea;
+        }
+
+        private String imageToPostgresArray(BufferedImage image) {
+            StringBuilder sb;
+            // avoid arrayCopy() in sb.append() by pre-calculating max image size
+            sb = new StringBuilder(
+                    w * h * 13 +  // each RGB is at most 13 chars: {255,255,255}
+                            (w - 1) * h + // commas separating RGBs
+                            h * 2 +       // curly braces surrounding each row of RGBs
+                            h - 1 +       // commas separating each row
+                            2             // outer curly braces for the image
+            );
+            LOG.debug("Image length: {}, cap: {}", sb.length(), sb.capacity());
+            processImage(sb, image, w, h);
+            LOG.debug("Image length: {}, cap: {}", sb.length(), sb.capacity());
+            return sb.toString();
+        }
+
+        @Override
+        public void run() {
+            if (imageColumnType == DataType.BYTEA) imageArrays[cnt] = imageToByteArray(currentImages[cnt]);
+            else imageArrays[cnt] = imageToPostgresArray(currentImages[cnt]);
+        }
     }
 
     private static void processImage(StringBuilder sb, BufferedImage image, int w, int h) {
@@ -207,5 +237,4 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
     public OneRow setFields(List<OneField> record) {
         throw new UnsupportedOperationException();
     }
-
 }

@@ -52,7 +52,7 @@ public class StreamingImageAccessor extends BasePlugin implements Accessor {
     private int NUM_THREADS;
     private BufferedImage[] currentImages;
     private Thread[] threads;
-    private int currentImage;
+    // private int currentImage;
     private static final String CONCURRENT_IMAGE_READS_OPTION = "ACCESSOR_THREADS";
 
     @Override
@@ -61,7 +61,7 @@ public class StreamingImageAccessor extends BasePlugin implements Accessor {
         NUM_THREADS = Integer.parseInt(context.getOption(CONCURRENT_IMAGE_READS_OPTION, "1"));
         currentImages = new BufferedImage[NUM_THREADS];
         threads = new Thread[NUM_THREADS];
-        currentImage = NUM_THREADS;
+        // currentImage = NUM_THREADS;
         fileSplit = HdfsUtilities.parseFileSplit(context);
     }
 
@@ -121,29 +121,39 @@ public class StreamingImageAccessor extends BasePlugin implements Accessor {
         }
     }
 
-    public BufferedImage next() throws InterruptedException {
+    public BufferedImage[] next() throws InterruptedException {
         if (currentPath == paths.size()) {
             return null;
         }
-
-        if (currentImage == NUM_THREADS) {
-            for (int i = 0; i < NUM_THREADS; i++) {
-                if (currentPath + i == paths.size()) {
-                    break;
-                }
-                threads[i] = new Thread(new FetchImageRunnable(i));
-                threads[i].start();
-            }
-            for (int i = 0; i < NUM_THREADS; i++) {
-                if (currentPath + i == paths.size()) {
-                    break;
-                }
-                threads[i].join();
-            }
-            currentImage = 0;
+        // long now;
+        // if (currentImage == NUM_THREADS) {
+        // if (LOG.isDebugEnabled()) {
+        //     now = System.currentTimeMillis();
+        //     if (numThreads > 0) {
+        //         LOG.debug("---> {} images were resolved in {} ms", numThreads, now - then);
+        //     }
+        //     then = now;
+        // }
+        // private long then = System.currentTimeMillis();
+        int numThreads = currentPath + NUM_THREADS <= paths.size() ? NUM_THREADS : paths.size() - currentPath;
+        currentImages = new BufferedImage[numThreads];
+        for (int i = 0; i < numThreads; i++) {
+            threads[i] = new Thread(new FetchImageRunnable(i));
+            threads[i].start();
         }
-        currentPath++;
-        return currentImages[currentImage++];
+        for (int i = 0; i < numThreads; i++) {
+            threads[i].join();
+        }
+        // if (LOG.isDebugEnabled()) {
+        //     now = System.currentTimeMillis();
+        //     LOG.debug("---> {} images were fetched in {} ms", numThreads, now - then);
+        //     then = now;
+        // }
+        // currentImage = 0;
+        // }
+        // currentPath++;
+        currentPath += numThreads;
+        return currentImages;
     }
 
     public boolean hasNext() {
