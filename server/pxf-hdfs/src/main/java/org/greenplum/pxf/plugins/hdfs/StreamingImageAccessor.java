@@ -24,7 +24,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.FileSplit;
 import org.greenplum.pxf.api.OneRow;
-import org.greenplum.pxf.api.io.BufferWritable;
 import org.greenplum.pxf.api.model.Accessor;
 import org.greenplum.pxf.api.model.BasePlugin;
 import org.greenplum.pxf.api.model.RequestContext;
@@ -45,16 +44,15 @@ import java.util.List;
  * It hands off a reference to itself so that the StreamingImageResolver can fetch more images.
  */
 public class StreamingImageAccessor extends BasePlugin implements Accessor {
-    private List<InputStream> inputStreams;
     private List<String> paths;
     private FileSplit fileSplit;
+    private FileSystem fs;
     private boolean served = false;
-    int currentImage = 0;
+    int currentPath = 0;
 
     @Override
     public void initialize(RequestContext requestContext) {
         super.initialize(requestContext);
-        inputStreams = new ArrayList<>();
         fileSplit = HdfsUtilities.parseFileSplit(context);
     }
 
@@ -74,28 +72,16 @@ public class StreamingImageAccessor extends BasePlugin implements Accessor {
         // input data stream, FileSystem.get actually
         // returns an FSDataInputStream
         paths = new ArrayList<>(Arrays.asList(context.getDataSource().split(",")));
-        FileSystem fs = FileSystem.get(URI.create(paths.get(0)), configuration);
-        for (String p : paths) {
-            inputStreams.add(fs.open(new Path(p)));
-        }
+        fs = FileSystem.get(URI.create(paths.get(0)), configuration);
 
-        return (inputStreams.size() > 0);
+        return paths.size() > 0;
     }
 
     /**
      * Closes the access stream when finished reading the file
      */
     @Override
-    public void closeForRead() throws Exception {
-        if (!isWorkingSegment()) {
-            return;
-        }
-
-        for (InputStream inputStream : inputStreams) {
-            if (inputStream != null) {
-                inputStream.close();
-            }
-        }
+    public void closeForRead() {
     }
 
     @Override
@@ -110,17 +96,16 @@ public class StreamingImageAccessor extends BasePlugin implements Accessor {
     }
 
     public BufferedImage next() throws IOException {
-        if (currentImage == inputStreams.size()) {
+        if (currentPath == paths.size()) {
             return null;
         }
-
-        try (InputStream stream = inputStreams.get(currentImage++)){
+        try (InputStream stream = fs.open(new Path(paths.get(currentPath++)))) {
             return ImageIO.read(stream);
         }
     }
 
     public boolean hasNext() {
-        return currentImage < inputStreams.size();
+        return currentPath < paths.size();
     }
 
     @Override
@@ -154,11 +139,7 @@ public class StreamingImageAccessor extends BasePlugin implements Accessor {
                 context.getOption("COMPRESSION_CODEC"));
     }
 
-    /**
-     *
-     * @return the list of input streams
-     */
-    public List<InputStream> getInputStreams() {
-        return inputStreams;
+    public List<String> getPaths() {
+        return paths;
     }
 }

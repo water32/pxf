@@ -27,11 +27,11 @@ public class StreamingHdfsFileFragmenterTest {
 
     @Before
     public void setup() throws IOException {
-        streamingHdfsFileFragmenter = new StreamingHdfsFileFragmenter();
         context = new RequestContext();
         context.setConfig("default");
         context.setUser("user");
         context.setProfileScheme("localfile");
+        streamingHdfsFileFragmenter = new StreamingHdfsFileFragmenter();
         tempFolder = new TemporaryFolder();
         tempFolder.create();
         path = tempFolder.getRoot().toString() + "/";
@@ -52,18 +52,18 @@ public class StreamingHdfsFileFragmenterTest {
     }
 
     @Test
-    public void testInitializeBatchSizeNotGiven() throws Exception {
+    public void testInitializeFilesPerFragmentNotGiven() throws Exception {
         streamingHdfsFileFragmenter.initialize(context);
 
-        assertEquals(1, streamingHdfsFileFragmenter.getBatchSize());
+        assertEquals(1, streamingHdfsFileFragmenter.getFilesPerFragment());
     }
 
     @Test
-    public void testInitializeBatchSizeGiven() {
-        context.addOption("BATCH_SIZE", "100");
+    public void testInitializeFilesPerFragmentGiven() {
+        context.addOption(StreamingHdfsFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "100");
         streamingHdfsFileFragmenter.initialize(context);
 
-        assertEquals(100, streamingHdfsFileFragmenter.getBatchSize());
+        assertEquals(100, streamingHdfsFileFragmenter.getFilesPerFragment());
     }
 
     @Test
@@ -75,8 +75,7 @@ public class StreamingHdfsFileFragmenterTest {
         tempFolder.newFolder("test", "dir1", "empty_dir", "foobar");
         tempFolder.newFolder("test", "a");
         context.setDataSource(path + "test");
-        streamingHdfsFileFragmenter.initialize(context);
-        streamingHdfsFileFragmenter.searchForDirs();
+        initFragmenter();
 
         assertEquals(new ArrayList<Path>() {{
                          add(new Path("file://" + path + "test"));
@@ -92,9 +91,8 @@ public class StreamingHdfsFileFragmenterTest {
     }
 
     @Test
-    public void testNextAndHasNext_BatchSizeNotGiven() throws Exception {
-        streamingHdfsFileFragmenter.initialize(context);
-        streamingHdfsFileFragmenter.searchForDirs();
+    public void testNextAndHasNext_FilesPerFragmentNotGiven() throws Exception {
+        initFragmenter();
 
         assertFragment(new Fragment("file://" + path + "dir1/1.csv"));
         assertFragment(new Fragment("file://" + path + "dir1/2.csv"));
@@ -113,10 +111,9 @@ public class StreamingHdfsFileFragmenterTest {
         tempFolder.newFolder("test");
         tempFolder.newFile("test/1.csv");
         tempFolder.newFile("test/2.csv");
-        context.addOption("BATCH_SIZE", "10");
+        context.addOption(StreamingHdfsFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "10");
         context.setDataSource(path + "test");
-        streamingHdfsFileFragmenter.initialize(context);
-        streamingHdfsFileFragmenter.searchForDirs();
+        initFragmenter();
 
         assertFragment(new Fragment("file://" + path + "test/1.csv," +
                 "file://" + path + "test/2.csv"));
@@ -137,10 +134,9 @@ public class StreamingHdfsFileFragmenterTest {
         tempFolder.newFile("test/dir2/3.csv");
         tempFolder.newFile("test/dir2/4.csv");
         tempFolder.newFile("test/dir2/5.csv");
-        context.addOption("BATCH_SIZE", "10");
+        context.addOption(StreamingHdfsFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "10");
         context.setDataSource(path + "test");
-        streamingHdfsFileFragmenter.initialize(context);
-        streamingHdfsFileFragmenter.searchForDirs();
+        initFragmenter();
 
         assertFragment(new Fragment(
                 "file://" + path + "test/dir1/1.csv,"
@@ -158,10 +154,9 @@ public class StreamingHdfsFileFragmenterTest {
     }
 
     @Test
-    public void testNextAndHasNext_LargerBatchSizeGiven() throws Exception {
-        context.addOption("BATCH_SIZE", "100");
-        streamingHdfsFileFragmenter.initialize(context);
-        streamingHdfsFileFragmenter.searchForDirs();
+    public void testNextAndHasNext_LargerFilesPerFragmentGiven() throws Exception {
+        context.addOption(StreamingHdfsFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "100");
+        initFragmenter();
 
         assertFragment(new Fragment(
                 "file://" + path + "dir1/1.csv,"
@@ -178,10 +173,9 @@ public class StreamingHdfsFileFragmenterTest {
     }
 
     @Test
-    public void testNextAndHasNext_SmallerBatchSizeGiven() throws Exception {
-        context.addOption("BATCH_SIZE", "2");
-        streamingHdfsFileFragmenter.initialize(context);
-        streamingHdfsFileFragmenter.searchForDirs();
+    public void testNextAndHasNext_SmallerFilesPerFragmentGiven() throws Exception {
+        context.addOption(StreamingHdfsFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "2");
+        initFragmenter();
 
         assertFragment(new Fragment(
                 "file://" + path + "dir1/1.csv,"
@@ -203,6 +197,11 @@ public class StreamingHdfsFileFragmenterTest {
                 "file://" + path + "dir2/3.csv"
         ));
         assertNoMoreFragments();
+    }
+
+    private void initFragmenter() throws Exception {
+        streamingHdfsFileFragmenter.initialize(context);
+        streamingHdfsFileFragmenter.open();
     }
 
     private void assertFragment(Fragment correctFragment) throws IOException {

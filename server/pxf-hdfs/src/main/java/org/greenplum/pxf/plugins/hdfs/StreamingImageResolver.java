@@ -30,14 +30,15 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
     StreamingImageAccessor accessor;
     List<String> paths;
     int currentImage = 0;
+    private static final int INTENSITIES = 256;
     // cache of strings for RGB arrays going to Greenplum
-    private static String[] r = new String[256];
-    private static String[] g = new String[256];
-    private static String[] b = new String[256];
+    private static String[] r = new String[INTENSITIES];
+    private static String[] g = new String[INTENSITIES];
+    private static String[] b = new String[INTENSITIES];
 
     static {
         String intStr;
-        for (int i = 0; i < 256; i++) {
+        for (int i = 0; i < INTENSITIES; i++) {
             intStr = String.valueOf(i);
             r[i] = "{" + intStr;
             g[i] = "," + intStr + ",";

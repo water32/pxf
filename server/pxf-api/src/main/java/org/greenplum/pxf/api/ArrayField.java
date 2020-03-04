@@ -1,6 +1,7 @@
 package org.greenplum.pxf.api;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * A special case of OneField that represents an array.
@@ -24,5 +25,11 @@ public class ArrayField extends OneField {
 
     public void setSeparator(String separator) {
         this.separator = separator;
+    }
+
+    @Override
+    public String toString() {
+        List<?> list = (List<?>) this.val;
+        return prefix + list.stream().map(Object::toString).collect(Collectors.joining(separator)) + suffix;
     }
 }

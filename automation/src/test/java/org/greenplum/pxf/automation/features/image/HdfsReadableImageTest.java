@@ -124,7 +124,7 @@ public class HdfsReadableImageTest extends BaseFeature {
     }
 
     @Override
-    public void beforeMethod() throws Exception {
+    public void beforeMethod() {
         // default external table with common settings
         exTable = new ReadableExternalTable("image_test", null, "", "CSV");
         exTable.setHost(pxfHost);
@@ -146,9 +146,9 @@ public class HdfsReadableImageTest extends BaseFeature {
      * Read a single image from HDFS
      */
     @Test(groups = {"features", "gpdb", "hcfs", "security"})
-    public void batchSize1() throws Exception {
-        exTable.setName("image_test_batchsize_1");
-        compareTable.setName("compare_table_batchsize_1");
+    public void oneFilePerFragment() throws Exception {
+        exTable.setName("image_test_one_file_per_fragment");
+        compareTable.setName("compare_table_one_file_per_fragment");
         int cnt = 0;
         for (StringBuilder image : imagesPostgresArrays) {
             compareTable.addRow(new String[]{
@@ -165,15 +165,15 @@ public class HdfsReadableImageTest extends BaseFeature {
         gpdb.runQuery(compareTable.constructInsertStmt());
 
         // Verify results
-        runTincTest("pxf.features.hdfs.readable.image.batchsize_1.runTest");
+        runTincTest("pxf.features.hdfs.readable.image.one_file_per_fragment.runTest");
     }
 
     @Test(groups = {"features", "gpdb", "hcfs", "security"})
-    public void batchSize1_streamingFragments() throws Exception {
-        exTable.setName("image_test_batchsize_1_streaming_fragments");
+    public void oneFilePerFragment_streamingFragments() throws Exception {
+        exTable.setName("image_test_one_file_per_fragment_streaming_fragments");
         exTable.setUserParameters(new String[]{"STREAM_FRAGMENTS=true"});
         exTable.setPath(hdfs.getWorkingDirectory() + "/streamingFragmentsReadableImage");
-        compareTable.setName("compare_table_batchsize_1_streaming_fragments");
+        compareTable.setName("compare_table_one_file_per_fragment_streaming_fragments");
         int cnt = 0;
         for (StringBuilder image : imagesPostgresArrays) {
             compareTable.addRow(new String[]{
@@ -196,17 +196,17 @@ public class HdfsReadableImageTest extends BaseFeature {
         gpdb.runQuery(compareTable.constructInsertStmt());
 
         // Verify results
-        runTincTest("pxf.features.hdfs.readable.image.batchsize_1_streaming_fragments.runTest");
+        runTincTest("pxf.features.hdfs.readable.image.one_file_per_fragment_streaming_fragments.runTest");
     }
 
     /**
      * Read a single image from HDFS
      */
     @Test(groups = {"features", "gpdb", "hcfs", "security"})
-    public void smallBatchSize() throws Exception {
-        exTable.setName("image_test_small_batchsize");
-        exTable.setUserParameters(new String[]{"BATCH_SIZE=3"});
-        compareTable.setName("compare_table_small_batchsize");
+    public void multiFragment() throws Exception {
+        exTable.setName("image_test_multi_fragment");
+        exTable.setUserParameters(new String[]{"FILES_PER_FRAGMENT=3"});
+        compareTable.setName("compare_table_multi_fragment");
         compareTable.addRow(new String[]{
                 "'{" + fullPaths[0] + "," + fullPaths[1] + "," + fullPaths[2] + "}'",
                 "'{" + parentDirectories[0] + "," + parentDirectories[1] + "," + parentDirectories[2] + "}'",
@@ -225,15 +225,15 @@ public class HdfsReadableImageTest extends BaseFeature {
         gpdb.runQuery(compareTable.constructInsertStmt());
 
         // Verify results
-        runTincTest("pxf.features.hdfs.readable.image.small_batchsize.runTest");
+        runTincTest("pxf.features.hdfs.readable.image.multi_fragment.runTest");
     }
 
     @Test(groups = {"features", "gpdb", "hcfs", "security"})
-    public void smallBatchSize_streamingFragments() throws Exception {
-        exTable.setName("image_test_small_batchsize_streaming_fragments");
-        exTable.setUserParameters(new String[]{"BATCH_SIZE=3", "STREAM_FRAGMENTS=true"});
+    public void multiFragment_streamingFragments() throws Exception {
+        exTable.setName("image_test_multi_fragment_streaming_fragments");
+        exTable.setUserParameters(new String[]{"FILES_PER_FRAGMENT=3", "STREAM_FRAGMENTS=true"});
         exTable.setPath(hdfs.getWorkingDirectory() + "/streamingFragmentsReadableImage");
-        compareTable.setName("compare_table_small_batchsize_streaming_fragments");
+        compareTable.setName("compare_table_multi_fragment_streaming_fragments");
         compareTable.addRow(new String[]{
                 "'{" + fullPaths[0].replace("readableImage", "streamingFragmentsReadableImage/dir1") + ","
                         + fullPaths[1].replace("readableImage", "streamingFragmentsReadableImage/dir1") + ","
@@ -270,17 +270,18 @@ public class HdfsReadableImageTest extends BaseFeature {
         gpdb.createTableAndVerify(compareTable);
         gpdb.runQuery(compareTable.constructInsertStmt());
         // Verify results
-        runTincTest("pxf.features.hdfs.readable.image.small_batchsize_streaming_fragments.runTest");
+        runTincTest("pxf.features.hdfs.readable.image.multi_fragment_streaming_fragments.runTest");
     }
 
     /**
      * Read a single image from HDFS
      */
     @Test(groups = {"features", "gpdb", "hcfs", "security"})
-    public void largeBatchSize() throws Exception {
-        exTable.setName("image_test_large_batchsize");
-        exTable.setUserParameters(new String[]{"BATCH_SIZE=10"});
-        compareTable.setName("compare_table_large_batchsize");
+    public void singleFragment() throws Exception {
+        // all the files fit into a single fragment
+        exTable.setName("image_test_single_fragment");
+        exTable.setUserParameters(new String[]{"FILES_PER_FRAGMENT=10"});
+        compareTable.setName("compare_table_single_fragment");
         compareTable.addRow(new String[]{
                 "'{" + fullPaths[0] + "," + fullPaths[1] + "," + fullPaths[2] + "," + fullPaths[3] + "," + fullPaths[4] + "}'",
                 "'{" + parentDirectories[0] + "," + parentDirectories[1] + "," + parentDirectories[2] + "," + parentDirectories[3] + "," + parentDirectories[4] + "}'",
@@ -297,15 +298,15 @@ public class HdfsReadableImageTest extends BaseFeature {
         gpdb.runQuery(compareTable.constructInsertStmt());
 
         // Verify results
-        runTincTest("pxf.features.hdfs.readable.image.large_batchsize.runTest");
+        runTincTest("pxf.features.hdfs.readable.image.single_fragment.runTest");
     }
 
     @Test(groups = {"features", "gpdb", "hcfs", "security"})
-    public void largeBatchSize_streamingFragments() throws Exception {
-        exTable.setName("image_test_large_batchsize_streaming_fragments");
-        exTable.setUserParameters(new String[]{"BATCH_SIZE=10", "STREAM_FRAGMENTS=true"});
+    public void singleFragment_streamingFragments() throws Exception {
+        exTable.setName("image_test_single_fragment_streaming_fragments");
+        exTable.setUserParameters(new String[]{"FILES_PER_FRAGMENT=10", "STREAM_FRAGMENTS=true"});
         exTable.setPath(hdfs.getWorkingDirectory() + "/streamingFragmentsReadableImage");
-        compareTable.setName("compare_table_large_batchsize_streaming_fragments");
+        compareTable.setName("compare_table_single_fragment_streaming_fragments");
         compareTable.addRow(new String[]{
                 "'{" + fullPaths[0].replace("readableImage", "streamingFragmentsReadableImage/dir1") + ","
                         + fullPaths[1].replace("readableImage", "streamingFragmentsReadableImage/dir1") + ","
@@ -337,7 +338,7 @@ public class HdfsReadableImageTest extends BaseFeature {
         gpdb.runQuery(compareTable.constructInsertStmt());
 
         // Verify results
-        runTincTest("pxf.features.hdfs.readable.image.large_batchsize_streaming_fragments.runTest");
+        runTincTest("pxf.features.hdfs.readable.image.single_fragment_streaming_fragments.runTest");
     }
 
     /**

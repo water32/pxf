@@ -44,7 +44,7 @@ public class StreamingFragmentsResponse implements StreamingOutput {
 
     public StreamingFragmentsResponse(StreamingFragmenter fragmenter) throws Exception {
         this.fragmenter = fragmenter;
-        fragmenter.searchForDirs();
+        fragmenter.open();
     }
 
     /**

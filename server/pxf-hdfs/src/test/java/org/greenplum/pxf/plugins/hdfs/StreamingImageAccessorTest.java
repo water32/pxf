@@ -9,11 +9,14 @@ import org.junit.rules.ExpectedException;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 public class StreamingImageAccessorTest {
     private StreamingImageAccessor accessor;
@@ -43,24 +46,10 @@ public class StreamingImageAccessorTest {
 
     @Test
     public void testOpenForRead() throws Exception {
-        List<InputStream> streams = accessor.getInputStreams();
-        assertEquals(0, streams.size());
+        assertNull(accessor.getPaths());
 
         assertTrue(accessor.openForRead());
-        streams = accessor.getInputStreams();
-        assertEquals(5, streams.size());
-    }
-
-    @Test
-    public void testCloseForRead() throws Exception {
-        exceptionRule.expect(IOException.class);
-        exceptionRule.expectMessage("Stream is closed!");
-        assertTrue(accessor.openForRead());
-        accessor.closeForRead();
-
-        List<InputStream> streams = accessor.getInputStreams();
-        assertEquals(NUM_IMAGES, streams.size());
-        streams.get(0).read();
+        assertEquals(5, accessor.getPaths().size());
     }
 
     @Test

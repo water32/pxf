@@ -758,7 +758,7 @@ under the License.
             <accessor>org.greenplum.pxf.plugins.hdfs.StreamingImageAccessor</accessor>
             <resolver>org.greenplum.pxf.plugins.hdfs.StreamingImageResolver</resolver>
         </plugins>
-        <handler>org.greenplum.pxf.plugins.hdfs.ImageProtocolHandler</handler>
+        <handler>org.greenplum.pxf.plugins.hdfs.StreamingFragmenterHandler</handler>
     </profile>
     <profile>
         <name>gs:image</name>
@@ -769,7 +769,7 @@ under the License.
             <resolver>org.greenplum.pxf.plugins.hdfs.StreamingImageResolver</resolver>
         </plugins>
         <protocol>gs</protocol>
-        <handler>org.greenplum.pxf.plugins.hdfs.ImageProtocolHandler</handler>
+        <handler>org.greenplum.pxf.plugins.hdfs.StreamingFragmenterHandler</handler>
     </profile>
     <profile>
         <name>adl:image</name>
@@ -780,7 +780,7 @@ under the License.
             <resolver>org.greenplum.pxf.plugins.hdfs.StreamingImageResolver</resolver>
         </plugins>
         <protocol>adl</protocol>
-        <handler>org.greenplum.pxf.plugins.hdfs.ImageProtocolHandler</handler>
+        <handler>org.greenplum.pxf.plugins.hdfs.StreamingFragmenterHandler</handler>
     </profile>
     <profile>
         <name>s3:image</name>
@@ -791,7 +791,7 @@ under the License.
             <resolver>org.greenplum.pxf.plugins.hdfs.StreamingImageResolver</resolver>
         </plugins>
         <protocol>s3a</protocol>
-        <handler>org.greenplum.pxf.plugins.hdfs.ImageProtocolHandler</handler>
+        <handler>org.greenplum.pxf.plugins.hdfs.StreamingFragmenterHandler</handler>
         <optionMappings>
             <mapping option="accesskey" property="fs.s3a.access.key"/>
             <mapping option="secretkey" property="fs.s3a.secret.key"/>

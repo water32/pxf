@@ -32,22 +32,22 @@ public class BatchHdfsFileFragmenterTest {
     }
 
     @Test
-    public void testInitializeBatchSizeNotGiven() {
+    public void testInitializeFilePerFragmentNotGiven() {
         batchHdfsFileFragmenter.initialize(context);
 
-        assertEquals(1, batchHdfsFileFragmenter.getBatchSize());
+        assertEquals(1, batchHdfsFileFragmenter.getFilesPerFragment());
     }
 
     @Test
-    public void testInitializeBatchSizeGiven() {
-        context.addOption("BATCH_SIZE", "100");
+    public void testInitializeFilePerFragmentGiven() {
+        context.addOption(BatchHdfsFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "100");
         batchHdfsFileFragmenter.initialize(context);
 
-        assertEquals(100, batchHdfsFileFragmenter.getBatchSize());
+        assertEquals(100, batchHdfsFileFragmenter.getFilesPerFragment());
     }
 
     @Test
-    public void testGetFragmentsBatchSizeNotGiven() throws Exception {
+    public void testGetFragmentsFilePerFragmentNotGiven() throws Exception {
         batchHdfsFileFragmenter.initialize(context);
         fragments = batchHdfsFileFragmenter.getFragments();
         correctFragments = new ArrayList<>();
@@ -62,8 +62,8 @@ public class BatchHdfsFileFragmenterTest {
     }
 
     @Test
-    public void testGetFragmentsLargerBatchSizeGiven() throws Exception {
-        context.addOption("BATCH_SIZE", "100");
+    public void testGetFragmentsLargerFilePerFragmentGiven() throws Exception {
+        context.addOption(BatchHdfsFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "100");
         batchHdfsFileFragmenter.initialize(context);
         fragments = batchHdfsFileFragmenter.getFragments();
         correctFragments = new ArrayList<>();
@@ -81,8 +81,8 @@ public class BatchHdfsFileFragmenterTest {
     }
 
     @Test
-    public void testGetFragmentsSmallerBatchSizeGiven() throws Exception {
-        context.addOption("BATCH_SIZE", "2");
+    public void testGetFragmentsSmallerFilePerFragmentGiven() throws Exception {
+        context.addOption(BatchHdfsFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "2");
         batchHdfsFileFragmenter.initialize(context);
         fragments = batchHdfsFileFragmenter.getFragments();
         correctFragments = new ArrayList<>();

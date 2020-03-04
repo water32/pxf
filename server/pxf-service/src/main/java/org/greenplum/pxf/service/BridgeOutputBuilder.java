@@ -45,7 +45,6 @@ import java.io.IOException;
 import java.lang.reflect.Array;
 import java.sql.Timestamp;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
@@ -172,8 +171,8 @@ public class BridgeOutputBuilder {
      * returning a lazy iterator over the data. Only supports CSV format.
      */
     public class WritableIterator {
-        private int recordCounter = 0;
-        private int numRecords;
+        private int fieldCounter = 0;
+        private int numFields;
         private OneField field;
         private StreamingResolver resolver = null;
         boolean currentlyStreaming = false;
@@ -187,11 +186,11 @@ public class BridgeOutputBuilder {
          */
         public WritableIterator(List<OneField> fields) {
             this.fields = fields;
-            numRecords = fields.size();
+            numFields = fields.size();
         }
 
         public boolean hasNext() {
-            if (recordCounter < numRecords) {
+            if (fieldCounter < numFields) {
                 return true;
             }
             // we are on the last record, check if it's a streaming type
@@ -203,11 +202,11 @@ public class BridgeOutputBuilder {
 
         public Writable next() throws IOException {
             StringBuilder sb = new StringBuilder();
-            if (!currentlyStreaming && numRecords > recordCounter) {
+            if (!currentlyStreaming && numFields > fieldCounter) {
                 // we have more fields, get the next field
-                field = fields.get(recordCounter++);
+                field = fields.get(fieldCounter++);
             }
-            String csvDelimOrNewline = (recordCounter == numRecords) ? newline : delimiter;
+            String csvDelimOrNewline = (fieldCounter == numFields) ? newline : delimiter;
             if (StreamingField.class.isAssignableFrom(field.getClass())) {
                 if (!currentlyStreaming) {
                     currentlyStreaming = true;
@@ -518,11 +517,7 @@ public class BridgeOutputBuilder {
         else if (field.type == DataType.DATE.getOID())
             return field.val.toString();
         else if (field instanceof ArrayField) {
-            List<?> list = (List<?>) field.val;
-            String arrayString = ((ArrayField) field).getPrefix() +
-                    list.stream().map(Object::toString).collect(Collectors.joining(((ArrayField) field).getSeparator())) +
-                    ((ArrayField) field).getSuffix();
-            return greenplumCSV.toCsvField(arrayString, true, true, true);
+            return greenplumCSV.toCsvField(field.toString(), true, true, true);
         }
         return greenplumCSV.toCsvField((String) field.val, true, true, true);
     }

@@ -8,7 +8,7 @@ import java.util.List;
 public interface StreamingFragmenter extends Fragmenter {
     /**
      * Mostly for testing, this method returns the list of directories
-     * that were found after calling StreamingFragmenter#searchForDirs()
+     * that were found after calling StreamingFragmenter#open()
      *
      * @return list of Paths representing directories
      */
@@ -23,7 +23,7 @@ public interface StreamingFragmenter extends Fragmenter {
      *
      * @throws Exception since this will involve FileSystem operations
      */
-    void searchForDirs() throws Exception;
+    void open() throws Exception;
 
     /**
      * @return whether or not there are any more fragments

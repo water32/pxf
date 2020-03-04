@@ -21,7 +21,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class StreamingHdfsFileFragmenter extends BaseFragmenter implements StreamingFragmenter {
-    private int batchSize;
+    public final static String FILES_PER_FRAGMENT_OPTION_NAME = "FILES_PER_FRAGMENT";
+    private int filesPerFragment;
     private List<String> files = new ArrayList<>();
     private List<Path> dirs = new ArrayList<>();
     private int currentDir = 0;
@@ -36,8 +37,8 @@ public class StreamingHdfsFileFragmenter extends BaseFragmenter implements Strea
     Configuration jobConf;
     FileSystem fs;
 
-    public int getBatchSize() {
-        return batchSize;
+    public int getFilesPerFragment() {
+        return filesPerFragment;
     }
 
     @Override
@@ -48,15 +49,15 @@ public class StreamingHdfsFileFragmenter extends BaseFragmenter implements Strea
         hcfsType = HcfsType.getHcfsType(configuration, context);
         jobConf = new JobConf(configuration, this.getClass());
 
-        batchSize = 1;
-        final String batchSizeOption = context.getOption("BATCH_SIZE");
-        if (batchSizeOption != null) {
-            batchSize = Integer.parseInt(batchSizeOption);
+        filesPerFragment = 1;
+        final String filesPerFragmentOptionString = context.getOption(FILES_PER_FRAGMENT_OPTION_NAME);
+        if (filesPerFragmentOptionString != null) {
+            filesPerFragment = Integer.parseInt(filesPerFragmentOptionString);
         }
     }
 
     @Override
-    public void searchForDirs() throws Exception {
+    public void open() throws Exception {
         if (!dirs.isEmpty()) {
             return;
         }
@@ -72,7 +73,7 @@ public class StreamingHdfsFileFragmenter extends BaseFragmenter implements Strea
     @Override
     public Fragment next() throws IOException {
         StringBuilder pathList = new StringBuilder();
-        for (int i = 0; i < batchSize; i++) {
+        for (int i = 0; i < filesPerFragment; i++) {
             if (currentFile == files.size()) {
                 getMoreFiles();
                 if (currentFile == files.size() && currentDir == dirs.size()) {
@@ -116,7 +117,7 @@ public class StreamingHdfsFileFragmenter extends BaseFragmenter implements Strea
 
     private void getDirs(Path path) throws IOException {
         dirs.add(path);
-        RemoteIterator<FileStatus> iterator = fs.listStatusIterator(path);
+        RemoteIterator<FileStatus> iterator = fs.listStatusIterator(path); // no recursion
         while (iterator.hasNext()) {
             FileStatus fileStatus = iterator.next();
             if (fileStatus.isDirectory()) {

@@ -10,20 +10,20 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class BatchHdfsFileFragmenter extends HdfsDataFragmenter {
+    public final static String FILES_PER_FRAGMENT_OPTION_NAME = "FILES_PER_FRAGMENT";
+    private int filesPerFragment;
 
-    private int batchSize;
-
-    public int getBatchSize() {
-        return batchSize;
+    public int getFilesPerFragment() {
+        return filesPerFragment;
     }
 
     @Override
     public void initialize(RequestContext context) {
         super.initialize(context);
-        batchSize = 1;
-        final String batchSizeOption = context.getOption("BATCH_SIZE");
-        if (batchSizeOption != null) {
-            batchSize = Integer.parseInt(batchSizeOption);
+        filesPerFragment = 1;
+        final String filesPerFragmentOptionString = context.getOption(FILES_PER_FRAGMENT_OPTION_NAME);
+        if (filesPerFragmentOptionString != null) {
+            filesPerFragment = Integer.parseInt(filesPerFragmentOptionString);
         }
     }
 
@@ -49,11 +49,11 @@ public class BatchHdfsFileFragmenter extends HdfsDataFragmenter {
         StringBuilder pathList = new StringBuilder();
         for (int i = 1; i <= files.size(); i++) {
             pathList.append(files.set(i - 1, null)).append(",");
-            if (i % batchSize == 0 || i == files.size()) {
+            if (i % filesPerFragment == 0 || i == files.size()) {
                 pathList.setLength(pathList.length() - 1);
                 fragments.add(new Fragment(pathList.toString()));
                 pathList.setLength(0);
-                LOG.debug("Completed fragment batch #{}", (i - 1) / batchSize);
+                LOG.debug("Completed fragment batch #{}", (i - 1) / filesPerFragment);
             }
         }
 

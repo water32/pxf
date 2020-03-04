@@ -38,7 +38,7 @@ public class SimpleBridgeFactory implements BridgeFactory {
                 LOG.info("Could not get class for {}: {}", context.getResolver(), e);
             }
             if (resolverClass != null && StreamingResolver.class.isAssignableFrom(resolverClass)) {
-                return new StreamingImageReadBridge(context);
+                return new StreamingReadBridge(context);
             }
         }
         return new ReadBridge(context);
