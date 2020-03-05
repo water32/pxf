@@ -80,7 +80,7 @@ public class StreamingImageAccessor extends BasePlugin implements Accessor {
 
         // input data stream, FileSystem.get actually
         // returns an FSDataInputStream
-        paths = new ArrayList<>(Arrays.asList(context.getDataSource().split(",")));
+        paths = new ArrayList<>(Arrays.asList(context.getDataSource().split("\\|")));
         fs = FileSystem.get(URI.create(paths.get(0)), configuration);
 
         return paths.size() > 0;

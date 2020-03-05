@@ -13,8 +13,14 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.joining;
 
 public class StreamingHdfsMultiFileFragmenter extends HdfsMultiFileFragmenter implements StreamingFragmenter {
     private List<String> files = new ArrayList<>();
@@ -22,6 +28,8 @@ public class StreamingHdfsMultiFileFragmenter extends HdfsMultiFileFragmenter im
     private int currentDir = 0;
     private int currentFile = 0;
     private FileSystem fs;
+    private Set<String> labelSet = new HashSet<>();
+    private Map<String, int[]> labels = new HashMap<>();
 
     @Override
     public List<Path> getDirs() {
@@ -37,6 +45,13 @@ public class StreamingHdfsMultiFileFragmenter extends HdfsMultiFileFragmenter im
         fs = FileSystem.get(new URI(path), jobConf);
         getDirs(new Path(path));
         dirs.sort(Comparator.comparing(Path::toString));
+        int cnt = 0;
+        for (Object o : Arrays.stream(labelSet.toArray()).sorted().toArray()) {
+            int[] arr = new int[dirs.size()];
+            arr[cnt++] = 1;
+            labels.put((String) o, arr);
+            LOG.debug("hot-encoding: dir name: {}, encoding: {}", o, arr);
+        }
     }
 
     /**
@@ -52,7 +67,7 @@ public class StreamingHdfsMultiFileFragmenter extends HdfsMultiFileFragmenter im
                     break;
                 }
             }
-            pathList.append(files.set(currentFile++, null)).append(",");
+            pathList.append(files.set(currentFile++, null)).append("|");
         }
         if (pathList.length() == 0) {
             return null;
@@ -81,20 +96,26 @@ public class StreamingHdfsMultiFileFragmenter extends HdfsMultiFileFragmenter im
             files = Arrays
                     .stream(fs.listStatus(dir))
                     .filter(file -> !file.isDirectory())
-                    .map(file -> file.getPath().toUri().toString())
+                    .map(file -> file.getPath().toUri().toString() + "," +
+                            Arrays.stream(labels.get(file.getPath().getParent().getName())).mapToObj(String::valueOf).collect(joining(",")))
                     .sorted()
                     .collect(Collectors.toList());
         }
     }
 
     private void getDirs(Path path) throws IOException {
-        dirs.add(path);
+        boolean pathContainsRegularFiles = false;
         RemoteIterator<FileStatus> iterator = fs.listStatusIterator(path); // no recursion
         while (iterator.hasNext()) {
             FileStatus fileStatus = iterator.next();
             if (fileStatus.isDirectory()) {
                 Path curPath = fileStatus.getPath();
                 getDirs(curPath);
+            } else if (!pathContainsRegularFiles) {
+                pathContainsRegularFiles = true;
+                // labelSet.add(path.toString().replaceFirst(".*/([^/]+)/?$", "$1"));
+                labelSet.add(path.getName());
+                dirs.add(path);
             }
         }
     }
