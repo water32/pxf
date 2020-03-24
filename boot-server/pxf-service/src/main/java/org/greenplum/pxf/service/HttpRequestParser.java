@@ -243,9 +243,10 @@ public class HttpRequestParser implements RequestParser<Map<String, String>> {
             int numberOfProjectedColumns = Integer.parseInt(columnProjStr);
             context.setNumAttrsProjected(numberOfProjectedColumns);
             if (numberOfProjectedColumns > 0) {
-                String[] projectionIndices = params.removeProperty("ATTRS-PROJ-IDX").split(",");
-                for (String s : projectionIndices) {
-                    attrsProjected.set(Integer.valueOf(s));
+                for (int i = 0; i < columns; i++) {
+                    if (StringUtils.equalsIgnoreCase("true", params.removeOptionalProperty("ATTRS-PROJ-IDX-" + i))) {
+                        attrsProjected.set(i);
+                    }
                 }
             } else {
                 /* This is a special case to handle aggregate queries not related to any specific column

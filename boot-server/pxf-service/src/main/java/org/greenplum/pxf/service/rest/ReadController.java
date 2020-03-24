@@ -34,7 +34,7 @@ public class ReadController extends BaseController {
     }
 
     @GetMapping("/read")
-    public ResponseEntity<StreamingResponseBody> greeting(@RequestHeader Map<String, String> headers) {
+    public ResponseEntity<StreamingResponseBody> read(@RequestHeader Map<String, String> headers) {
         RequestContext context = parseRequest(headers);
         Configuration configuration = configurationFactory.initConfiguration(
             context.getConfig(),

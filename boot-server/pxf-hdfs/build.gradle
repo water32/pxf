@@ -43,6 +43,14 @@ dependencies {
     implementation("com.fasterxml.woodstox:woodstox-core:5.0.3")
     implementation("org.codehaus.woodstox:stax2-api:3.1.4")
 
+    // AWS S3 support jars
+    implementation("org.apache.httpcomponents:httpclient")
+    implementation("org.apache.httpcomponents:httpcore")
+    implementation("org.apache.hadoop:hadoop-aws:${hadoopVersion}")
+    implementation("com.amazonaws:aws-java-sdk-core:${awsJavaSdk}")
+    implementation("com.amazonaws:aws-java-sdk-kms:${awsJavaSdk}")
+    implementation("com.amazonaws:aws-java-sdk-s3:${awsJavaSdk}")
+
     /****************************************
      * Kerberos implementation dependencies
      ****************************************/
