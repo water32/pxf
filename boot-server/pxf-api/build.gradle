@@ -29,8 +29,8 @@ dependencies {
      *******************************/
 
     implementation("commons-codec:commons-codec")
-    implementation("com.fasterxml.jackson.core:jackson-core:2.9.10")
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.9.10.3")
+    implementation("com.fasterxml.jackson.core:jackson-core")
+    implementation("com.fasterxml.jackson.core:jackson-databind")
 
     /*******************************
      * Test Dependencies

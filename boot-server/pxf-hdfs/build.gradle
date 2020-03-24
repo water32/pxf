@@ -23,9 +23,9 @@ dependencies {
 
     implementation("org.apache.htrace:htrace-core4:${htraceVersion}")
 
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.9.10")
-    implementation("com.fasterxml.jackson.core:jackson-core:2.9.10")
-    implementation("com.fasterxml.jackson.core:jackson-annotations:2.9.10")
+    implementation("com.fasterxml.jackson.core:jackson-databind")
+    implementation("com.fasterxml.jackson.core:jackson-core")
+    implementation("com.fasterxml.jackson.core:jackson-annotations")
 
     implementation("org.apache.parquet:parquet-format:2.7.0")
     implementation("org.apache.parquet:parquet-column:${parquetVersion}")
