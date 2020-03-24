@@ -35,4 +35,19 @@ public class PxfServerProperties {
      */
     private Map<String, ProtocolSettings> protocolSettings;
 
+    /**
+     * Customizable settings for tomcat through PXF
+     */
+    private Tomcat tomcat;
+
+    @Getter
+    @Setter
+    public static class Tomcat {
+
+        /**
+         * Maximum number of headers allowed in the request
+         */
+        private int maxHeaderCount;
+    }
+
 }

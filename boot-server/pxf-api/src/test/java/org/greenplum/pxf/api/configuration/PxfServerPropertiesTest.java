@@ -36,5 +36,8 @@ class PxfServerPropertiesTest {
 
         assertEquals("fs.s3a.access.key", s3ProtocolSettings.getOptionMappings().get("accesskey"));
         assertEquals("fs.s3a.secret.key", s3ProtocolSettings.getOptionMappings().get("secretkey"));
+
+        assertNotNull(properties.getTomcat());
+        assertEquals(50, properties.getTomcat().getMaxHeaderCount());
     }
 }
