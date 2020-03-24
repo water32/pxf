@@ -54,6 +54,7 @@ configure(javaProjects) {
         dependencies {
             dependency("commons-lang:commons-lang:2.6")
             dependency("com.google.guava:guava:20.0")
+            dependency("commons-logging:commons-logging:1.2")
             dependency("commons-collections:commons-collections:3.2.2")
             dependency("commons-configuration:commons-configuration:1.10")
             dependency("commons-codec:commons-codec:1.14")
