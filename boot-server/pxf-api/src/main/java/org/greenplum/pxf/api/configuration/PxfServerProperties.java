@@ -30,6 +30,11 @@ public class PxfServerProperties {
     private String conf;
 
     /**
+     * Enable caching of metadata calls from a single JVM
+     */
+    private boolean metadataCache = true;
+
+    /**
      * Contains a map for protocol-specific settings, such as protocol name,
      * protocol handler, and option mappings.
      */
@@ -47,7 +52,12 @@ public class PxfServerProperties {
         /**
          * Maximum number of headers allowed in the request
          */
-        private int maxHeaderCount;
+        private int maxHeaderCount = 30000;
+
+        /**
+         * Maximum size of the HTTP message header.
+         */
+        private int maxHeaderSize = 1048576;
     }
 
 }

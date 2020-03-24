@@ -1,6 +1,6 @@
 package org.greenplum.pxf.api.model;
 
-import com.google.common.base.Objects;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.catalina.connector.ClientAbortException;
@@ -28,38 +28,85 @@ import static java.util.Objects.requireNonNull;
  *
  * @param <T> the type of the tuple that is returned by the query
  */
+@EqualsAndHashCode(of = {"queryId"})
 public class QuerySession<T, M> {
 
     private static final Logger LOG = LoggerFactory.getLogger(QuerySession.class);
 
-    private final AtomicBoolean queryCancelled;
-    private final AtomicBoolean queryErrored;
-    private final AtomicInteger activeSegments;
-    private final AtomicBoolean finishedProducing;
-    private final AtomicLong totalRecordCount;
-
+    /**
+     * A unique identifier for the query
+     */
     private final String queryId;
+
+    /**
+     * True if the query has been cancelled, false otherwise
+     */
+    private final AtomicBoolean queryCancelled;
+
+    /**
+     * True if the query has errors, false otherwise
+     */
+    private final AtomicBoolean queryErrored;
+
+    /**
+     * Number of active segments that have registered to this QuerySession
+     */
+    private final AtomicInteger activeSegments;
+
+    /**
+     * True if the producers have finished producing, false otherwise
+     */
+    private final AtomicBoolean finishedProducing;
+
+    /**
+     * The total number of tuples that were streamed out to the client
+     */
+    private final AtomicLong totalTupleCount;
+
+    /**
+     * Records the Instant when the query was created
+     */
     private final Instant startTime;
+
+    /**
+     * The total number of segments in the Greenplum cluster
+     */
+    @Getter
     private final int totalSegments;
-    private Instant endTime;
+
+    /**
+     * Records the Instant when the query was cancelled, null if the query was
+     * not cancelled
+     */
     private Instant cancelTime;
 
+    /**
+     * Records the Instant when the first error occurred in the query, null
+     * if there are no errors
+     */
     private Instant errorTime;
 
+    /**
+     * The effective {@link UserGroupInformation} that is used to process
+     * the query
+     */
     private UserGroupInformation effectiveUgi;
 
     /**
      * The list of splits for the query. The list of splits is only set when
-     * the "Fragmenter" cache is enabled
+     * the "Metadata" cache is enabled
      */
     @Getter
     @Setter
     private volatile List<DataSplit> dataSplitList;
 
+    @Getter
     private final BlockingDeque<List<List<Object>>> outputQueue;
 
+    @Getter
     private final BlockingDeque<Processor<T>> processorQueue;
 
+    @Getter
     private final Deque<Exception> errors;
 
     @Getter
@@ -84,7 +131,7 @@ public class QuerySession<T, M> {
         this.finishedProducing = new AtomicBoolean(false);
         this.activeSegments = new AtomicInteger(0);
         this.outputQueue = new LinkedBlockingDeque<>(200);
-        this.totalRecordCount = new AtomicLong(0);
+        this.totalTupleCount = new AtomicLong(0);
         this.processorQueue = new LinkedBlockingDeque<>();
         this.totalSegments = totalSegments;
         this.errors = new ConcurrentLinkedDeque<>();
@@ -93,11 +140,7 @@ public class QuerySession<T, M> {
         producer.setName("pxf-producer-" + queryId);
         producer.start();
 
-        LOG.info("Created {}", this);
-    }
-
-    public BlockingDeque<List<List<Object>>> getOutputQueue() {
-        return outputQueue;
+        LOG.info("{} created", this);
     }
 
     /**
@@ -156,30 +199,45 @@ public class QuerySession<T, M> {
     }
 
     /**
-     * Deregisters a segment, and the last segment to deregister the endTime
+     * De-registers a segment, and the last segment to deregister the endTime
      * is recorded.
      *
      * @param recordCount the recordCount from the segment
      */
     public void deregisterSegment(long recordCount) {
 
-        totalRecordCount.addAndGet(recordCount);
+        totalTupleCount.addAndGet(recordCount);
 
         if (activeSegments.decrementAndGet() == 0) {
-            endTime = Instant.now();
+            Instant endTime = Instant.now();
             outputQueue.clear(); // unblock producers in the case of error
             dataSplitList = null;
 
-            long totalRecords = totalRecordCount.get();
-            long durationMs = Duration.between(startTime, endTime).toMillis();
-            double rate = durationMs == 0 ? 0 : (1000.0 * totalRecords / durationMs);
+            long totalRecords = totalTupleCount.get();
 
-            LOG.info("{} completed streaming {} tuple{} in {}ms. {} tuples/sec",
-                this,
-                totalRecords,
-                totalRecords == 1 ? "" : "s",
-                durationMs,
-                String.format("%.2f", rate));
+            if (errorTime != null) {
+
+                long durationMs = Duration.between(startTime, errorTime).toMillis();
+                LOG.info("{} errored after {}ms", this, durationMs);
+
+            } else if (cancelTime != null) {
+
+                long durationMs = Duration.between(startTime, cancelTime).toMillis();
+                LOG.info("{} canceled after {}ms", this, durationMs);
+
+            } else {
+
+                long durationMs = Duration.between(startTime, endTime).toMillis();
+                double rate = durationMs == 0 ? 0 : (1000.0 * totalRecords / durationMs);
+
+                LOG.info("{} completed streaming {} tuple{} in {}ms. {} tuples/sec",
+                    this,
+                    totalRecords,
+                    totalRecords == 1 ? "" : "s",
+                    durationMs,
+                    String.format("%.2f", rate));
+
+            }
         }
     }
 
@@ -217,18 +275,6 @@ public class QuerySession<T, M> {
         return finishedProducing.get();
     }
 
-    public BlockingDeque<Processor<T>> getProcessorQueue() {
-        return processorQueue;
-    }
-
-    public Deque<Exception> getErrors() {
-        return errors;
-    }
-
-    public int getTotalSegments() {
-        return totalSegments;
-    }
-
     /**
      * {@inheritDoc}
      */
@@ -238,24 +284,5 @@ public class QuerySession<T, M> {
             Integer.toHexString(System.identityHashCode(this)) +
             "{queryId='" + queryId + '\'' +
             '}';
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        QuerySession<?, ?> that = (QuerySession<?, ?>) o;
-        return Objects.equal(queryId, that.queryId);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(queryId);
     }
 }

@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 import static java.util.Objects.requireNonNull;
 import static org.greenplum.pxf.api.ExecutorServiceProvider.MACHINE_CORES;
 
+// TODO: convert to a @Component
 public class ProducerTask<T, M> extends Thread {
 
     protected Logger LOG = LoggerFactory.getLogger(this.getClass());
