@@ -1,4 +1,12 @@
 /*
+ * pxf_controller.h
+ *		  Functions for reading and writing data from the PXF Server.
+ *
+ * IDENTIFICATION
+ *		  contrib/pxf_fdw/pxf_controller.h
+ */
+
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,24 +26,26 @@
  *
  */
 
-#ifndef _PXFBRIDGE_H
-#define _PXFBRIDGE_H
+#ifndef _PXF_CONTROLLER_H_
+#define _PXF_CONTROLLER_H_
 
-#include "libchurl.h"
-#include "pxf_fragment.h"
+#include "pxf_option.h"
+
+#include "pxf_curl.h"
 
 #include "cdb/cdbvars.h"
+#include "commands/copy.h"
 #include "nodes/pg_list.h"
+#include "utils/rel.h"
 
 /*
  * Execution state of a foreign scan using pxf_fdw.
  */
 typedef struct PxfFdwScanState
 {
-	CHURL_HEADERS churl_headers;
-	CHURL_HANDLE churl_handle;
+	PXF_CURL_HEADERS curl_headers;
+	PXF_CURL_HANDLE curl_handle;
 	StringInfoData uri;
-	ListCell   *current_fragment;
 	Relation	relation;
 	char	   *filter_str;
 #if PG_VERSION_NUM >= 90600
@@ -43,7 +53,6 @@ typedef struct PxfFdwScanState
 #else
 	List	   *quals;
 #endif
-	List	   *fragments;
 	List	   *retrieved_attrs;
 	PxfOptions *options;
 	CopyState	cstate;
@@ -56,8 +65,8 @@ typedef struct PxfFdwModifyState
 {
 	CopyState	cstate;			/* state of writing to PXF */
 
-	CHURL_HANDLE churl_handle;	/* curl handle */
-	CHURL_HEADERS churl_headers;	/* curl headers */
+	PXF_CURL_HANDLE curl_handle;	/* curl handle */
+	PXF_CURL_HEADERS curl_headers;	/* curl headers */
 	StringInfoData uri;			/* rest endpoint URI for modify */
 	Relation	relation;
 	PxfOptions *options;		/* FDW options */
@@ -69,22 +78,22 @@ typedef struct PxfFdwModifyState
 } PxfFdwModifyState;
 
 /* Clean up churl related data structures from the context */
-void		PxfBridgeCleanup(PxfFdwModifyState *context);
+void		PxfControllerCleanup(PxfFdwModifyState *context);
 
 /* Sets up data before starting import */
-void		PxfBridgeImportStart(PxfFdwScanState *pxfsstate);
+void		PxfControllerImportStart(PxfFdwScanState *pxfsstate);
 
 /* Sets up data before starting export */
-void		PxfBridgeExportStart(PxfFdwModifyState *pxfmstate);
+void		PxfControllerExportStart(PxfFdwModifyState *pxfmstate);
 
 /* Reads data from the PXF server into the given buffer of a given size */
 #if PG_VERSION_NUM >= 90600
-int			PxfBridgeRead(void *outbuf, int minlen, int maxlen, void *extra);
+int			PxfControllerRead(void *outbuf, int minlen, int maxlen, void *extra);
 #else
-int			PxfBridgeRead(void *outbuf, int datasize, void *extra);
+int			PxfControllerRead(void *outbuf, int datasize, void *extra);
 #endif
 
 /* Writes data from the given buffer of a given size to the PXF server */
-int			PxfBridgeWrite(PxfFdwModifyState *context, char *databuf, int datalen);
+int			PxfControllerWrite(PxfFdwModifyState *context, char *databuf, int datalen);
 
-#endif							/* _PXFBRIDGE_H */
+#endif							/* _PXF_CONTROLLER_H_ */

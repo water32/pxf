@@ -8,7 +8,10 @@
 
 #include "postgres.h"
 
+#include <curl/curl.h>
+
 #include "pxf_fdw.h"
+#include "pxf_option.h"
 
 #include "access/reloptions.h"
 #include "catalog/pg_foreign_data_wrapper.h"
@@ -20,8 +23,12 @@
 #include "nodes/makefuncs.h"
 #include "foreign/foreign.h"
 
+#define ENV_PXF_HOST "PXF_HOST"
+#define ENV_PXF_PORT "PXF_PORT"
+
 #define FDW_OPTION_WIRE_FORMAT_TEXT "text"
 #define FDW_OPTION_WIRE_FORMAT_CSV "csv"
+#define FDW_OPTION_WIRE_FORMAT_BINARY "binary"
 
 #define FDW_OPTION_REJECT_LIMIT_ROWS "rows"
 #define FDW_OPTION_REJECT_LIMIT_PERCENT "percent"
@@ -39,6 +46,29 @@
 #define FDW_OPTION_REJECT_LIMIT_TYPE "reject_limit_type"
 #define FDW_OPTION_RESOURCE "resource"
 
+/*
+ * SSL Options
+ */
+#define FDW_OPTION_SSL_VERBOSE "ssl_verbose"
+#define FDW_OPTION_SSL_DISABLE_VERIFICATION "ssl_disable_verification"
+#define FDW_OPTION_SSL_CLIENT_CERT_PATH "ssl_client_cert_path"
+#define FDW_OPTION_SSL_PRIVATE_KEY_PASSWORD "ssl_private_key_password"
+#define FDW_OPTION_SSL_PRIVATE_KEY_PATH "ssl_private_key_path"
+#define FDW_OPTION_SSL_TRUSTED_CA_PATH "ssl_trusted_ca_path"
+#define FDW_OPTION_SSL_VERSION "ssl_version"
+
+#define FDW_OPTION_SSL_VERSION_DEFAULT "default"
+#define FDW_OPTION_SSL_VERSION_TLSv1 "TLSv1"
+#define FDW_OPTION_SSL_VERSION_SSLv2 "SSLv2"
+#define FDW_OPTION_SSL_VERSION_SSLv3 "SSLv3"
+#define FDW_OPTION_SSL_VERSION_TLSv1_0 "TLSv1.0"
+#define FDW_OPTION_SSL_VERSION_TLSv1_1 "TLSv1.1"
+#define FDW_OPTION_SSL_VERSION_TLSv1_2 "TLSv1.2"
+#define FDW_OPTION_SSL_VERSION_TLSv1_3 "TLSv1.3"
+
+/*
+ * Format Options
+ */
 #define FDW_COPY_OPTION_FORMAT "format"
 #define FDW_COPY_OPTION_HEADER "header"
 #define FDW_COPY_OPTION_DELIMITER "delimiter"
@@ -75,6 +105,26 @@ static const struct PxfFdwOption valid_options[] = {
 	{NULL, InvalidOid}
 };
 
+struct PxfFdwSslVersionOption
+{
+	const char *optname;
+	int			version;		/* Value for the given version */
+};
+
+static const struct PxfFdwSslVersionOption valid_ssl_version_options[] = {
+	{FDW_OPTION_SSL_VERSION_DEFAULT, CURL_SSLVERSION_DEFAULT},
+	{FDW_OPTION_SSL_VERSION_TLSv1, CURL_SSLVERSION_TLSv1},
+	{FDW_OPTION_SSL_VERSION_SSLv2, CURL_SSLVERSION_SSLv2},
+	{FDW_OPTION_SSL_VERSION_SSLv3, CURL_SSLVERSION_SSLv3},
+	{FDW_OPTION_SSL_VERSION_TLSv1_0, CURL_SSLVERSION_TLSv1_0},
+	{FDW_OPTION_SSL_VERSION_TLSv1_1, CURL_SSLVERSION_TLSv1_1},
+	{FDW_OPTION_SSL_VERSION_TLSv1_2, CURL_SSLVERSION_TLSv1_2},
+	{FDW_OPTION_SSL_VERSION_TLSv1_3, CURL_SSLVERSION_TLSv1_3},
+
+	/* Sentinel */
+	{NULL, -1}
+};
+
 /*
  * Valid COPY options for *_pxf_fdw.
  * These options are based on the options for the COPY FROM command.
@@ -107,11 +157,6 @@ static const struct PxfFdwOption valid_copy_options[] = {
 extern Datum pxf_fdw_validator(PG_FUNCTION_ARGS);
 
 /*
- * SQL functions
- */
-PG_FUNCTION_INFO_V1(pxf_fdw_validator);
-
-/*
  * Helper functions
  */
 static Datum ValidateCopyOptions(List *options_list, Oid catalog);
@@ -132,16 +177,20 @@ static void ValidateOption(char *, Oid);
 Datum
 pxf_fdw_validator(PG_FUNCTION_ARGS)
 {
-	char	   *protocol = NULL;
-	char	   *resource = NULL;
-	char	   *reject_limit_type = FDW_OPTION_REJECT_LIMIT_ROWS;
+	char		*endptr = NULL;
+	char		*port_str = NULL;
+	char		*protocol = NULL;
+	char		*resource = NULL;
+	char		*reject_limit_type = FDW_OPTION_REJECT_LIMIT_ROWS;
 	bool		log_errors_set = false;
-	List	   *options_list = untransformRelOptions(PG_GETARG_DATUM(0));
+	List		*options_list = untransformRelOptions(PG_GETARG_DATUM(0));
 	Oid			catalog = PG_GETARG_OID(1);
-	List	   *copy_options = NIL;
-	ListCell   *cell;
-	int			reject_limit = -1,
+	List		*copy_options = NIL;
+	ListCell	*cell;
+	int		reject_limit = -1,
 				pxf_port;
+
+	// TODO: validate SSL options
 
 	foreach(cell, options_list)
 	{
@@ -183,20 +232,76 @@ pxf_fdw_validator(PG_FUNCTION_ARGS)
 		}
 		else if (strcmp(def->defname, FDW_OPTION_PXF_PORT) == 0)
 		{
-			pxf_port = atoi(defGetString(def));
+			if (catalog == UserMappingRelationId)
+				ereport(ERROR,
+					(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+						errmsg("the %s option cannot be defined at the user mapping level",
+							FDW_OPTION_PXF_PORT)));
+
+			if (catalog == ForeignTableRelationId)
+				ereport(ERROR,
+					(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+						errmsg("the %s option cannot be defined at the foreign table level",
+							FDW_OPTION_PXF_PORT)));
+
+			port_str = defGetString(def);
 
 			/*
-			 * TODO: a PXF service can be running on port 80 behind a load-
-			 * balancer we need to remove this restriction (i.e. kubernetes)
+			 * Validate port number
 			 */
-			if (pxf_port < 1024 || pxf_port > 65535)
+			if (port_str)
+			{
+				pxf_port = (int) strtol(port_str, &endptr, 10);
+
+				if (port_str == endptr)
+				{
+					ereport(ERROR, (errcode(ERRCODE_FDW_INVALID_STRING_FORMAT),
+						errmsg("unable to parse pxf_port number '%s'", port_str)));
+				}
+
+				if (pxf_port < 0 || pxf_port > 65535)
+				{
+					ereport(ERROR, (errcode(ERRCODE_FDW_INVALID_STRING_FORMAT),
+						errmsg("invalid pxf_port number: %d. valid pxf_port numbers are 0 to 65535", pxf_port)));
+				}
+			}
+		}
+		else if (strcmp(def->defname, FDW_OPTION_PXF_HOST) == 0)
+		{
+			if (catalog == UserMappingRelationId)
 				ereport(ERROR,
-						(errcode(ERRCODE_FDW_INVALID_STRING_FORMAT),
-						 errmsg("invalid port number: %d. valid port numbers are 1024 to 65535", pxf_port)));
+					(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+						errmsg("the %s option cannot be defined at the user mapping level",
+							FDW_OPTION_PXF_HOST)));
+
+			if (catalog == ForeignTableRelationId)
+				ereport(ERROR,
+					(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+						errmsg("the %s option cannot be defined at the foreign table level",
+							FDW_OPTION_PXF_HOST)));
+		}
+		else if (strcmp(def->defname, FDW_OPTION_PXF_PROTOCOL) == 0)
+		{
+			char *pxf_protocol = defGetString(def);
+
+			if (catalog == UserMappingRelationId)
+				ereport(ERROR,
+					(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+						errmsg("the %s option cannot be defined at the user mapping level",
+							FDW_OPTION_PXF_PROTOCOL)));
+
+			if (catalog == ForeignTableRelationId)
+				ereport(ERROR,
+					(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+						errmsg("the %s option cannot be defined at the foreign table level",
+							FDW_OPTION_PXF_PROTOCOL)));
+
+			if (!IsValidPxfProtocolValue(&pxf_protocol, NULL, PGC_S_DEFAULT))
+				ereport(ERROR, (errcode(ERRCODE_FDW_INVALID_STRING_FORMAT),
+					errmsg("invalid pxf_protocol value '%s'. valid pxf_protocol values are 'http' or 'https'", pxf_protocol)));
 		}
 		else if (strcmp(def->defname, FDW_OPTION_REJECT_LIMIT) == 0)
 		{
-			char	   *endptr = NULL;
 			char	   *pStr = defGetString(def);
 
 			reject_limit = (int) strtol(pStr, &endptr, 10);
@@ -393,17 +498,20 @@ ValidateCopyOptions(List *options_list, Oid catalog)
 PxfOptions *
 PxfGetOptions(Oid foreigntableid)
 {
-	Node *wireFormat;
-	UserMapping *user;
-	ForeignTable *table;
-	ForeignServer *server;
-	ForeignDataWrapper *wrapper;
-	List	   *options;
-	PxfOptions *opt;
-	ListCell   *lc;
-	List	   *copy_options,
-			   *other_options,
-			   *other_option_name_strings = NULL;
+	char			*port_str = NULL,
+				*host_str = NULL,
+				*ssl_version = NULL;
+	Node			*wireFormat;
+	UserMapping		*user;
+	ForeignTable		*table;
+	ForeignServer		*server;
+	ForeignDataWrapper	*wrapper;
+	List			*options;
+	PxfOptions		*opt;
+	ListCell		*lc;
+	List			*copy_options,
+				*other_options,
+				*other_option_name_strings = NULL;
 
 	opt = (PxfOptions *) palloc(sizeof(PxfOptions));
 	memset(opt, 0, sizeof(PxfOptions));
@@ -414,6 +522,24 @@ PxfGetOptions(Oid foreigntableid)
 	opt->reject_limit = -1;
 	opt->is_reject_limit_rows = true;
 	opt->log_errors = false;
+
+	opt->ssl_options = (PxfSSLOptions *) palloc(sizeof(PxfSSLOptions));
+	memset(opt->ssl_options, 0, sizeof(PxfSSLOptions));
+
+	/*
+	 * Get the port and host strings from the environment variables
+	 * This is for backwards compatibility to support migrations from the PXF
+	 * external table code, which read the pxf_port and pxf_host from
+	 * environment variables
+	 */
+	port_str = getenv(ENV_PXF_PORT);
+	host_str = getenv(ENV_PXF_HOST);
+
+	if (port_str)
+		opt->pxf_port = atoi(port_str);
+
+	if (host_str)
+		opt->pxf_host = host_str;
 
 	/*
 	 * Extract options from FDW objects.
@@ -437,7 +563,6 @@ PxfGetOptions(Oid foreigntableid)
 
 		if (strcmp(def->defname, FDW_OPTION_PXF_HOST) == 0)
 			opt->pxf_host = defGetString(def);
-
 		else if (strcmp(def->defname, FDW_OPTION_PXF_PORT) == 0)
 			opt->pxf_port = atoi(defGetString(def));
 		else if (strcmp(def->defname, FDW_OPTION_PXF_PROTOCOL) == 0)
@@ -455,9 +580,21 @@ PxfGetOptions(Oid foreigntableid)
 		else if (strcmp(def->defname, FDW_OPTION_DISABLE_PPD) == 0)
 			opt->disable_ppd = defGetBoolean(def);
 		else if (strcmp(def->defname, FDW_OPTION_FORMAT) == 0)
-		{
 			opt->format = defGetString(def);
-		}
+		else if (strcmp(def->defname, FDW_OPTION_SSL_VERBOSE) == 0)
+			opt->ssl_options->verbose = defGetBoolean(def);
+		else if (strcmp(def->defname, FDW_OPTION_SSL_DISABLE_VERIFICATION) == 0)
+			opt->ssl_options->disable_verification = defGetBoolean(def);
+		else if (strcmp(def->defname, FDW_OPTION_SSL_CLIENT_CERT_PATH) == 0)
+			opt->ssl_options->client_cert_path = defGetString(def);
+		else if (strcmp(def->defname, FDW_OPTION_SSL_PRIVATE_KEY_PASSWORD) == 0)
+			opt->ssl_options->private_key_password = defGetString(def);
+		else if (strcmp(def->defname, FDW_OPTION_SSL_PRIVATE_KEY_PATH) == 0)
+			opt->ssl_options->private_key_path = defGetString(def);
+		else if (strcmp(def->defname, FDW_OPTION_SSL_TRUSTED_CA_PATH) == 0)
+			opt->ssl_options->trusted_ca_path = defGetString(def);
+		else if (strcmp(def->defname, FDW_OPTION_SSL_VERSION) == 0)
+			ssl_version = defGetString(def);
 		else if (IsCopyOption(def->defname))
 			copy_options = lappend(copy_options, def);
 		else
@@ -476,17 +613,18 @@ PxfGetOptions(Oid foreigntableid)
 		}
 	}							/* foreach */
 
-	/* The profile corresponds to protocol[:format] */
-	opt->profile = opt->protocol;
-
-	if (opt->format)
-		opt->profile = psprintf("%s:%s", opt->protocol, opt->format);
+	opt->wire_format = "TEXT";
 
 	if (opt->format && pg_strcasecmp(opt->format, FDW_OPTION_WIRE_FORMAT_TEXT) == 0)
-		wireFormat = (Node *)makeString(FDW_OPTION_WIRE_FORMAT_TEXT);
+		wireFormat = (Node *) makeString(FDW_OPTION_WIRE_FORMAT_TEXT);
+	else if (opt->format && pg_strcasecmp(opt->format, FDW_OPTION_WIRE_FORMAT_CSV) == 0)
+		wireFormat = (Node *) makeString(FDW_OPTION_WIRE_FORMAT_CSV);
 	else
-		/* default wire_format is CSV */
-		wireFormat = (Node *)makeString(FDW_OPTION_WIRE_FORMAT_CSV);
+	{
+		/* default wire_format is binary */
+		wireFormat = (Node *) makeString(FDW_OPTION_WIRE_FORMAT_BINARY);
+		opt->wire_format = "Binary";
+	}
 
 #if PG_VERSION_NUM >= 90600
 	copy_options = lappend(copy_options, makeDefElem(FDW_COPY_OPTION_FORMAT, wireFormat, -1));
@@ -504,15 +642,45 @@ PxfGetOptions(Oid foreigntableid)
 
 	/* Set defaults when not provided */
 	if (!opt->pxf_host)
-		opt->pxf_host = PXF_FDW_DEFAULT_HOST;
+		opt->pxf_host = pxf_host_guc_value;
 
 	if (!opt->pxf_port)
-		opt->pxf_port = PXF_FDW_DEFAULT_PORT;
+		opt->pxf_port = pxf_port_guc_value;
 
 	if (!opt->pxf_protocol)
-		opt->pxf_protocol = PXF_FDW_DEFAULT_PROTOCOL;
+		opt->pxf_protocol = pxf_protocol_guc_value;
+
+	if (pg_strcasecmp(opt->pxf_protocol, PXF_FDW_SECURE_PROTOCOL) == 0)
+	{
+		if (!ssl_version)
+			opt->ssl_options->version = CURL_SSLVERSION_TLSv1;
+		else
+		{
+			const struct PxfFdwSslVersionOption *entry;
+			for (entry = valid_ssl_version_options; entry->optname; entry++)
+			{
+				if (!entry->optname)
+					ereport(ERROR, (errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+						errmsg("invalid SSL version option %s. valid values are 'default', 'TLSv1', 'SSLv2', 'SSLv3', 'TLSv1.0', 'TLSv1.1', 'TLSv1.2', and 'TLSv1.3'",
+							ssl_version)));
+
+				if (pg_strcasecmp(entry->optname, ssl_version) == 0)
+				{
+					opt->ssl_options->version = entry->version;
+					break;
+				}
+			}
+		}
+	}
 
 	return opt;
+}
+
+bool
+IsValidPxfProtocolValue(char **newvalue, void **extra, GucSource source)
+{
+	return pg_strcasecmp(*newvalue, PXF_FDW_DEFAULT_PROTOCOL) == 0 ||
+		pg_strcasecmp(*newvalue, PXF_FDW_SECURE_PROTOCOL) == 0;
 }
 
 /*

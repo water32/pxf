@@ -34,11 +34,10 @@
 #include "utils/syscache.h"
 
 /* helper function declarations */
-static void AddAlignmentSizeHttpHeader(CHURL_HEADERS headers);
-static void AddTupleDescriptionToHttpHeader(CHURL_HEADERS headers, Relation rel);
-static void AddOptionsToHttpHeader(CHURL_HEADERS headers, List *options);
-static void AddProjectionDescHttpHeader(CHURL_HEADERS headers, List *retrieved_attrs);
-static void AddProjectionIndexHeader(CHURL_HEADERS headers, int attno, char *long_number);
+static void AddAlignmentSizeHttpHeader(PXF_CURL_HEADERS headers);
+static void AddTupleDescriptionToHttpHeader(PXF_CURL_HEADERS headers, Relation rel);
+static void AddOptionsToHttpHeader(PXF_CURL_HEADERS headers, List *options);
+static void AddProjectionDescHttpHeader(PXF_CURL_HEADERS headers, List *retrieved_attrs);
 static char *NormalizeKeyName(const char *key);
 static char *TypeOidGetTypename(Oid typid);
 
@@ -48,7 +47,7 @@ static char *TypeOidGetTypename(Oid typid);
  * by the remote component.
  */
 void
-BuildHttpHeaders(CHURL_HEADERS headers,
+BuildHttpHeaders(PXF_CURL_HEADERS headers,
 				 PxfOptions *options,
 				 Relation relation,
 				 char *filter_string,
@@ -80,12 +79,13 @@ BuildHttpHeaders(CHURL_HEADERS headers,
 		ereport(ERROR,
 				(errcode(ERRCODE_INTERNAL_ERROR),
 				 errmsg("user identity is unknown")));
-	churl_headers_append(headers, "X-GP-ENCODED-HEADER-VALUES", "true");
-	churl_headers_append(headers, "X-GP-USER", ev.GP_USER);
 
-	churl_headers_append(headers, "X-GP-SEGMENT-ID", ev.GP_SEGMENT_ID);
-	churl_headers_append(headers, "X-GP-SEGMENT-COUNT", ev.GP_SEGMENT_COUNT);
-	churl_headers_append(headers, "X-GP-XID", ev.GP_XID);
+	PxfCurlHeadersAppend(headers, "X-GP-ENCODED-HEADER-VALUES", "true");
+	PxfCurlHeadersAppend(headers, "X-GP-USER", ev.GP_USER);
+
+	PxfCurlHeadersAppend(headers, "X-GP-SEGMENT-ID", ev.GP_SEGMENT_ID);
+	PxfCurlHeadersAppend(headers, "X-GP-SEGMENT-COUNT", ev.GP_SEGMENT_COUNT);
+	PxfCurlHeadersAppend(headers, "X-GP-XID", ev.GP_XID);
 
 	AddAlignmentSizeHttpHeader(headers);
 
@@ -93,14 +93,16 @@ BuildHttpHeaders(CHURL_HEADERS headers,
 	pg_ltoa(options->pxf_port, pxfPortString);
 
 	/* headers for uri data */
-	churl_headers_append(headers, "X-GP-URL-HOST", options->pxf_host);
-	churl_headers_append(headers, "X-GP-URL-PORT", pxfPortString);
+	PxfCurlHeadersAppend(headers, "X-GP-URL-HOST", options->pxf_host);
+	PxfCurlHeadersAppend(headers, "X-GP-URL-PORT", pxfPortString);
+	PxfCurlHeadersAppend(headers, "X-GP-URL-PROTOCOL", options->pxf_protocol);
 
-	churl_headers_append(headers, "X-GP-OPTIONS-PROFILE", options->profile);
-	/* only text format is supported for FDW */
-	churl_headers_append(headers, "X-GP-FORMAT", "TEXT");
-	churl_headers_append(headers, "X-GP-DATA-DIR", options->resource);
-	churl_headers_append(headers, "X-GP-OPTIONS-SERVER", options->server);
+	PxfCurlHeadersAppend(headers, "X-GP-WIRE-FORMAT", options->wire_format);
+	PxfCurlHeadersAppend(headers, "X-GP-RESOURCE", options->resource);
+	PxfCurlHeadersAppend(headers, "X-GP-SERVER", options->server);
+
+	PxfCurlHeadersAppend(headers, "X-GP-PROTOCOL", options->protocol);
+	PxfCurlHeadersAppend(headers, "X-GP-FORMAT", options->format);
 
 	/* extra options */
 	AddOptionsToHttpHeader(headers, options->options);
@@ -111,11 +113,11 @@ BuildHttpHeaders(CHURL_HEADERS headers,
 	/* filters */
 	if (filter_string && strcmp(filter_string, "") != 0)
 	{
-		churl_headers_append(headers, "X-GP-FILTER", filter_string);
-		churl_headers_append(headers, "X-GP-HAS-FILTER", "1");
+		PxfCurlHeadersAppend(headers, "X-GP-FILTER", filter_string);
+		PxfCurlHeadersAppend(headers, "X-GP-HAS-FILTER", "1");
 	}
 	else
-		churl_headers_append(headers, "X-GP-HAS-FILTER", "0");
+		PxfCurlHeadersAppend(headers, "X-GP-HAS-FILTER", "0");
 }
 
 /* Report alignment size to remote component
@@ -125,12 +127,12 @@ BuildHttpHeaders(CHURL_HEADERS headers,
  * the alignment can be either 4 or 8.
  */
 static void
-AddAlignmentSizeHttpHeader(CHURL_HEADERS headers)
+AddAlignmentSizeHttpHeader(PXF_CURL_HEADERS headers)
 {
 	char		tmp[sizeof(char *)];
 
 	pg_ltoa(sizeof(char *), tmp);
-	churl_headers_append(headers, "X-GP-ALIGNMENT", tmp);
+	PxfCurlHeadersAppend(headers, "X-GP-ALIGNMENT", tmp);
 }
 
 /*
@@ -145,11 +147,15 @@ AddAlignmentSizeHttpHeader(CHURL_HEADERS headers)
  * optional - X-GP-ATTR-TYPEMODX-Y - attribute X's modifiers Y (types which have precision info, like numeric(p,s))
  */
 static void
-AddTupleDescriptionToHttpHeader(CHURL_HEADERS headers, Relation rel)
+AddTupleDescriptionToHttpHeader(PXF_CURL_HEADERS headers, Relation rel)
 {
+	Oid		relid = RelationGetRelid(rel);
 	char		long_number[sizeof(int32) * 8];
 	StringInfoData formatter;
 	TupleDesc	tuple;
+	char	   *colname;
+	List	   *options;
+	ListCell   *lc;
 
 	initStringInfo(&formatter);
 
@@ -158,7 +164,7 @@ AddTupleDescriptionToHttpHeader(CHURL_HEADERS headers, Relation rel)
 
 	/* Convert the number of attributes to a string */
 	pg_ltoa(tuple->natts, long_number);
-	churl_headers_append(headers, "X-GP-ATTRS", long_number);
+	PxfCurlHeadersAppend(headers, "X-GP-ATTRS", long_number);
 
 	/* Iterate attributes */
 	for (int i = 0; i < tuple->natts; ++i)
@@ -168,18 +174,34 @@ AddTupleDescriptionToHttpHeader(CHURL_HEADERS headers, Relation rel)
 		/* Add a key/value pair for attribute name */
 		resetStringInfo(&formatter);
 		appendStringInfo(&formatter, "X-GP-ATTR-NAME%u", i);
-		churl_headers_append(headers, formatter.data, attr->attname.data);
+
+		/* Use attribute name or column_name option. */
+		colname = NameStr(attr->attname);
+		options = GetForeignColumnOptions(relid, i + 1);
+
+		foreach(lc, options)
+		{
+			DefElem    *def = (DefElem *) lfirst(lc);
+
+			if (strcmp(def->defname, "column_name") == 0)
+			{
+				colname = defGetString(def);
+				break;
+			}
+		}
+
+		PxfCurlHeadersAppend(headers, formatter.data, colname);
 
 		/* Add a key/value pair for attribute type */
 		resetStringInfo(&formatter);
 		appendStringInfo(&formatter, "X-GP-ATTR-TYPECODE%u", i);
 		pg_ltoa(attr->atttypid, long_number);
-		churl_headers_append(headers, formatter.data, long_number);
+		PxfCurlHeadersAppend(headers, formatter.data, long_number);
 
 		/* Add a key/value pair for attribute type name */
 		resetStringInfo(&formatter);
 		appendStringInfo(&formatter, "X-GP-ATTR-TYPENAME%u", i);
-		churl_headers_append(headers, formatter.data, TypeOidGetTypename(attr->atttypid));
+		PxfCurlHeadersAppend(headers, formatter.data, TypeOidGetTypename(attr->atttypid));
 
 		/* Add attribute type modifiers if any */
 		if (attr->atttypmod > -1)
@@ -191,20 +213,19 @@ AddTupleDescriptionToHttpHeader(CHURL_HEADERS headers, Relation rel)
 						resetStringInfo(&formatter);
 						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-COUNT", i);
 						pg_ltoa(2, long_number);
-						churl_headers_append(headers, formatter.data, long_number);
-
+						PxfCurlHeadersAppend(headers, formatter.data, long_number);
 
 						/* precision */
 						resetStringInfo(&formatter);
 						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-%u", i, 0);
 						pg_ltoa((attr->atttypmod >> 16) & 0xffff, long_number);
-						churl_headers_append(headers, formatter.data, long_number);
+						PxfCurlHeadersAppend(headers, formatter.data, long_number);
 
 						/* scale */
 						resetStringInfo(&formatter);
 						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-%u", i, 1);
 						pg_ltoa((attr->atttypmod - VARHDRSZ) & 0xffff, long_number);
-						churl_headers_append(headers, formatter.data, long_number);
+						PxfCurlHeadersAppend(headers, formatter.data, long_number);
 						break;
 					}
 				case CHAROID:
@@ -214,12 +235,12 @@ AddTupleDescriptionToHttpHeader(CHURL_HEADERS headers, Relation rel)
 						resetStringInfo(&formatter);
 						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-COUNT", i);
 						pg_ltoa(1, long_number);
-						churl_headers_append(headers, formatter.data, long_number);
+						PxfCurlHeadersAppend(headers, formatter.data, long_number);
 
 						resetStringInfo(&formatter);
 						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-%u", i, 0);
 						pg_ltoa((attr->atttypmod - VARHDRSZ), long_number);
-						churl_headers_append(headers, formatter.data, long_number);
+						PxfCurlHeadersAppend(headers, formatter.data, long_number);
 						break;
 					}
 				case VARBITOID:
@@ -232,12 +253,12 @@ AddTupleDescriptionToHttpHeader(CHURL_HEADERS headers, Relation rel)
 						resetStringInfo(&formatter);
 						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-COUNT", i);
 						pg_ltoa(1, long_number);
-						churl_headers_append(headers, formatter.data, long_number);
+						PxfCurlHeadersAppend(headers, formatter.data, long_number);
 
 						resetStringInfo(&formatter);
 						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-%u", i, 0);
 						pg_ltoa((attr->atttypmod), long_number);
-						churl_headers_append(headers, formatter.data, long_number);
+						PxfCurlHeadersAppend(headers, formatter.data, long_number);
 						break;
 					}
 				case INTERVALOID:
@@ -245,12 +266,12 @@ AddTupleDescriptionToHttpHeader(CHURL_HEADERS headers, Relation rel)
 						resetStringInfo(&formatter);
 						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-COUNT", i);
 						pg_ltoa(1, long_number);
-						churl_headers_append(headers, formatter.data, long_number);
+						PxfCurlHeadersAppend(headers, formatter.data, long_number);
 
 						resetStringInfo(&formatter);
 						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-%u", i, 0);
 						pg_ltoa(INTERVAL_PRECISION(attr->atttypmod), long_number);
-						churl_headers_append(headers, formatter.data, long_number);
+						PxfCurlHeadersAppend(headers, formatter.data, long_number);
 						break;
 					}
 				default:
@@ -267,7 +288,7 @@ AddTupleDescriptionToHttpHeader(CHURL_HEADERS headers, Relation rel)
  * Report projection description to the remote component
  */
 static void
-AddProjectionDescHttpHeader(CHURL_HEADERS headers, List *retrieved_attrs)
+AddProjectionDescHttpHeader(PXF_CURL_HEADERS headers, List *retrieved_attrs)
 {
 	ListCell   *lc1 = NULL;
 	char		long_number[sizeof(int32) * 8];
@@ -277,7 +298,7 @@ AddProjectionDescHttpHeader(CHURL_HEADERS headers, List *retrieved_attrs)
 		int			attno = lfirst_int(lc1);
 
 		/* zero-based index in the server side */
-		AddProjectionIndexHeader(headers, attno - 1, long_number);
+		PxfCurlHeadersAppend(headers, psprintf("X-GP-ATTRS-PROJ-IDX-%d", (attno - 1)), "true");
 	}
 
 	if (retrieved_attrs->length == 0)
@@ -285,26 +306,14 @@ AddProjectionDescHttpHeader(CHURL_HEADERS headers, List *retrieved_attrs)
 
 	/* Convert the number of projection columns to a string */
 	pg_ltoa(retrieved_attrs->length, long_number);
-	churl_headers_append(headers, "X-GP-ATTRS-PROJ", long_number);
-}
-
-/*
- * Adds the projection index header for the given attno
- */
-static void
-AddProjectionIndexHeader(CHURL_HEADERS headers,
-						 int attno,
-						 char *long_number)
-{
-	pg_ltoa(attno, long_number);
-	churl_headers_append(headers, "X-GP-ATTRS-PROJ-IDX", long_number);
+	PxfCurlHeadersAppend(headers, "X-GP-ATTRS-PROJ", long_number);
 }
 
 /*
  * Add all the FDW options in the list to the curl headers
  */
 static void
-AddOptionsToHttpHeader(CHURL_HEADERS headers, List *options)
+AddOptionsToHttpHeader(PXF_CURL_HEADERS headers, List *options)
 {
 	ListCell   *cell;
 
@@ -313,7 +322,7 @@ AddOptionsToHttpHeader(CHURL_HEADERS headers, List *options)
 		DefElem    *def = (DefElem *) lfirst(cell);
 		char	   *x_gp_key = NormalizeKeyName(def->defname);
 
-		churl_headers_append(headers, x_gp_key, defGetString(def));
+		PxfCurlHeadersAppend(headers, x_gp_key, defGetString(def));
 		pfree(x_gp_key);
 	}
 }
