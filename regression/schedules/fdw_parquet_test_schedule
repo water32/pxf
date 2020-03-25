@@ -1,0 +1,3 @@
+# put an underscore in front of test name
+# after search and replace, that will be the test name
+test: _FDW_ParquetPredicatePushDownTest _FDW_ParquetReadNumericWithPrecisionAndScaleFromAParquetFileGeneratedByHiveTest _FDW_ParquetReadPrimitivesTest _FDW_ParquetReadSubsetTest _FDW_ParquetReadUndefinedPrecisionNumericFromAParquetFileGeneratedByHiveTest

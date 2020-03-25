@@ -1,0 +1,348 @@
+dataproc_destroy_anchor: &ccp_destroy
+  do:
+  - in_parallel:
+    - put: terraform_gpdb
+      resource: terraform
+      params:
+        action: destroy
+        env_name_file: terraform_gpdb/name
+        terraform_source: ccp_src/google/
+      get_params:
+        action: destroy
+    - put: terraform_dataproc
+      resource: terraform
+      params:
+        action: destroy
+        env_name_file: terraform_dataproc/name
+        terraform_source: ccp_src/google-dataproc/
+        vars:
+          project: {{google-project-id}}
+      get_params:
+        action: destroy
+
+set_failed_gpdb_anchor: &set_failed
+  do:
+  - in_parallel:
+    - task: on_failure_set_failed_gpdb
+      input_mapping:
+        terraform: terraform_gpdb
+      config:
+        platform: linux
+        image_resource:
+          type: docker-image
+          source:
+            repository: pivotaldata/ccp
+            tag: "7"
+        inputs:
+        - name: ccp_src
+        - name: terraform_gpdb
+        run:
+          path: 'ccp_src/((tf-cloud-provider))/ccp_failed_test.sh'
+        params:
+          GOOGLE_CREDENTIALS: {{google-service-account-key}}
+          GOOGLE_PROJECT_ID: {{google-project-id}}
+          GOOGLE_ZONE: {{google-zone}}
+          GOOGLE_SERVICE_ACCOUNT: {{google-service-account}}
+          AWS_ACCESS_KEY_ID: {{tf-machine-access-key-id}}
+          AWS_SECRET_ACCESS_KEY: {{tf-machine-secret-access-key}}
+          AWS_DEFAULT_REGION: {{tf-machine-region}}
+          BUCKET_PATH: {{tf-bucket-path}}
+          BUCKET_NAME: {{tf-bucket-name}}
+
+    - task: on_failure_set_failed_dataproc
+      input_mapping:
+        terraform: terraform_dataproc
+      config:
+        platform: linux
+        image_resource:
+          type: docker-image
+          source:
+            repository: pivotaldata/ccp
+            tag: "7"
+        inputs:
+        - name: ccp_src
+        - name: terraform_dataproc
+        run:
+          path: 'ccp_src/((tf-cloud-provider))/ccp_failed_test.sh'
+        params:
+          GOOGLE_CREDENTIALS: {{google-service-account-key}}
+          GOOGLE_PROJECT_ID: {{google-project-id}}
+          GOOGLE_ZONE: {{google-zone}}
+          GOOGLE_SERVICE_ACCOUNT: {{google-service-account}}
+          AWS_ACCESS_KEY_ID: {{tf-machine-access-key-id}}
+          AWS_SECRET_ACCESS_KEY: {{tf-machine-secret-access-key}}
+          AWS_DEFAULT_REGION: {{tf-machine-region}}
+          BUCKET_PATH: {{tf-bucket-path}}
+          BUCKET_NAME: {{tf-bucket-name}}
+
+resource_types:
+- name: terraform
+  type: docker-image
+  source:
+    repository: ljfranklin/terraform-resource
+    tag: 0.11.14
+
+resources:
+- name: ccp_src
+  type: git
+  source:
+    branch: {{ccp-git-branch}}
+    private_key: {{ccp-git-key}}
+    uri: {{ccp-git-remote}}
+
+- name: gpdb_src
+  type: git
+  source:
+    branch: {{gpdb-branch}}
+    uri: {{gpdb-git-remote}}
+
+- name: pxf_src
+  type: git
+  source:
+    branch: {{pxf-git-branch}}
+    uri: {{pxf-git-remote}}
+
+- name: gpdb-pxf-dev-centos6
+  type: docker-image
+  source:
+    repository: pivotaldata/gpdb-pxf-dev
+    tag: centos6
+
+- name: ccp-7
+  type: docker-image
+  source:
+    repository: pivotaldata/ccp
+    tag: 7
+
+- name: gpdb-pxf-dev-centos6-hdp2-server
+  type: docker-image
+  source:
+    repository: pivotaldata/gpdb-pxf-dev
+    tag: centos6-hdp2-server
+
+- name: bin_gpdb_centos6
+  type: s3
+  source:
+    access_key_id: {{bucket-access-key-id}}
+    bucket: {{icw_green_bucket}}
+    region_name: {{aws-region}}
+    secret_access_key: {{bucket-secret-access-key}}
+    versioned_file: bin_gpdb_centos6/gpdb_branch_((gpdb-branch))/icw_green/bin_gpdb.tar.gz
+
+- name: pxf_tarball
+  type: s3
+  source:
+    access_key_id: {{bucket-access-key-id}}
+    bucket: {{pxf-aws-bucket-name}}
+    region_name: {{aws-region}}
+    secret_access_key: {{bucket-secret-access-key}}
+    versioned_file: pxf_artifacts/((folder-prefix))_((gpdb-branch))/latest/pxf.tar.gz
+
+- name: terraform
+  type: terraform
+  source:
+    env:
+      AWS_ACCESS_KEY_ID: {{tf-machine-access-key-id}}
+      AWS_SECRET_ACCESS_KEY: {{tf-machine-secret-access-key}}
+      GOOGLE_CREDENTIALS: {{google-service-account-key}}
+    vars:
+      project_id: {{google-project-id}}
+    storage:
+      access_key_id: {{tf-machine-access-key-id}}
+      secret_access_key: {{tf-machine-secret-access-key}}
+      region_name: {{aws-region}}
+      bucket: {{tf-bucket-name}}
+      bucket_path: {{tf-bucket-path}}
+
+- name: timed-trigger
+  type: time
+  source:
+    interval: {{perf-trigger-interval}}
+    location: America/Los_Angeles
+    start: {{perf-trigger-start}}
+    stop: {{perf-trigger-stop}}
+
+jobs:
+
+- name: compile_pxf
+  plan:
+  - get: timed-trigger
+    trigger: true
+  - in_parallel:
+    - get: gpdb_src
+    - get: pxf_src
+    - get: gpdb-pxf-dev-centos6
+  - task: compile_pxf
+    image: gpdb-pxf-dev-centos6
+    file: pxf_src/concourse/tasks/compile_pxf.yml
+  - put: pxf_tarball
+    params:
+      file: pxf_artifacts/pxf.tar.gz
+
+- name: pxf_perf_multinode
+  ensure:
+    <<: *set_failed
+  on_success:
+    <<: *ccp_destroy
+  plan:
+  - get: ccp_src
+  - get: gpdb_src
+    passed:
+    - compile_pxf
+  - get: gpdb_binary
+    resource: bin_gpdb_centos6
+  - get: pxf_src
+    passed:
+    - compile_pxf
+    trigger: true
+  - get: pxf_tarball
+    passed:
+    - compile_pxf
+    trigger: true
+  - get: ccp-7
+  - get: gpdb-pxf-dev-centos6-hdp2-server
+
+  - in_parallel:
+    - task: clean_up_s3
+      config:
+        platform: linux
+        image_resource:
+          type: docker-image
+          source:
+            repository: pivotaldata/ccp
+            tag: "7"
+        run:
+          path: aws
+          args:
+          - s3
+          - rm
+          - s3://gpdb-ud-scratch/s3-profile-test/output/
+          - --recursive
+        params:
+          AWS_ACCESS_KEY_ID: {{tf-machine-access-key-id}}
+          AWS_SECRET_ACCESS_KEY: {{tf-machine-secret-access-key}}
+          AWS_DEFAULT_REGION: {{tf-machine-region}}
+
+    - put: terraform_gpdb
+      resource: terraform
+      params:
+        action: create
+        delete_on_failure: true
+        generate_random_name: true
+        terraform_source: ccp_src/google/
+        vars:
+          PLATFORM: centos7
+          number_of_nodes: {{perf-gpdb-number-of-nodes}}
+          segments_per_host: {{perf-gpdb-segments-per-host}}
+          instance_type: {{perf-gpdb-instance-type}}
+          ccp_reap_minutes: {{perf-ccp-reap-minutes}}
+          disk_size: {{perf-gpdb-disk-size}}
+
+    - put: terraform_dataproc
+      resource: terraform
+      params:
+        action: create
+        delete_on_failure: true
+        generate_random_name: true
+        terraform_source: ccp_src/google-dataproc/
+        vars:
+          PLATFORM: centos7
+          number_of_nodes: {{perf-hadoop-number-of-nodes}}
+          instance_type: {{perf-hadoop-instance-type}}
+          project: {{google-project-id}}
+          internal_ip_only: "false"
+          ccp_reap_minutes: {{perf-ccp-reap-minutes}}
+          initialization_script: {{perf-hadoop-initialization-script}}
+          initialization_script_timeout: {{perf-hadoop-initialization-script-timeout}}
+          disk_size: {{perf-hadoop-disk-size}}
+
+  - in_parallel:
+      - do:
+        - task: gen_gpdb_cluster
+          input_mapping:
+            terraform: terraform_gpdb
+          file: ccp_src/ci/tasks/gen_cluster.yml
+          image: ccp-7
+          params:
+            AWS_ACCESS_KEY_ID: {{tf-machine-access-key-id}}
+            AWS_SECRET_ACCESS_KEY: {{tf-machine-secret-access-key}}
+            AWS_DEFAULT_REGION: {{aws-region}}
+            BUCKET_PATH: {{tf-bucket-path}}
+            BUCKET_NAME: {{tf-bucket-name}}
+            PLATFORM: centos7
+            CLOUD_PROVIDER: google
+        - task: customize_greenplum_init
+          image: ccp-7
+          file: pxf_src/concourse/tasks/customize_gpinitsystem.yml
+        - task: intialize_greenplum
+          input_mapping:
+            ccp_src: ccp_custom_src
+          file: ccp_src/ci/tasks/gpinitsystem.yml
+          on_failure:
+            <<: *ccp_destroy
+        - task: setup_pxf
+          input_mapping:
+            terraform: terraform_gpdb
+            bin_gpdb: gpdb_binary
+          file: pxf_src/concourse/tasks/install_pxf.yml
+          image: ccp-7
+          params:
+            AWS_ACCESS_KEY_ID: {{tf-machine-access-key-id}}
+            AWS_SECRET_ACCESS_KEY: {{tf-machine-secret-access-key}}
+            AWS_DEFAULT_REGION: {{aws-region}}
+            BUCKET_PATH: {{tf-bucket-path}}
+            BUCKET_NAME: {{tf-bucket-name}}
+            PLATFORM: centos7
+            CLOUD_PROVIDER: google
+            IMPERSONATION: {{enable-impersonation-multinode}}
+            INSTALL_GPHDFS: {{perf-benchmark-gphdfs}}
+            PROXY_USER: gpadmin
+            PXF_JVM_OPTS: {{pxf-jvm-opts}}
+          on_failure:
+            <<: *ccp_destroy
+
+      - task: load_data
+        config:
+          platform: linux
+          inputs:
+          - name: pxf_src
+          - name: terraform_dataproc
+          run:
+            path: pxf_src/concourse/scripts/load_data.bash
+          params:
+            GOOGLE_CREDENTIALS: {{google-service-account-key}}
+            GOOGLE_PROJECT_ID: {{google-project-id}}
+            GOOGLE_ZONE: {{google-zone}}
+            GOOGLE_SERVICE_ACCOUNT: {{google-service-account}}
+            PLATFORM: centos7
+            CLOUD_PROVIDER: google
+            SCALE: {{perf-scale}}
+        image: ccp-7
+
+  - task: run-perf-multinode
+    input_mapping:
+      bin_gpdb: gpdb_binary
+    image: gpdb-pxf-dev-centos6-hdp2-server
+    file: pxf_src/concourse/tasks/pxf-perf-multi-node.yml
+    params:
+      SCALE: {{perf-scale}}
+      BENCHMARK_ADL: {{perf-benchmark-adl}}
+      BENCHMARK_HADOOP: {{perf-benchmark-hadoop}}
+      BENCHMARK_S3: {{perf-benchmark-s3}}
+      BENCHMARK_S3_EXTENSION: {{perf-benchmark-s3-extension}}
+      BENCHMARK_GCS: {{perf-benchmark-gcs}}
+      BENCHMARK_GPHDFS: {{perf-benchmark-gphdfs}}
+      BENCHMARK_WASB: {{perf-benchmark-wasb}}
+      BENCHMARK_CONCURRENCY: {{perf-benchmark-concurrency}}
+      ADL_ACCOUNT: {{adl-account}}
+      ADL_CLIENT_ID: {{adl-client-id}}
+      ADL_CREDENTIAL: {{adl-credential}}
+      ADL_REFRESH_URL: {{adl-refresh-url}}
+      AWS_ACCESS_KEY_ID: {{tf-machine-access-key-id}}
+      AWS_SECRET_ACCESS_KEY: {{tf-machine-secret-access-key}}
+      AWS_DEFAULT_REGION: {{aws-region}}
+      GOOGLE_CREDENTIALS: {{data-gpdb-ud-google-json-key}}
+      WASB_ACCOUNT_NAME: {{wasb-account-name}}
+      WASB_ACCOUNT_KEY: {{wasb-account-key}}
+      SLEEP_BEFORE_DESTROY_IN_SEC: {{perf-sleep-before-destroy}}
+      TARGET_OS: centos

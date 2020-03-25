@@ -5,9 +5,10 @@ import org.greenplum.pxf.api.serializer.converter.ValueConverter;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.sql.Date;
 import java.time.LocalDate;
 
-public class LocalDateValueHandler extends BaseBinaryValueHandler<String> {
+public class LocalDateValueHandler extends BaseBinaryValueHandler<Object> {
 
     private ValueConverter<LocalDate, Integer> dateConverter;
 
@@ -21,8 +22,12 @@ public class LocalDateValueHandler extends BaseBinaryValueHandler<String> {
     }
 
     @Override
-    protected void internalHandle(DataOutputStream buffer, final String value) throws IOException {
+    protected void internalHandle(DataOutputStream buffer, final Object value) throws IOException {
         buffer.writeInt(4);
-        buffer.writeInt(dateConverter.convert(LocalDate.parse(value)));
+        if (value instanceof Date) {
+            buffer.writeInt(dateConverter.convert(((Date) value).toLocalDate()));
+        } else {
+            buffer.writeInt(dateConverter.convert(LocalDate.parse(value.toString())));
+        }
     }
 }

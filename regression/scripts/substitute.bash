@@ -86,6 +86,7 @@ SED_ARGS=(
 	-e "s|{{[[:space:]]*BEELINE_CMD[[:space:]]*}}|${BEELINE_CMD}|g"
 	-e "s|{{[[:space:]]*HIVE_HOST[[:space:]]*}}|${HIVE_HOST}|g"
 	-e "s|{{[[:space:]]*HIVE_PRINCIPAL[[:space:]]*}}|${HIVE_PRINCIPAL}|g"
+	-e "s|{{[[:space:]]*WORKING_DIR[[:space:]]*}}|${WORKING_DIR}|g"
 )
 
 # delete the cleanup steps if we have debug on

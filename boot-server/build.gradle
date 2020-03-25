@@ -80,7 +80,6 @@ configure(javaProjects) {
         all*.exclude group: "javax.servlet", module: "servlet-api"
         all*.exclude module: 'spring-boot-starter-logging'
         all*.exclude group: 'org.slf4j', module: 'slf4j-log4j12'
-//        all*.exclude group: 'log4j', module: 'log4j'
     }
 }
 
