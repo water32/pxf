@@ -4,7 +4,9 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import org.apache.catalina.connector.ClientAbortException;
 import org.apache.hadoop.conf.Configuration;
+import org.greenplum.pxf.api.factory.ProducerTaskFactory;
 import org.greenplum.pxf.api.factory.SerializerFactory;
+import org.greenplum.pxf.api.task.ProducerTask;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 
@@ -34,6 +36,11 @@ public abstract class BaseProcessor<T, M> extends BasePlugin implements Processo
      * A factory for serializers
      */
     private SerializerFactory serializerFactory;
+
+    /**
+     * A factory for ProducerTasks
+     */
+    private ProducerTaskFactory<T, M> producerTaskFactory;
 
     /**
      * A query session shared among all segments participating in this query
@@ -154,6 +161,16 @@ public abstract class BaseProcessor<T, M> extends BasePlugin implements Processo
     }
 
     /**
+     * Injects the producerTaskFactory instance
+     *
+     * @param producerTaskFactory the producerTaskFactory
+     */
+    @Autowired
+    public final void setProducerTaskFactory(ProducerTaskFactory<T, M> producerTaskFactory) {
+        this.producerTaskFactory = producerTaskFactory;
+    }
+
+    /**
      * Write the tuple to the serializer. The method retrieves an array of
      * fields for the given tuple and serializes each field using information
      * from the column descriptor to determine the type of the field
@@ -209,7 +226,15 @@ public abstract class BaseProcessor<T, M> extends BasePlugin implements Processo
         return OUTPUT_QUEUE_CACHE.get(cacheKey, () -> {
             LOG.debug("Caching QuerySession for transactionId={} from segmentId={} with key={}",
                 context.getTransactionId(), context.getSegmentId(), cacheKey);
-            return new QuerySession<>(cacheKey, context.getTotalSegments());
+            QuerySession<?, ?> querySession = new QuerySession<>(cacheKey, context.getTotalSegments());
+            initializeProducerTask(querySession);
+            return querySession;
         });
+    }
+
+    private void initializeProducerTask(QuerySession<?, ?> querySession) {
+        ProducerTask<T, M> producer = producerTaskFactory.getProducerTask(querySession);
+        producer.setName("pxf-producer-" + querySession.getQueryId());
+        producer.start();
     }
 }

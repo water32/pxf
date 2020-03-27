@@ -47,7 +47,7 @@ class DemoProcessorTest {
 
     @Test
     public void testDataSplitter() {
-        assertSame(DemoDataSplitter.class, processor.getQuerySplitter().getClass());
+        assertSame(DemoDataSplitter.class, processor.getDataSplitter().getClass());
     }
 
     @Test

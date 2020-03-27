@@ -36,6 +36,7 @@ public class QuerySession<T, M> {
     /**
      * A unique identifier for the query
      */
+    @Getter
     private final String queryId;
 
     /**
@@ -135,11 +136,6 @@ public class QuerySession<T, M> {
         this.processorQueue = new LinkedBlockingDeque<>();
         this.totalSegments = totalSegments;
         this.errors = new ConcurrentLinkedDeque<>();
-
-        ProducerTask<T, M> producer = new ProducerTask<>(this);
-        producer.setName("pxf-producer-" + queryId);
-        producer.start();
-
         LOG.info("{} created", this);
     }
 

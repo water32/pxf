@@ -18,7 +18,7 @@ public interface Processor<T> extends Plugin, StreamingResponseBody {
      *
      * @return the query splitter
      */
-    DataSplitter getQuerySplitter();
+    DataSplitter getDataSplitter();
 
     /**
      * Process the current split and return an iterator to retrieve tuples

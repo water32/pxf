@@ -112,7 +112,7 @@ public class ParquetProcessor extends BaseProcessor<Group, MessageType> {
     }
 
     @Override
-    public HcfsDataSplitter getQuerySplitter() {
+    public HcfsDataSplitter getDataSplitter() {
         return new HcfsDataSplitter(context, configuration);
     }
 

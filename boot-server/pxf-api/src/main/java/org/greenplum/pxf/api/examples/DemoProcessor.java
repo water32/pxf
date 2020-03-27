@@ -88,7 +88,7 @@ public class DemoProcessor extends BaseProcessor<String, Void> {
      * {@inheritDoc}
      */
     @Override
-    public DemoDataSplitter getQuerySplitter() {
+    public DemoDataSplitter getDataSplitter() {
         return new DemoDataSplitter(context, configuration);
     }
 

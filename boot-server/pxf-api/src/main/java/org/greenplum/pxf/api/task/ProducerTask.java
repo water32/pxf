@@ -94,14 +94,14 @@ public class ProducerTask<T, M> extends Thread {
             if (querySession.getDataSplitList() == null) {
                 synchronized (querySession) {
                     if (querySession.getDataSplitList() == null) {
-                        DataSplitter splitter = processor.getQuerySplitter();
+                        DataSplitter splitter = processor.getDataSplitter();
                         querySession.setDataSplitList(Lists.newArrayList(splitter));
                     }
                 }
             }
             return querySession.getDataSplitList().iterator();
         } else {
-            return processor.getQuerySplitter();
+            return processor.getDataSplitter();
         }
     }
 }

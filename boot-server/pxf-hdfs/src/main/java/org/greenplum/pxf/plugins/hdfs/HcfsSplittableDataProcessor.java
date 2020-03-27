@@ -78,7 +78,7 @@ public abstract class HcfsSplittableDataProcessor<K, V, S> extends BaseProcessor
      * {@inheritDoc}
      */
     @Override
-    public DataSplitter getQuerySplitter() {
+    public DataSplitter getDataSplitter() {
         return new HcfsDataSplitter(context, configuration);
     }
 
