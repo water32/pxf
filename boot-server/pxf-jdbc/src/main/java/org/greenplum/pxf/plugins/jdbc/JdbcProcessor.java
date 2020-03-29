@@ -166,6 +166,12 @@ public class JdbcProcessor extends BaseProcessor<ResultSet, Void> {
         this.connectionManager = connectionManager;
     }
 
+    @Override
+    public void initialize(RequestContext context, Configuration configuration) {
+        super.initialize(context, configuration);
+        initializeJdbcProperties();
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -174,8 +180,7 @@ public class JdbcProcessor extends BaseProcessor<ResultSet, Void> {
     public TupleIterator<ResultSet> getTupleIterator(DataSplit split) {
         if (!(split instanceof JdbcDataSplit))
             throw new IllegalArgumentException("A JdbcDataSplit is required");
-        if (!isJdbcInitialized)
-            initializeJdbcProperties();
+        ensureJdbcInitialized();
         return new JdbcTupleItr((JdbcDataSplit) split);
     }
 
@@ -184,6 +189,7 @@ public class JdbcProcessor extends BaseProcessor<ResultSet, Void> {
      */
     @Override
     public Iterator<Object> getFields(ResultSet tuple) {
+        ensureJdbcInitialized();
         return new ResultSetItr(tuple);
     }
 
@@ -319,6 +325,15 @@ public class JdbcProcessor extends BaseProcessor<ResultSet, Void> {
         }
 
         return connection;
+    }
+
+    /**
+     * Initializes JDBC properties if they have not been initialized
+     */
+    private void ensureJdbcInitialized() {
+        if (!isJdbcInitialized) {
+            initializeJdbcProperties();
+        }
     }
 
     /**

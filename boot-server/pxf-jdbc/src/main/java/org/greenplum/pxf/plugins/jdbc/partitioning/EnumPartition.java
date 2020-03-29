@@ -19,6 +19,7 @@ package org.greenplum.pxf.plugins.jdbc.partitioning;
  * under the License.
  */
 
+import lombok.Getter;
 import org.greenplum.pxf.plugins.jdbc.utils.DbProduct;
 
 import java.util.stream.Collectors;
@@ -26,7 +27,10 @@ import java.util.stream.Stream;
 
 class EnumPartition extends BasePartition implements JdbcFragmentMetadata {
 
+    @Getter
     private final String value;
+
+    @Getter
     private final String[] excluded;
 
     /**
@@ -87,19 +91,5 @@ class EnumPartition extends BasePartition implements JdbcFragmentMetadata {
         }
 
         return sb.toString();
-    }
-
-    /**
-     * Getter
-     */
-    public String getValue() {
-        return value;
-    }
-
-    /**
-     * Getter
-     */
-    public String[] getExcluded() {
-        return excluded;
     }
 }

@@ -19,6 +19,7 @@ package org.greenplum.pxf.plugins.jdbc.partitioning;
  * under the License.
  */
 
+import lombok.Getter;
 import org.greenplum.pxf.plugins.jdbc.utils.DbProduct;
 
 /**
@@ -31,6 +32,7 @@ import org.greenplum.pxf.plugins.jdbc.utils.DbProduct;
  */
 class NullPartition extends BasePartition implements JdbcFragmentMetadata {
 
+    @Getter
     private final boolean isNull;
 
     /**
@@ -47,7 +49,7 @@ class NullPartition extends BasePartition implements JdbcFragmentMetadata {
     /**
      * Construct a NullPartition with the given column and IS NULL constraint
      *
-     * @param column
+     * @param column the name of the column
      */
     public NullPartition(String column) {
         this(column, true);
@@ -61,12 +63,5 @@ class NullPartition extends BasePartition implements JdbcFragmentMetadata {
 
         return (quoteString + column + quoteString) +
             (isNull ? " IS NULL" : " IS NOT NULL");
-    }
-
-    /**
-     * Getter
-     */
-    public boolean isNull() {
-        return isNull;
     }
 }

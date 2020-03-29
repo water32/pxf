@@ -1,8 +1,6 @@
 package org.greenplum.pxf.plugins.jdbc;
 
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import org.greenplum.pxf.api.model.DataSplit;
 import org.greenplum.pxf.plugins.jdbc.partitioning.JdbcFragmentMetadata;
 
@@ -10,7 +8,6 @@ import org.greenplum.pxf.plugins.jdbc.partitioning.JdbcFragmentMetadata;
  * A query split holds information about a JDBC data split.
  * {@link JdbcDataSplitter} iterates over splits for a query slice.
  */
-@EqualsAndHashCode
 public class JdbcDataSplit extends DataSplit {
 
     /**
@@ -50,7 +47,7 @@ public class JdbcDataSplit extends DataSplit {
         StringBuilder sb = new StringBuilder(getResource());
 
         if (fragmentMetadata != null)
-            sb.append(fragmentMetadata);
+            sb.append(":").append(fragmentMetadata);
 
         return sb.toString();
     }

@@ -1,5 +1,7 @@
 package org.greenplum.pxf.plugins.jdbc.partitioning;
 
+import lombok.Getter;
+
 /**
  * A base class for partition of any type.
  * <p>
@@ -7,6 +9,7 @@ package org.greenplum.pxf.plugins.jdbc.partitioning;
  */
 abstract class BasePartition implements JdbcFragmentMetadata {
 
+    @Getter
     protected final String column;
 
     /**
@@ -18,13 +21,6 @@ abstract class BasePartition implements JdbcFragmentMetadata {
             throw new IllegalArgumentException("The column name must be provided");
         }
         this.column = column;
-    }
-
-    /**
-     * Getter
-     */
-    public String getColumn() {
-        return column;
     }
 
     /**
@@ -45,8 +41,8 @@ abstract class BasePartition implements JdbcFragmentMetadata {
             sb.append(" >= ").append(range[0]);
         } else {
             sb.append(" >= ").append(range[0])
-                    .append(" AND ")
-                    .append(quotedColumn).append(" < ").append(range[1]);
+                .append(" AND ")
+                .append(quotedColumn).append(" < ").append(range[1]);
         }
 
         return sb.toString();

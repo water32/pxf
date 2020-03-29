@@ -1,14 +1,11 @@
 package org.greenplum.pxf.plugins.jdbc;
 
-import org.apache.commons.lang.SerializationUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.greenplum.pxf.api.factory.ProducerTaskFactory;
 import org.greenplum.pxf.api.factory.SerializerFactory;
-import org.greenplum.pxf.api.model.DataSplit;
 import org.greenplum.pxf.api.model.DataSplitter;
 import org.greenplum.pxf.api.model.RequestContext;
 import org.greenplum.pxf.api.task.ProducerTask;
-import org.greenplum.pxf.plugins.jdbc.partitioning.PartitionType;
 import org.greenplum.pxf.plugins.jdbc.utils.ConnectionManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,13 +23,12 @@ import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.HashMap;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 @SpringBootTest(
@@ -51,7 +47,7 @@ public class JdbcProcessorTest {
     @MockBean
     private ProducerTaskFactory<?, ?> producerTaskFactory;
 
-    private DataSplit dataSplit;
+    private JdbcDataSplit dataSplit;
     private RequestContext context;
     private Configuration configuration;
 
@@ -77,7 +73,7 @@ public class JdbcProcessorTest {
         context.setDataSource("test-table");
         context.setUser("test-user");
         context.setTotalSegments(1);
-        dataSplit = new DataSplit("test-table");
+        dataSplit = new JdbcDataSplit("test-table");
 
         when(mockConnectionManager.getConnection(any(), any(), any(), anyBoolean(), any(), any())).thenReturn(mockConnection);
         when(mockConnection.getMetaData()).thenReturn(mockMetaData);
@@ -140,7 +136,7 @@ public class JdbcProcessorTest {
         String serversDirectory = new File(this.getClass().getClassLoader().getResource("servers").toURI()).getCanonicalPath();
         configuration.set("pxf.config.server.directory", serversDirectory + File.separator + "test-server");
         context.setDataSource("query:testquery");
-        dataSplit = new DataSplit("query:testquery");
+        dataSplit = new JdbcDataSplit("query:testquery");
         ArgumentCaptor<String> queryPassed = ArgumentCaptor.forClass(String.class);
         when(mockStatement.executeQuery(queryPassed.capture())).thenReturn(mockResultSet);
         when(mockConnection.createStatement()).thenReturn(mockStatement);
@@ -162,7 +158,7 @@ public class JdbcProcessorTest {
         String serversDirectory = new File(this.getClass().getClassLoader().getResource("servers").toURI()).getCanonicalPath();
         configuration.set("pxf.config.server.directory", serversDirectory + File.separator + "test-server");
         context.setDataSource("query:testquerywithsemicolon");
-        dataSplit = new DataSplit("query:testquerywithsemicolon");
+        dataSplit = new JdbcDataSplit("query:testquerywithsemicolon");
         ArgumentCaptor<String> queryPassed = ArgumentCaptor.forClass(String.class);
         when(mockStatement.executeQuery(queryPassed.capture())).thenReturn(mockResultSet);
         when(mockConnection.createStatement()).thenReturn(mockStatement);
@@ -184,7 +180,7 @@ public class JdbcProcessorTest {
         String serversDirectory = new File(this.getClass().getClassLoader().getResource("servers").toURI()).getCanonicalPath();
         configuration.set("pxf.config.server.directory", serversDirectory + File.separator + "test-server");
         context.setDataSource("query:testquerywithvalidsemicolon");
-        dataSplit = new DataSplit("query:testquerywithvalidsemicolon");
+        dataSplit = new JdbcDataSplit("query:testquerywithvalidsemicolon");
         ArgumentCaptor<String> queryPassed = ArgumentCaptor.forClass(String.class);
         when(mockStatement.executeQuery(queryPassed.capture())).thenReturn(mockResultSet);
         when(mockConnection.createStatement()).thenReturn(mockStatement);
@@ -210,8 +206,7 @@ public class JdbcProcessorTest {
         context.addOption("PARTITION_BY", "count:int");
         context.addOption("RANGE", "1:10");
         context.addOption("INTERVAL", "1");
-        context.setFragmentMetadata(SerializationUtils.serialize(PartitionType.INT.getFragmentsMetadata("count", "1:10", "1").get(2)));
-        dataSplit = new DataSplit("query:testquery");
+        dataSplit = new JdbcDataSplit("query:testquery");
         ArgumentCaptor<String> queryPassed = ArgumentCaptor.forClass(String.class);
         when(mockStatement.executeQuery(queryPassed.capture())).thenReturn(mockResultSet);
         when(mockConnection.createStatement()).thenReturn(mockStatement);
@@ -223,7 +218,7 @@ public class JdbcProcessorTest {
 
         for (int i = 0; i <= 2; i++) {
             assertTrue(splitter.hasNext());
-            assertNotNull((dataSplit = splitter.next()));
+            assertNotNull((dataSplit = (JdbcDataSplit) splitter.next()));
         }
         processor.getTupleIterator(dataSplit);
 
@@ -242,8 +237,7 @@ public class JdbcProcessorTest {
         context.addOption("PARTITION_BY", "count:int");
         context.addOption("RANGE", "1:10");
         context.addOption("INTERVAL", "1");
-//        context.setFragmentMetadata(SerializationUtils.serialize(PartitionType.INT.getFragmentsMetadata("count", "1:10", "1").get(2)));
-        dataSplit = new DataSplit("query:testquerywithwhere");
+        dataSplit = new JdbcDataSplit("query:testquerywithwhere");
         ArgumentCaptor<String> queryPassed = ArgumentCaptor.forClass(String.class);
         when(mockStatement.executeQuery(queryPassed.capture())).thenReturn(mockResultSet);
         when(mockConnection.createStatement()).thenReturn(mockStatement);
@@ -255,7 +249,7 @@ public class JdbcProcessorTest {
 
         for (int i = 0; i <= 2; i++) {
             assertTrue(splitter.hasNext());
-            assertNotNull((dataSplit = splitter.next()));
+            assertNotNull((dataSplit = (JdbcDataSplit) splitter.next()));
         }
 
         processor.getTupleIterator(dataSplit);
@@ -282,7 +276,7 @@ public class JdbcProcessorTest {
 
         for (int i = 0; i <= 2; i++) {
             assertTrue(splitter.hasNext());
-            assertNotNull((dataSplit = splitter.next()));
+            assertNotNull((dataSplit = (JdbcDataSplit) splitter.next()));
         }
 
         ArgumentCaptor<String> queryPassed = ArgumentCaptor.forClass(String.class);
