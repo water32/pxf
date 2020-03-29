@@ -1,6 +1,6 @@
 package org.greenplum.pxf.plugins.jdbc.partitioning;
 
-import java.io.Serializable;
+import org.greenplum.pxf.plugins.jdbc.utils.DbProduct;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -21,12 +21,10 @@ import java.io.Serializable;
  * under the License.
  */
 
-import org.greenplum.pxf.plugins.jdbc.utils.DbProduct;
-
 /**
  * Storage of partition constraints for JDBC partitioning feature
  */
-public interface JdbcFragmentMetadata extends Serializable {
+public interface JdbcFragmentMetadata {
     /**
      * Form a SQL constraint from the metadata of this fragment.
      *

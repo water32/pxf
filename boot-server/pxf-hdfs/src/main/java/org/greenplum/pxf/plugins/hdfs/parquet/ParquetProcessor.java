@@ -28,6 +28,7 @@ import org.greenplum.pxf.api.model.ColumnDescriptor;
 import org.greenplum.pxf.api.model.DataSplit;
 import org.greenplum.pxf.api.model.FragmentMetadata;
 import org.greenplum.pxf.api.model.RequestContext;
+import org.greenplum.pxf.api.model.TupleIterator;
 import org.greenplum.pxf.plugins.hdfs.HcfsType;
 import org.greenplum.pxf.plugins.hdfs.splitter.HcfsDataSplitter;
 import org.springframework.context.annotation.Scope;
@@ -80,6 +81,8 @@ public class ParquetProcessor extends BaseProcessor<Group, MessageType> {
 
     private MessageType readSchema;
 
+    private TupleItr tupleItr;
+
     /**
      * {@inheritDoc}
      */
@@ -91,7 +94,7 @@ public class ParquetProcessor extends BaseProcessor<Group, MessageType> {
     }
 
     @Override
-    public Iterator<Group> getTupleIterator(DataSplit split) throws IOException {
+    public TupleIterator<Group> getTupleIterator(DataSplit split) throws IOException {
         ensureReadSchemaIsInitialized(split);
         return new TupleItr(split);
     }
@@ -122,7 +125,7 @@ public class ParquetProcessor extends BaseProcessor<Group, MessageType> {
             HcfsType.fromString(context.getProtocol().toUpperCase()) != HcfsType.CUSTOM;
     }
 
-    private class TupleItr implements Iterator<Group> {
+    private class TupleItr implements TupleIterator<Group> {
         private ParquetReader<Group> fileReader;
         private Group group = null;
         private long totalRowsRead;
@@ -152,6 +155,9 @@ public class ParquetProcessor extends BaseProcessor<Group, MessageType> {
                 .build();
         }
 
+        /**
+         * {@inheritDoc}
+         */
         @Override
         public boolean hasNext() {
             if (group == null && fileReader != null) {
@@ -160,6 +166,9 @@ public class ParquetProcessor extends BaseProcessor<Group, MessageType> {
             return group != null;
         }
 
+        /**
+         * {@inheritDoc}
+         */
         @Override
         public Group next() {
             if (group == null) {
@@ -173,6 +182,14 @@ public class ParquetProcessor extends BaseProcessor<Group, MessageType> {
             Group result = group;
             group = null;
             return result;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public void cleanup() throws IOException {
+            closeForRead();
         }
 
         private void readNext() throws RuntimeException {

@@ -8,7 +8,6 @@ import org.greenplum.pxf.api.factory.ProducerTaskFactory;
 import org.greenplum.pxf.api.factory.SerializerFactory;
 import org.greenplum.pxf.api.task.ProducerTask;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 
 import javax.ws.rs.WebApplicationException;
 import java.io.IOException;
@@ -222,17 +221,18 @@ public abstract class BaseProcessor<T, M> extends BasePlugin implements Processo
      * @param context  the request context
      * @return the QuerySession object for the given key
      */
+    @SuppressWarnings("unchecked")
     private QuerySession<?, ?> getQuerySession(final String cacheKey, final RequestContext context) throws ExecutionException {
         return OUTPUT_QUEUE_CACHE.get(cacheKey, () -> {
             LOG.debug("Caching QuerySession for transactionId={} from segmentId={} with key={}",
                 context.getTransactionId(), context.getSegmentId(), cacheKey);
             QuerySession<?, ?> querySession = new QuerySession<>(cacheKey, context.getTotalSegments());
-            initializeProducerTask(querySession);
+            initializeProducerTask((QuerySession<T, M>) querySession);
             return querySession;
         });
     }
 
-    private void initializeProducerTask(QuerySession<?, ?> querySession) {
+    private void initializeProducerTask(QuerySession<T, M> querySession) {
         ProducerTask<T, M> producer = producerTaskFactory.getProducerTask(querySession);
         producer.setName("pxf-producer-" + querySession.getQueryId());
         producer.start();

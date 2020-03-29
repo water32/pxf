@@ -24,7 +24,6 @@ import org.greenplum.pxf.plugins.jdbc.utils.DbProduct;
 import java.util.stream.Stream;
 
 class IntPartition extends BasePartition implements JdbcFragmentMetadata {
-    private static final long serialVersionUID = 0L;
 
     private final Long[] boundaries;
 

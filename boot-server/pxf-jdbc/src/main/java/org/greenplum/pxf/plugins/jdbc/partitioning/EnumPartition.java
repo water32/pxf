@@ -25,7 +25,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 class EnumPartition extends BasePartition implements JdbcFragmentMetadata {
-    private static final long serialVersionUID = 0L;
 
     private final String value;
     private final String[] excluded;

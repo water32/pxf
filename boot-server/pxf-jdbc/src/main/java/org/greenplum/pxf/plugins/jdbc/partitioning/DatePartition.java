@@ -26,7 +26,6 @@ import java.time.LocalDate;
 import java.util.stream.Stream;
 
 class DatePartition extends BasePartition implements JdbcFragmentMetadata {
-    private static final long serialVersionUID = 0L;
 
     private final Date[] boundaries;
 

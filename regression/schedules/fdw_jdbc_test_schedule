@@ -1,0 +1,4 @@
+# put an underscore in front of test name
+# after search and replace, that will be the test name
+test: _FDW_JdbcColumnProjectionTest _FDW_JdbcColumnsTest _FDW_JdbcReadableTableNoBatchTest _FDW_JdbcSingleFragmentTableTest
+test: _FDW_JdbcNamedQueryTest _FDW_JdbcMultipleFragmentsTablesTest _FDW_JdbcReadViewSessionParamsTest _FDW_JdbcReadServerConfigTest

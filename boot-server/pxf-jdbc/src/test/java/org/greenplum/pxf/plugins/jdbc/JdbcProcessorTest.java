@@ -242,7 +242,7 @@ public class JdbcProcessorTest {
         context.addOption("PARTITION_BY", "count:int");
         context.addOption("RANGE", "1:10");
         context.addOption("INTERVAL", "1");
-        context.setFragmentMetadata(SerializationUtils.serialize(PartitionType.INT.getFragmentsMetadata("count", "1:10", "1").get(2)));
+//        context.setFragmentMetadata(SerializationUtils.serialize(PartitionType.INT.getFragmentsMetadata("count", "1:10", "1").get(2)));
         dataSplit = new DataSplit("query:testquerywithwhere");
         ArgumentCaptor<String> queryPassed = ArgumentCaptor.forClass(String.class);
         when(mockStatement.executeQuery(queryPassed.capture())).thenReturn(mockResultSet);

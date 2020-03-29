@@ -1,3 +1,4 @@
+*.out
 .testdir.tmp
 jsystem.properties.bu
 jsystem.properties

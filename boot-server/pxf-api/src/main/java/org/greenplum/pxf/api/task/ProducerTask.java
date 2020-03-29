@@ -60,7 +60,7 @@ public class ProducerTask<T, M> extends Thread {
                 }
 
                 processorCount++;
-                Iterator<DataSplit> iterator = new DataSplitSegmentIterator(processor.getSegmentId(), querySession.getTotalSegments(), getQuerySplitterIterator(processor));
+                Iterator<DataSplit> iterator = new DataSplitSegmentIterator<>(processor.getSegmentId(), querySession.getTotalSegments(), getQuerySplitterIterator(processor));
                 LOG.debug("new DataSplit iterator fetched");
                 while (iterator.hasNext() && querySession.isActive()) {
                     DataSplit split = iterator.next();

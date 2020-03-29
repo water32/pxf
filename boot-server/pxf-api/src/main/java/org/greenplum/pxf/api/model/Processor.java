@@ -27,7 +27,7 @@ public interface Processor<T> extends Plugin, StreamingResponseBody {
      * @param split the split
      * @return an iterator of tuples of type T
      */
-    Iterator<T> getTupleIterator(DataSplit split) throws IOException;
+    TupleIterator<T> getTupleIterator(DataSplit split) throws IOException;
 
     /**
      * Return a list of fields for the the tuple

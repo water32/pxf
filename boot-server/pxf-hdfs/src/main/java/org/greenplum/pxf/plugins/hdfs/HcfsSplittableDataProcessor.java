@@ -14,6 +14,7 @@ import org.greenplum.pxf.api.model.DataSplit;
 import org.greenplum.pxf.api.model.DataSplitter;
 import org.greenplum.pxf.api.model.FragmentMetadata;
 import org.greenplum.pxf.api.model.RequestContext;
+import org.greenplum.pxf.api.model.TupleIterator;
 import org.greenplum.pxf.plugins.hdfs.splitter.HcfsDataSplitter;
 import org.greenplum.pxf.plugins.hdfs.utilities.HdfsUtilities;
 
@@ -70,7 +71,7 @@ public abstract class HcfsSplittableDataProcessor<K, V, S> extends BaseProcessor
      * {@inheritDoc}
      */
     @Override
-    public Iterator<Pair<K, V>> getTupleIterator(DataSplit split) throws IOException {
+    public TupleIterator<Pair<K, V>> getTupleIterator(DataSplit split) throws IOException {
         return new RecordTupleItr(split);
     }
 
@@ -95,7 +96,7 @@ public abstract class HcfsSplittableDataProcessor<K, V, S> extends BaseProcessor
      */
     abstract protected RecordReader<K, V> getReader(JobConf conf, InputSplit split) throws IOException;
 
-    protected class RecordTupleItr implements Iterator<Pair<K, V>> {
+    protected class RecordTupleItr implements TupleIterator<Pair<K, V>> {
 
         protected final K key;
         protected final V value;
@@ -180,6 +181,14 @@ public abstract class HcfsSplittableDataProcessor<K, V, S> extends BaseProcessor
             nextKey = null;
             nextValue = null;
             return result;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public void cleanup() throws IOException {
+            closeForRead();
         }
 
         /**

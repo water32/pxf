@@ -30,7 +30,6 @@ import org.greenplum.pxf.plugins.jdbc.utils.DbProduct;
  * In other words, IS NOT NULL is never used (but is supported).
  */
 class NullPartition extends BasePartition implements JdbcFragmentMetadata {
-    private static final long serialVersionUID = 0L;
 
     private final boolean isNull;
 

@@ -12,7 +12,7 @@ import java.util.List;
  * <p>
  * https://github.com/intermine/intermine/blob/master/intermine/objectstore/main/src/org/intermine/sql/writebatch/BatchWriterPostgresCopyImpl.java
  */
-public class BigDecimalValueHandler<T extends Number> extends BaseBinaryValueHandler<T> {
+public class BigDecimalValueHandler extends BaseBinaryValueHandler<Object> {
 
     private static final int DECIMAL_DIGITS = 4;
 
@@ -20,9 +20,17 @@ public class BigDecimalValueHandler<T extends Number> extends BaseBinaryValueHan
     protected static final BigInteger TEN_THOUSAND = new BigInteger("10000");
 
     @Override
-    protected void internalHandle(DataOutputStream buffer, final T value) throws IOException {
+    protected void internalHandle(DataOutputStream buffer, final Object value) throws IOException {
 
-        BigDecimal tmpValue = getNumericAsBigDecimal(value);
+        BigDecimal tmpValue;
+        if (value instanceof Number) {
+            tmpValue = getNumericAsBigDecimal((Number) value);
+        } else if (value instanceof String) {
+            tmpValue = new BigDecimal((String) value);
+        } else {
+            throw new IllegalArgumentException(
+                String.format("Unable to convert value '%s' of type '%s' to BigDecimal", value, value.getClass().getName()));
+        }
 
         BigInteger unscaledValue = tmpValue.unscaledValue();
 

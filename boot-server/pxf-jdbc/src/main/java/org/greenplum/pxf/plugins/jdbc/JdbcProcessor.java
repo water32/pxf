@@ -11,6 +11,7 @@ import org.greenplum.pxf.api.model.ColumnDescriptor;
 import org.greenplum.pxf.api.model.DataSplit;
 import org.greenplum.pxf.api.model.DataSplitter;
 import org.greenplum.pxf.api.model.RequestContext;
+import org.greenplum.pxf.api.model.TupleIterator;
 import org.greenplum.pxf.api.utilities.Utilities;
 import org.greenplum.pxf.plugins.jdbc.utils.ConnectionManager;
 import org.greenplum.pxf.plugins.jdbc.utils.DbProduct;
@@ -33,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static org.greenplum.pxf.api.security.SecureLogin.CONFIG_KEY_SERVICE_USER_IMPERSONATION;
@@ -107,12 +109,10 @@ public class JdbcProcessor extends BaseProcessor<ResultSet, Void> {
         }
     }
 
-    public JdbcProcessor(ConnectionManager connectionManager) {
-        this.connectionManager = connectionManager;
-    }
+    // Whether JDBC connection properties have been initialized
+    private boolean isJdbcInitialized = false;
 
     // JDBC parameters from config file or specified in DDL
-
     private String jdbcUrl;
 
     protected String tableName;
@@ -162,10 +162,169 @@ public class JdbcProcessor extends BaseProcessor<ResultSet, Void> {
             "The property \"pxf.impersonation.jdbc\" has been deprecated in favor of \"pxf.service.user.impersonation\".");
     }
 
-    @Override
-    public void initialize(RequestContext context, Configuration configuration) {
-        super.initialize(context, configuration);
+    public JdbcProcessor(ConnectionManager connectionManager) {
+        this.connectionManager = connectionManager;
+    }
 
+    /**
+     * {@inheritDoc}
+     */
+    @SneakyThrows
+    @Override
+    public TupleIterator<ResultSet> getTupleIterator(DataSplit split) {
+        if (!(split instanceof JdbcDataSplit))
+            throw new IllegalArgumentException("A JdbcDataSplit is required");
+        if (!isJdbcInitialized)
+            initializeJdbcProperties();
+        return new JdbcTupleItr((JdbcDataSplit) split);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Iterator<Object> getFields(ResultSet tuple) {
+        return new ResultSetItr(tuple);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean canProcessRequest(RequestContext context) {
+        return StringUtils.equalsIgnoreCase("jdbc", context.getProtocol()) &&
+            StringUtils.isEmpty(context.getFormat());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public DataSplitter getDataSplitter() {
+        return new JdbcDataSplitter(context, configuration);
+    }
+
+    private class JdbcTupleItr implements TupleIterator<ResultSet> {
+
+        // Read variables
+        private Statement statementRead;
+        private ResultSet resultSetRead;
+        private boolean hasNext;
+        private boolean consumed;
+
+
+        public JdbcTupleItr(JdbcDataSplit split) throws SQLException {
+
+            try {
+                Connection connection = getConnection();
+                SQLQueryBuilder sqlQueryBuilder = new SQLQueryBuilder(context, connection.getMetaData(), getQueryText(), split);
+
+                // Build SELECT query
+                if (quoteColumns == null) {
+                    sqlQueryBuilder.autoSetQuoteString();
+                } else if (quoteColumns) {
+                    sqlQueryBuilder.forceSetQuoteString();
+                }
+
+                String queryRead = sqlQueryBuilder.buildSelectQuery();
+                LOG.trace("Select query: {}", queryRead);
+
+                // Execute queries
+                statementRead = connection.createStatement();
+                statementRead.setFetchSize(fetchSize);
+
+                if (queryTimeout != null) {
+                    LOG.debug("Setting query timeout to {} seconds", queryTimeout);
+                    statementRead.setQueryTimeout(queryTimeout);
+                }
+                resultSetRead = statementRead.executeQuery(queryRead);
+                hasNext = resultSetRead.next();
+                consumed = false;
+            } catch (SQLException ex) {
+                cleanup();
+                throw ex;
+            }
+        }
+
+        @SneakyThrows
+        @Override
+        public boolean hasNext() {
+            checkIfNextIsAvailable();
+            return hasNext;
+        }
+
+        @SneakyThrows
+        @Override
+        public ResultSet next() {
+            checkIfNextIsAvailable();
+
+            if (!hasNext)
+                throw new NoSuchElementException();
+
+            consumed = true;
+            return resultSetRead;
+        }
+
+        /**
+         * cleanup() implementation
+         */
+        @Override
+        public void cleanup() throws SQLException {
+            if (resultSetRead != null) {
+                try {
+                    resultSetRead.close();
+                } catch (SQLException e) {
+                    // ignore ...
+                }
+            }
+            closeStatementAndConnection(statementRead);
+        }
+
+        @SneakyThrows
+        private void checkIfNextIsAvailable() {
+            if (consumed) {
+                hasNext = resultSetRead.next();
+                consumed = false;
+            }
+        }
+    }
+
+    /**
+     * Open a new JDBC connection
+     *
+     * @return {@link Connection}
+     * @throws SQLException if a database access or connection error occurs
+     */
+    public Connection getConnection() throws SQLException {
+        LOG.debug("Requesting a new JDBC connection. URL={} table={} txid:seg={}:{}", jdbcUrl, tableName, context.getTransactionId(), context.getSegmentId());
+
+        Connection connection = null;
+        try {
+            connection = getConnectionInternal();
+            LOG.debug("Obtained a JDBC connection {} for URL={} table={} txid:seg={}:{}", connection, jdbcUrl, tableName, context.getTransactionId(), context.getSegmentId());
+
+            prepareConnection(connection);
+        } catch (Exception e) {
+            closeConnection(connection);
+            if (e instanceof SQLException) {
+                throw (SQLException) e;
+            } else {
+                String msg = e.getMessage();
+                if (msg == null) {
+                    Throwable t = e.getCause();
+                    if (t != null) msg = t.getMessage();
+                }
+                throw new SQLException(msg, e);
+            }
+        }
+
+        return connection;
+    }
+
+    /**
+     * Initializes JDBC properties from the context and configuration
+     */
+    private void initializeJdbcProperties() {
         // Required parameter. Can be auto-overwritten by user options
         String jdbcDriver = configuration.get(JDBC_DRIVER_PROPERTY_NAME);
         assertMandatoryParameter(jdbcDriver, JDBC_DRIVER_PROPERTY_NAME, JDBC_DRIVER_OPTION_NAME);
@@ -331,140 +490,7 @@ public class JdbcProcessor extends BaseProcessor<ResultSet, Void> {
             // to switch effective user once connection is established
             poolQualifier = configuration.get(JDBC_POOL_QUALIFIER_PROPERTY_NAME);
         }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @SneakyThrows
-    @Override
-    public Iterator<ResultSet> getTupleIterator(DataSplit split) {
-        return new JdbcTupleItr(split);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Iterator<Object> getFields(ResultSet tuple) {
-        return new ResultSetItr(tuple);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean canProcessRequest(RequestContext context) {
-        return StringUtils.equalsIgnoreCase("jdbc", context.getProtocol()) &&
-            StringUtils.isEmpty(context.getFormat());
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public DataSplitter getDataSplitter() {
-        return new JdbcDataSplitter(context, configuration);
-    }
-
-    private class JdbcTupleItr implements Iterator<ResultSet> {
-
-        // Read variables
-        private Statement statementRead;
-        private ResultSet resultSetRead;
-        private boolean hasNext;
-        private boolean consumed;
-
-        public JdbcTupleItr(DataSplit split) throws SQLException {
-
-            Connection connection = getConnection();
-            SQLQueryBuilder sqlQueryBuilder = new SQLQueryBuilder(context, connection.getMetaData(), getQueryText(), split);
-
-            // Build SELECT query
-            if (quoteColumns == null) {
-                sqlQueryBuilder.autoSetQuoteString();
-            } else if (quoteColumns) {
-                sqlQueryBuilder.forceSetQuoteString();
-            }
-
-            String queryRead = sqlQueryBuilder.buildSelectQuery();
-            LOG.trace("Select query: {}", queryRead);
-
-            // Execute queries
-            statementRead = connection.createStatement();
-            statementRead.setFetchSize(fetchSize);
-
-            if (queryTimeout != null) {
-                LOG.debug("Setting query timeout to {} seconds", queryTimeout);
-                statementRead.setQueryTimeout(queryTimeout);
-            }
-            resultSetRead = statementRead.executeQuery(queryRead);
-            hasNext = resultSetRead.next();
-            consumed = false;
-        }
-
-        @SneakyThrows
-        @Override
-        public boolean hasNext() {
-            checkIfNextIsAvailable();
-            return hasNext;
-        }
-
-        @SneakyThrows
-        @Override
-        public ResultSet next() {
-            checkIfNextIsAvailable();
-
-            if (!hasNext)
-                throw new NoSuchElementException();
-
-            consumed = true;
-            return resultSetRead;
-        }
-
-        @SneakyThrows
-        private void checkIfNextIsAvailable() {
-            if (consumed) {
-                hasNext = resultSetRead.next();
-                consumed = false;
-
-                if (!hasNext) {
-                    closeStatementAndConnection(statementRead);
-                }
-            }
-        }
-    }
-
-    /**
-     * Open a new JDBC connection
-     *
-     * @return {@link Connection}
-     * @throws SQLException if a database access or connection error occurs
-     */
-    public Connection getConnection() throws SQLException {
-        LOG.debug("Requesting a new JDBC connection. URL={} table={} txid:seg={}:{}", jdbcUrl, tableName, context.getTransactionId(), context.getSegmentId());
-
-        Connection connection = null;
-        try {
-            connection = getConnectionInternal();
-            LOG.debug("Obtained a JDBC connection {} for URL={} table={} txid:seg={}:{}", connection, jdbcUrl, tableName, context.getTransactionId(), context.getSegmentId());
-
-            prepareConnection(connection);
-        } catch (Exception e) {
-            closeConnection(connection);
-            if (e instanceof SQLException) {
-                throw (SQLException) e;
-            } else {
-                String msg = e.getMessage();
-                if (msg == null) {
-                    Throwable t = e.getCause();
-                    if (t != null) msg = t.getMessage();
-                }
-                throw new SQLException(msg, e);
-            }
-        }
-
-        return connection;
+        isJdbcInitialized = true;
     }
 
     /**
@@ -476,7 +502,7 @@ public class JdbcProcessor extends BaseProcessor<ResultSet, Void> {
      * @throws Exception when an error occurs
      */
     private Connection getConnectionInternal() throws Exception {
-        if (Utilities.isSecurityEnabled(configuration) && org.apache.commons.lang.StringUtils.startsWith(jdbcUrl, HIVE_URL_PREFIX)) {
+        if (Utilities.isSecurityEnabled(configuration) && StringUtils.startsWith(jdbcUrl, HIVE_URL_PREFIX)) {
             // TODO: doAs needed here
             throw new UnsupportedOperationException();
 //                return SecureLogin.getInstance().getLoginUser(context, configuration).

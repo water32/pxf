@@ -2,7 +2,7 @@
 .idea/
 *.pyc
 *.log
-*.out
+_*.out
 server/*/out
 server/tmp
 server/pxf-cli/go/pkg

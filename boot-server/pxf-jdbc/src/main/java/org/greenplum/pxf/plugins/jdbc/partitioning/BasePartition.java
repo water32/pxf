@@ -6,7 +6,6 @@ package org.greenplum.pxf.plugins.jdbc.partitioning;
  * All partitions use some column as a partition column. It is processed by this class.
  */
 abstract class BasePartition implements JdbcFragmentMetadata {
-    private static final long serialVersionUID = 0L;
 
     protected final String column;
 

@@ -1,0 +1,190 @@
+-- start_ignore
+-- end_ignore
+
+-- sets the date style and bytea output to the expected by the tests
+SET datestyle='ISO, MDY';
+SET bytea_output='escape';
+
+CREATE SERVER jdbc_test_column_projection
+    FOREIGN DATA WRAPPER jdbc_pxf_fdw
+    OPTIONS ( jdbc_driver 'org.postgresql.Driver', db_url 'jdbc:postgresql://{{ PGHOST }}:{{ PGPORT }}/regression' );
+
+CREATE USER MAPPING FOR CURRENT_USER SERVER jdbc_test_column_projection;
+
+DROP FOREIGN TABLE IF EXISTS pxf_jdbc_multiple_fragments_by_int CASCADE;
+NOTICE:  foreign table "pxf_jdbc_multiple_fragments_by_int" does not exist, skipping
+
+CREATE FOREIGN TABLE pxf_jdbc_multiple_fragments_by_int
+    (
+        t1 text,
+        t2 text,
+        num1 int,
+        dub1 double precision,
+        dec1 numeric,
+        tm timestamp,
+        r real,
+        bg bigint,
+        b boolean,
+        tn smallint,
+        sml smallint,
+        dt date,
+        vc1 varchar(5),
+        c1 char(3),
+        bin bytea
+        ) SERVER jdbc_test_column_projection
+    OPTIONS ( resource 'gpdb_types_1', partition_by 'num1:int', range '1:6', interval '1' );
+
+DROP FOREIGN TABLE IF EXISTS pxf_jdbc_multiple_fragments_by_date CASCADE;
+NOTICE:  foreign table "pxf_jdbc_multiple_fragments_by_date" does not exist, skipping
+
+CREATE FOREIGN TABLE pxf_jdbc_multiple_fragments_by_date
+    (
+        t1 text,
+        t2 text,
+        num1 int,
+        dub1 double precision,
+        dec1 numeric,
+        tm timestamp,
+        r real,
+        bg bigint,
+        b boolean,
+        tn smallint,
+        sml smallint,
+        dt date,
+        vc1 varchar(5),
+        c1 char(3),
+        bin bytea
+        ) SERVER jdbc_test_column_projection
+    OPTIONS ( resource 'gpdb_types_1', partition_by 'dt:date', range '2015-03-06:2015-03-20', interval '1:DAY' );
+
+DROP FOREIGN TABLE IF EXISTS pxf_jdbc_subset_of_fields_diff_order CASCADE;
+NOTICE:  foreign table "pxf_jdbc_subset_of_fields_diff_order" does not exist, skipping
+
+CREATE FOREIGN TABLE pxf_jdbc_subset_of_fields_diff_order
+    (
+        "n@m2" int,
+        "num 1" int
+        ) SERVER jdbc_test_column_projection
+    OPTIONS ( resource 'gpdb_columns_1' );
+
+DROP FOREIGN TABLE IF EXISTS pxf_jdbc_superset_of_fields CASCADE;
+NOTICE:  foreign table "pxf_jdbc_superset_of_fields" does not exist, skipping
+
+CREATE FOREIGN TABLE pxf_jdbc_superset_of_fields
+    (
+        t text,
+        "does_not_exist_on_source" text,
+        "num 1" int,
+        num2 int OPTIONS ( column_name 'n@m2' )
+        ) SERVER jdbc_test_column_projection
+    OPTIONS ( resource 'gpdb_columns_1' );
+
+-- @description query01 for JDBC query with int by partitioning
+SELECT t2, tm, sqrt(sml), c1 FROM pxf_jdbc_multiple_fragments_by_int ORDER BY t1;
+  t2  |         tm          |       sqrt       | c1  
+------+---------------------+------------------+-----
+ s_6  | 2013-07-13 21:00:00 | 3.16227766016838 | USD
+ s_15 | 2013-07-22 21:00:00 | 31.6227766016838 | USD
+ s_16 | 2013-07-23 21:00:00 |  33.166247903554 | UAH
+      | 2013-07-23 21:00:00 |  33.166247903554 | EUR
+ s_16 | 2013-07-23 21:00:00 |  33.166247903554 | USD
+ s_16 | 2013-07-23 21:00:00 |  33.166247903554 | UAH
+ s_17 | 2013-07-24 21:00:00 |  33.166247903554 | USD
+ s_16 |                     |  33.166247903554 | USD
+ s_16 | 2013-07-23 21:00:00 |  33.166247903554 | EUR
+ s_16 | 2013-07-23 21:00:00 |  33.166247903554 | USD
+ s_16 | 2013-07-23 21:00:00 |  33.166247903554 | USD
+ s_7  | 2013-07-13 21:00:00 | 4.47213595499958 | USD
+ s_16 | 2013-07-23 21:00:00 |  33.166247903554 | UAH
+ s_16 | 2013-07-23 21:00:00 |                  | USD
+ s_16 | 2013-07-23 21:00:00 |  33.166247903554 | EUR
+ s_16 | 2013-07-23 21:00:00 |  33.166247903554 | EUR
+ s_16 | 2013-07-23 21:00:00 |  33.166247903554 | 
+ s_16 | 2013-07-23 21:00:00 |  33.166247903554 | USD
+ s_8  | 2013-07-15 21:00:00 | 17.3205080756888 | USD
+ s_9  | 2013-07-16 21:00:00 |               20 | USD
+ s_10 | 2013-07-17 21:00:00 | 22.3606797749979 | USD
+ s_11 | 2013-07-18 21:00:00 | 24.4948974278318 | USD
+ s_12 | 2013-07-19 21:00:00 | 26.4575131106459 | USD
+ s_13 | 2013-07-20 21:00:00 | 28.2842712474619 | EUR
+ s_14 | 2013-07-21 21:00:00 |               30 | UAH
+(25 rows)
+
+-- @description query02 for JDBC query with date by partitioning
+SELECT t2, dec1, b::int, bin FROM pxf_jdbc_multiple_fragments_by_date WHERE num1 >= 5 ORDER BY t1;
+  t2  |      dec1      | b | bin 
+------+----------------+---+-----
+ s_15 |    45678.00002 | 1 | 0
+ s_16 |    0.123456789 | 0 | 1
+      |    0.123456789 | 0 | 1
+ s_16 |    0.123456789 | 0 | 1
+ s_17 |                | 0 | 1
+ s_16 |    0.123456789 | 0 | 1
+ s_16 |    0.123456789 | 0 | 1
+ s_16 |    0.123456789 | 0 | 1
+ s_16 |    0.123456789 |   | 1
+ s_16 |    0.123456789 | 0 | 1
+ s_16 |    0.123456789 | 0 | 1
+ s_16 |    0.123456789 | 0 | 1
+ s_16 |    0.123456789 | 0 | 1
+ s_16 |    0.123456789 | 0 | 1
+ s_16 |    0.123456789 | 0 | 
+ s_10 | 0.000000000001 | 0 | 5
+ s_11 |       1234.889 | 1 | 6
+ s_12 |         0.0001 | 0 | 7
+ s_13 |    45678.00002 | 1 | 8
+ s_14 |        23457.1 | 0 | 9
+(20 rows)
+
+-- @description query03 for JDBC query with subset of columns in different order than the source table
+SELECT "n@m2", "num 1" FROM pxf_jdbc_subset_of_fields_diff_order ORDER BY "num 1";
+ n@m2 | num 1 
+------+-------
+  100 |     1
+  200 |     2
+(2 rows)
+
+-- @description query04 for JDBC query with superset of columns in different order
+SELECT num2, "t", "num 1" FROM pxf_jdbc_superset_of_fields ORDER BY "t";
+ num2 |  t   | num 1 
+------+------+-------
+  100 | row1 |     1
+  200 | row2 |     2
+(2 rows)
+
+-- pxf_jdbc_superset_of_fields table is a superset of the source table
+-- this will error out
+-- start_matchsubs
+--
+-- # create a match/subs
+--
+-- m/(ERROR|WARNING):.*remote component error.*\(\d+\).*from.*'\d+\.\d+\.\d+\.\d+:\d+'.*/
+-- s/'\d+\.\d+\.\d+\.\d+:\d+'/'SOME_IP:SOME_PORT'/
+-- m/(ERROR|WARNING):.*remote component error.*\(\d+\).*from.*'(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])):\d+'.*/
+-- s/'(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])):\d+'/'SOME_IP:SOME_PORT'/
+--
+-- m/\/gpdb\/v\d+\//
+-- s/v\d+/SOME_VERSION/
+--
+-- m/file:.*;/
+-- s/file:.*; lineNumber: \d+; columnNumber: \d+;/SOME_ERROR_LOCATION/g
+--
+-- m/Exception report.*/
+-- s/report.*/SOME_EXCEPTION/
+--
+-- m/DETAIL/
+-- s/DETAIL/CONTEXT/
+--
+-- m/pxf:\/\/(.*)\/pxf_automation_data/
+-- s/pxf:\/\/.*\/pxf_automation_data/pxf:\/\/pxf_automation_data/
+--
+-- m/CONTEXT:.*line.*/
+-- s/line \d* of //g
+--
+-- end_matchsubs
+SELECT * FROM pxf_jdbc_superset_of_fields ORDER BY "t";
+ERROR:  PXF server error (500): ERROR: column "does_not_exist_on_source" does not exist
+CONTEXT:  Position: 13
+HINT:  Check the PXF logs located in the '$PXF_CONF/logs' directory or 'set client_min_messages=DEBUG1' for additional details
+-- start_ignore
+-- end_ignore

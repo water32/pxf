@@ -48,7 +48,7 @@ public class SQLQueryBuilderTest {
     public static final String NAMED_QUERY_WHERE = "SELECT a, b FROM c WHERE d = 'foo'";
 
     private RequestContext context;
-    private DataSplit dataSplit;
+    private JdbcDataSplit dataSplit;
 
     @Mock
     private DatabaseMetaData mockMetaData;
@@ -68,7 +68,7 @@ public class SQLQueryBuilderTest {
         context.setTupleDescription(columns);
         context.setUser("test-user");
 
-        dataSplit = new DataSplit("sales");
+        dataSplit = new JdbcDataSplit("sales");
     }
 
     @Test
@@ -163,7 +163,7 @@ public class SQLQueryBuilderTest {
         JdbcDataSplitter splitter = new JdbcDataSplitter(context, new Configuration());
         SQLQueryBuilder builder;
         String query;
-        DataSplit split;
+        JdbcDataSplit split;
         int totalSplits = 0;
 
         assertTrue(splitter.hasNext());
@@ -229,7 +229,7 @@ public class SQLQueryBuilderTest {
         when(mockMetaData.getDatabaseProductName()).thenReturn("mysql");
         when(mockMetaData.getExtraNameCharacters()).thenReturn("");
 
-        DataSplit split;
+        JdbcDataSplit split;
         JdbcDataSplitter splitter = new JdbcDataSplitter(context, new Configuration());
 
         assertTrue(splitter.hasNext());
@@ -269,7 +269,7 @@ public class SQLQueryBuilderTest {
         when(mockMetaData.getDatabaseProductName()).thenReturn("mysql");
         when(mockMetaData.getExtraNameCharacters()).thenReturn("");
 
-        DataSplit split;
+        JdbcDataSplit split;
         JdbcDataSplitter splitter = new JdbcDataSplitter(context, new Configuration());
 
         assertTrue(splitter.hasNext());
@@ -306,7 +306,7 @@ public class SQLQueryBuilderTest {
         when(mockMetaData.getDatabaseProductName()).thenReturn("mysql");
         when(mockMetaData.getExtraNameCharacters()).thenReturn("");
 
-        DataSplit split;
+        JdbcDataSplit split;
         JdbcDataSplitter splitter = new JdbcDataSplitter(context, new Configuration());
 
         assertTrue(splitter.hasNext());
@@ -386,7 +386,7 @@ public class SQLQueryBuilderTest {
         context.addOption("RANGE", "2008-01-01:2009-01-01");
         context.addOption("INTERVAL", "2:month");
 
-        DataSplit split = null;
+        JdbcDataSplit split = null;
         JdbcDataSplitter splitter = new JdbcDataSplitter(context, new Configuration());
 
         for (int i = 0; i <= 2; i++) {
@@ -504,7 +504,7 @@ public class SQLQueryBuilderTest {
         when(mockMetaData.getDatabaseProductName()).thenReturn("mysql");
         when(mockMetaData.getExtraNameCharacters()).thenReturn("");
 
-        DataSplit split;
+        JdbcDataSplit split;
         JdbcDataSplitter splitter = new JdbcDataSplitter(context, new Configuration());
 
         assertTrue(splitter.hasNext());
@@ -523,7 +523,7 @@ public class SQLQueryBuilderTest {
         when(mockMetaData.getDatabaseProductName()).thenReturn("mysql");
         when(mockMetaData.getExtraNameCharacters()).thenReturn("");
 
-        DataSplit split;
+        JdbcDataSplit split;
         JdbcDataSplitter splitter = new JdbcDataSplitter(context, new Configuration());
 
         assertTrue(splitter.hasNext());
@@ -544,7 +544,7 @@ public class SQLQueryBuilderTest {
         when(mockMetaData.getDatabaseProductName()).thenReturn("mysql");
         when(mockMetaData.getExtraNameCharacters()).thenReturn("");
 
-        DataSplit split;
+        JdbcDataSplit split;
         JdbcDataSplitter splitter = new JdbcDataSplitter(context, new Configuration());
 
         assertTrue(splitter.hasNext());
@@ -563,7 +563,7 @@ public class SQLQueryBuilderTest {
         when(mockMetaData.getDatabaseProductName()).thenReturn("mysql");
         when(mockMetaData.getExtraNameCharacters()).thenReturn("");
 
-        DataSplit split;
+        JdbcDataSplit split;
         JdbcDataSplitter splitter = new JdbcDataSplitter(context, new Configuration());
 
         assertTrue(splitter.hasNext());

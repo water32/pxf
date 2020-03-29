@@ -8,16 +8,16 @@ import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-public class DataSplitSegmentIterator implements Iterator<DataSplit> {
+public class DataSplitSegmentIterator<S extends DataSplit> implements Iterator<S> {
 
     private static final HashFunction HASH_FUNCTION = Hashing.crc32();
 
-    private final Iterator<DataSplit> iterator;
+    private final Iterator<S> iterator;
     private final int totalSegments;
     private final int segmentId;
-    private DataSplit next = null;
+    private S next = null;
 
-    public DataSplitSegmentIterator(int segmentId, int totalSegments, Iterator<DataSplit> iterator) {
+    public DataSplitSegmentIterator(int segmentId, int totalSegments, Iterator<S> iterator) {
         this.segmentId = segmentId;
         this.totalSegments = totalSegments;
         this.iterator = iterator;
@@ -26,7 +26,7 @@ public class DataSplitSegmentIterator implements Iterator<DataSplit> {
     @Override
     public boolean hasNext() {
         if (next == null && iterator.hasNext()) {
-            DataSplit n = iterator.next();
+            S n = iterator.next();
             while (!doesSegmentProcessThisSplit(n) && iterator.hasNext()) {
                 n = iterator.next();
             }
@@ -38,10 +38,10 @@ public class DataSplitSegmentIterator implements Iterator<DataSplit> {
     }
 
     @Override
-    public DataSplit next() {
+    public S next() {
         if (next == null)
             throw new NoSuchElementException();
-        DataSplit value = next;
+        S value = next;
         next = null;
         return value;
     }

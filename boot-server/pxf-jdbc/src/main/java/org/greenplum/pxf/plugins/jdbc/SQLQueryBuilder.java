@@ -77,7 +77,7 @@ public class SQLQueryBuilder {
 
     protected final RequestContext context;
 
-    private final DataSplit dataSplit;
+    private final JdbcDataSplit dataSplit;
     private final DatabaseMetaData databaseMetaData;
     private final DbProduct dbProduct;
     private final List<ColumnDescriptor> columns;
@@ -92,7 +92,7 @@ public class SQLQueryBuilder {
      * @param metaData {@link DatabaseMetaData}
      * @throws SQLException if some call of DatabaseMetaData method fails
      */
-    public SQLQueryBuilder(RequestContext context, DatabaseMetaData metaData, DataSplit dataSplit) throws SQLException {
+    public SQLQueryBuilder(RequestContext context, DatabaseMetaData metaData, JdbcDataSplit dataSplit) throws SQLException {
         this(context, metaData, null, dataSplit);
     }
 
@@ -104,7 +104,7 @@ public class SQLQueryBuilder {
      * @param subQuery query to run and get results from, instead of using a table name
      * @throws SQLException if some call of DatabaseMetaData method fails
      */
-    public SQLQueryBuilder(RequestContext context, DatabaseMetaData metaData, String subQuery, DataSplit dataSplit) throws SQLException {
+    public SQLQueryBuilder(RequestContext context, DatabaseMetaData metaData, String subQuery, JdbcDataSplit dataSplit) throws SQLException {
         this.context = requireNonNull(context, "Provided RequestContext is null");
         this.dataSplit = requireNonNull(dataSplit, "Provided DataSplit is null");
         this.databaseMetaData = requireNonNull(metaData, "Provided DatabaseMetaData is null");
@@ -318,7 +318,7 @@ public class SQLQueryBuilder {
             return;
         }
 
-        byte[] metadata = dataSplit.getMetadata();
+        JdbcFragmentMetadata metadata = dataSplit.getFragmentMetadata();
         if (metadata == null) {
             return;
         }
@@ -335,8 +335,7 @@ public class SQLQueryBuilder {
             query.append(" AND ");
         }
 
-        JdbcFragmentMetadata fragmentMetadata = JdbcFragmentMetadata.class.cast(SerializationUtils.deserialize(metadata));
-        String fragmentSql = fragmentMetadata.toSqlConstraint(quoteString, dbProduct);
+        String fragmentSql = metadata.toSqlConstraint(quoteString, dbProduct);
 
         query.append(fragmentSql);
     }

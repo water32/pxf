@@ -6,6 +6,10 @@
 \!{{ HCFS_CMD }} --config {{ PXF_CONF }}/servers/{{ SERVER_CONFIG }}/ dfs -copyFromLocal '{{ WORKING_DIR }}/resources/data/parquet/parquet_primitive_types' '{{ HCFS_SCHEME }}{{ HCFS_BUCKET }}{{ TEST_LOCATION }}/parquet/parquet_primitive_types'
 -- end_ignore
 
+-- sets the date style and bytea output to the expected by the tests
+SET datestyle='ISO, MDY';
+SET bytea_output='escape';
+
 CREATE SERVER parquet_test_parquet_primitive_types
     FOREIGN DATA WRAPPER {{ HCFS_PROTOCOL }}_pxf_fdw
     OPTIONS (config '{{ SERVER_CONFIG }}');
@@ -35,7 +39,7 @@ CREATE FOREIGN TABLE pxf_parquet_primitive_types
 
 -- @description test for primitive Parquet data types
 -- Parquet data has been generated using PDT timezone, so we need to shift tm field on difference between PDT and current timezone
-SELECT s1, s2, n1, d1, dc1, to_char(CAST(tm AS TIMESTAMP WITH TIME ZONE) AT TIME ZONE 'PDT', 'yyyy-mm-dd HH24:MI:SS') as tm, f, bg, b, tn, sml, vc1, c1, encode(bin, 'escape') as bin FROM pxf_parquet_primitive_types ORDER BY s1;
+SELECT s1, s2, n1, d1, dc1, tm, f, bg, b, tn, sml, vc1, c1, bin FROM pxf_parquet_primitive_types ORDER BY s1;
 
 -- start_ignore
 {{ CLEAN_UP }}-- clean up HCFS and local disk

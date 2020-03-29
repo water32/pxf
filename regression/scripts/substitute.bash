@@ -4,6 +4,11 @@ set -eo pipefail
 
 WORKING_DIR=$( cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd )
 
+SED_OPTS=-i
+if [[ "$OSTYPE" == "darwin"* ]]; then
+	SED_OPTS+=" ''"
+fi
+
 _die() {
 	local rc=$1
 	shift
@@ -75,6 +80,7 @@ HIVE_PRINCIPAL=${HIVE_PRINCIPAL:+";principal=${HIVE_PRINCIPAL}"}
 
 SED_ARGS=(
 	-e "s|{{[[:space:]]*PGHOST[[:space:]]*}}|${PGHOST}|g"
+	-e "s|{{[[:space:]]*PGPORT[[:space:]]*}}|${PGPORT}|g"
 	-e "s|{{[[:space:]]*HCFS_BUCKET[[:space:]]*}}|${HCFS_BUCKET}|g"
 	-e "s|{{[[:space:]]*HCFS_CMD[[:space:]]*}}|${HCFS_CMD}|g"
 	-e "s|{{[[:space:]]*SERVER_CONFIG[[:space:]]*}}|${SERVER_CONFIG}|g"
@@ -87,6 +93,7 @@ SED_ARGS=(
 	-e "s|{{[[:space:]]*HIVE_HOST[[:space:]]*}}|${HIVE_HOST}|g"
 	-e "s|{{[[:space:]]*HIVE_PRINCIPAL[[:space:]]*}}|${HIVE_PRINCIPAL}|g"
 	-e "s|{{[[:space:]]*WORKING_DIR[[:space:]]*}}|${WORKING_DIR}|g"
+	-e "s|{{[[:space:]]*SED_OPTS[[:space:]]*}}|${SED_OPTS}|g"
 )
 
 # delete the cleanup steps if we have debug on

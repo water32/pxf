@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class ProducerTaskFactory<T, M> {
 
-    public ProducerTask<T, M> getProducerTask(QuerySession querySession) {
-        return new ProducerTask<T, M>(querySession);
+    public ProducerTask<T, M> getProducerTask(QuerySession<T, M> querySession) {
+        return new ProducerTask<>(querySession);
     }
 }

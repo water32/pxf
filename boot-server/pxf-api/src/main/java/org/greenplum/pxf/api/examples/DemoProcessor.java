@@ -23,6 +23,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.greenplum.pxf.api.model.BaseProcessor;
 import org.greenplum.pxf.api.model.DataSplit;
 import org.greenplum.pxf.api.model.RequestContext;
+import org.greenplum.pxf.api.model.TupleIterator;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -47,19 +48,25 @@ public class DemoProcessor extends BaseProcessor<String, Void> {
      * {@inheritDoc}
      */
     @Override
-    public Iterator<String> getTupleIterator(DataSplit split) {
+    public TupleIterator<String> getTupleIterator(DataSplit split) {
         final String fragmentMetadata = new String(split.getMetadata());
         final int colCount = context.getColumns();
 
-        return new Iterator<String>() {
+        return new TupleIterator<String>() {
             private int rowNumber;
             private StringBuilder colValue = new StringBuilder();
 
+            /**
+             * {@inheritDoc}
+             */
             @Override
             public boolean hasNext() {
                 return rowNumber < numRows;
             }
 
+            /**
+             * {@inheritDoc}
+             */
             @Override
             public String next() {
                 if (rowNumber >= numRows)
@@ -72,6 +79,14 @@ public class DemoProcessor extends BaseProcessor<String, Void> {
                 }
                 rowNumber++;
                 return colValue.toString();
+            }
+
+            /**
+             * {@inheritDoc}
+             */
+            @Override
+            public void cleanup() throws Exception {
+                // DO NOTHING
             }
         };
     }

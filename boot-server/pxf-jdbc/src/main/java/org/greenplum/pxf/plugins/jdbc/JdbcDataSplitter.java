@@ -1,6 +1,5 @@
 package org.greenplum.pxf.plugins.jdbc;
 
-import org.apache.commons.lang.SerializationUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.greenplum.pxf.api.model.BaseDataSplitter;
 import org.greenplum.pxf.api.model.DataSplit;
@@ -24,7 +23,7 @@ public class JdbcDataSplitter extends BaseDataSplitter {
     private String column;
     private String range;
     private String interval;
-    private DataSplit nextSplit;
+    private JdbcDataSplit nextSplit;
     private List<JdbcFragmentMetadata> metadata;
     private int currentSplit = 0;
     private int totalSplits = 1; // assume at least one split
@@ -78,7 +77,7 @@ public class JdbcDataSplitter extends BaseDataSplitter {
      * {@inheritDoc}
      */
     @Override
-    public DataSplit next() {
+    public JdbcDataSplit next() {
         if (currentSplit >= totalSplits)
             throw new NoSuchElementException();
 
@@ -86,7 +85,7 @@ public class JdbcDataSplitter extends BaseDataSplitter {
             nextSplit = getNext();
         }
 
-        DataSplit n = nextSplit;
+        JdbcDataSplit n = nextSplit;
         currentSplit++;
         nextSplit = null;
 
@@ -96,11 +95,11 @@ public class JdbcDataSplitter extends BaseDataSplitter {
     /**
      * Create {@link DataSplit} from byte array.
      *
-     * @param fragmentMetadata metadata for the DataSplit
+     * @param fragmentMetadata metadata for the JdbcDataSplit
      * @return {@link DataSplit}
      */
-    private DataSplit createDataSplit(byte[] fragmentMetadata) {
-        return new DataSplit(context.getDataSource(), fragmentMetadata);
+    private JdbcDataSplit createDataSplit(JdbcFragmentMetadata fragmentMetadata) {
+        return new JdbcDataSplit(context.getDataSource(), fragmentMetadata);
     }
 
     /**
@@ -110,7 +109,7 @@ public class JdbcDataSplitter extends BaseDataSplitter {
      *
      * @return the next DataSplit
      */
-    private DataSplit getNext() {
+    private JdbcDataSplit getNext() {
         if (partitionType == null) {
             totalSplits = 1;
             return createDataSplit(null);
@@ -119,7 +118,7 @@ public class JdbcDataSplitter extends BaseDataSplitter {
                 metadata = partitionType.getFragmentsMetadata(column, range, interval);
                 totalSplits = metadata.size();
             }
-            return createDataSplit(SerializationUtils.serialize(metadata.get(currentSplit)));
+            return createDataSplit(metadata.get(currentSplit));
         }
     }
 }

@@ -2,10 +2,8 @@ package org.greenplum.pxf.api.factory;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.greenplum.pxf.api.examples.DemoProcessor;
 import org.greenplum.pxf.api.model.Processor;
 import org.greenplum.pxf.api.model.RequestContext;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 

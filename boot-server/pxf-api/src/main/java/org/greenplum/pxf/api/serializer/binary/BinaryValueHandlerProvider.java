@@ -23,7 +23,7 @@ public class BinaryValueHandlerProvider implements ValueHandlerProvider {
         valueHandlers.put(DataType.DATE, new LocalDateValueHandler());
         valueHandlers.put(DataType.FLOAT8, new DoubleValueHandler<>());
         valueHandlers.put(DataType.INTEGER, new IntegerValueHandler<>());
-        valueHandlers.put(DataType.NUMERIC, new BigDecimalValueHandler<>());
+        valueHandlers.put(DataType.NUMERIC, new BigDecimalValueHandler());
         valueHandlers.put(DataType.REAL, new FloatValueHandler<>());
         valueHandlers.put(DataType.SMALLINT, new ShortValueHandler<>());
         valueHandlers.put(DataType.TEXT, stringCsvValueHandler);

@@ -1,0 +1,50 @@
+-- start_ignore
+-- data prep
+-- end_ignore
+
+CREATE SERVER jdbc_test_columns
+    FOREIGN DATA WRAPPER jdbc_pxf_fdw
+    OPTIONS ( jdbc_driver 'org.postgresql.Driver', db_url 'jdbc:postgresql://{{ PGHOST }}:{{ PGPORT }}/regression' );
+
+CREATE USER MAPPING FOR CURRENT_USER SERVER jdbc_test_columns;
+
+DROP FOREIGN TABLE IF EXISTS pxf_jdbc_columns CASCADE;
+NOTICE:  foreign table "pxf_jdbc_columns" does not exist, skipping
+
+CREATE FOREIGN TABLE pxf_jdbc_columns
+(
+    t       text,
+    "num 1" int,
+    "n@m2"  int
+) SERVER jdbc_test_columns
+    OPTIONS ( resource 'gpdb_columns2' );
+
+-- @description query01 for JDBC query with special column names
+SELECT * FROM pxf_jdbc_columns ORDER BY t;
+  t   | num 1 | n@m2 
+------+-------+------
+ row1 |     1 |  100
+ row2 |     2 |  200
+(2 rows)
+
+DROP FOREIGN TABLE IF EXISTS pxf_jdbc_columns2 CASCADE;
+NOTICE:  foreign table "pxf_jdbc_columns2" does not exist, skipping
+
+CREATE FOREIGN TABLE pxf_jdbc_columns2
+    (
+        t       text,
+        num1 int OPTIONS ( column_name 'num 1' ),
+        num2  int OPTIONS ( column_name 'n@m2' )
+        ) SERVER jdbc_test_columns
+    OPTIONS ( resource 'gpdb_columns2' );
+
+-- @description query02 for JDBC query with special column names as column options
+SELECT * FROM pxf_jdbc_columns2 ORDER BY t;
+  t   | num1 | num2 
+------+------+------
+ row1 |    1 |  100
+ row2 |    2 |  200
+(2 rows)
+
+-- start_ignore
+-- end_ignore
