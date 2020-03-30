@@ -16,6 +16,8 @@
 #if PG_VERSION_NUM >= 90600
 #include "access/table.h"
 #endif
+#include "catalog/indexing.h"
+#include "catalog/pg_extension.h"
 #include "cdb/cdbsreh.h"
 #include "cdb/cdbvars.h"
 #include "commands/copy.h"
@@ -36,6 +38,7 @@
 #endif
 #include "parser/parsetree.h"
 #include "utils/builtins.h"
+#include "utils/fmgroids.h"
 #include "utils/guc.h"
 #include "utils/lsyscache.h"
 #include "utils/memutils.h"
@@ -43,9 +46,7 @@
 PG_MODULE_MAGIC;
 
 #define DEFAULT_PXF_FDW_STARTUP_COST   50000
-
-/* pxf_fdw version */
-#define PXF_FDW_VERSION_NUM   "1.0.0-DEVELOPMENT"
+#define PXF_FDW_EXTENSION_NAME "pxf_fdw"
 
 typedef struct PxfFdwRelationInfo
 {
@@ -220,7 +221,49 @@ pxf_fdw_handler(PG_FUNCTION_ARGS)
 Datum
 pxf_fdw_version(PG_FUNCTION_ARGS)
 {
-	PG_RETURN_TEXT_P(cstring_to_text(PXF_FDW_VERSION_NUM));
+	text	   *versionName;
+	Relation	extRel;
+	ScanKeyData key[1];
+	SysScanDesc extScan;
+	HeapTuple	extTup;
+	Datum		datum;
+	bool		isnull;
+
+	/*
+	 * Look up the extension --- it must already exist in pg_extension
+	 */
+	extRel = heap_open(ExtensionRelationId, NoLock);
+
+	ScanKeyInit(&key[0],
+				Anum_pg_extension_extname,
+				BTEqualStrategyNumber, F_NAMEEQ,
+				CStringGetDatum(PXF_FDW_EXTENSION_NAME));
+
+	extScan = systable_beginscan(extRel, ExtensionNameIndexId, true,
+								 NULL, 1, key);
+
+	extTup = systable_getnext(extScan);
+
+	if (!HeapTupleIsValid(extTup))
+		ereport(ERROR,
+				(errcode(ERRCODE_UNDEFINED_OBJECT),
+				 errmsg("extension \"%s\" does not exist",
+						PXF_FDW_EXTENSION_NAME)));
+
+	/*
+	 * Determine the existing version of the pxf_fdw extension
+	 */
+	datum = heap_getattr(extTup, Anum_pg_extension_extversion,
+						 RelationGetDescr(extRel), &isnull);
+	if (isnull)
+		elog(ERROR, "pxf_fdw extversion is null");
+
+	versionName = DatumGetTextPP(datum);
+	systable_endscan(extScan);
+
+	heap_close(extRel, NoLock);
+
+	PG_RETURN_TEXT_P(versionName);
 }
 
 /*
