@@ -286,8 +286,7 @@ public class JdbcProcessor extends BaseProcessor<ResultSet, Void> {
             closeStatementAndConnection(statementRead);
         }
 
-        @SneakyThrows
-        private void checkIfNextIsAvailable() {
+        private void checkIfNextIsAvailable() throws SQLException {
             if (consumed) {
                 hasNext = resultSetRead.next();
                 consumed = false;

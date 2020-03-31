@@ -5,7 +5,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.catalina.connector.ClientAbortException;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.greenplum.pxf.api.task.ProducerTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

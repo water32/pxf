@@ -2,7 +2,9 @@ package org.greenplum.pxf.api;
 
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.greenplum.pxf.api.task.TupleReaderTask;
+
+import java.util.concurrent.ThreadLocalRandom;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,19 +28,9 @@ public class ExecutorServiceProvider {
 
     public static final ExecutorService EXECUTOR_SERVICE = MoreExecutors.getExitingExecutorService(
         new ThreadPoolExecutor(THREAD_POOL_SIZE, THREAD_POOL_SIZE,
-            1, TimeUnit.SECONDS, new PriorityBlockingQueue<>(1000, new Comparator<Runnable>() {
-            @Override
-            public int compare(Runnable o1, Runnable o2) {
-                if (o1 instanceof TupleReaderTask && o2 instanceof TupleReaderTask) {
-                    TupleReaderTask t1 = (TupleReaderTask) o1;
-                    TupleReaderTask t2 = (TupleReaderTask) o2;
-                    return Integer.compare(t1.getOutputQueueSize(), t2.getOutputQueueSize());
-                } else {
-                    LOG.error("This should not happen o1 {} o2 {}", o1.getClass().getName(), o2.getClass().getName());
-                }
-                return 0;
-            }
-        }), NAMED_THREAD_FACTORY, new ThreadPoolExecutor.CallerRunsPolicy()));
+            1, TimeUnit.SECONDS, new PriorityBlockingQueue<>(1000,
+            (o1, o2) -> ThreadLocalRandom.current().nextInt(-100, 100)),
+            NAMED_THREAD_FACTORY, new ThreadPoolExecutor.CallerRunsPolicy()));
 
     public static ExecutorService get() {
         // TODO: implement executor service per server / read Configuration here as well

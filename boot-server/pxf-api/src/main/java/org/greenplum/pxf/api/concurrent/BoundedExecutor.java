@@ -70,7 +70,7 @@ public class BoundedExecutor
         // INVARIANT: queue has at least one task available when this method is called
         do {
             try {
-                queue.poll().run();
+                requireNonNull(queue.poll()).run();
             } catch (Throwable e) {
                 LOG.error("Task failed", e);
             }
