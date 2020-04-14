@@ -166,13 +166,13 @@ function waitForTomcat()
 
     # wait until tomcat is up:
     sleep 2
-    echo 'Checking if tomcat is up and running...'
-    until $curl --silent --connect-timeout 1 -I "http://localhost:$PXF_PORT" | grep 'PXF Server'; do
+    eval echo 'Checking if tomcat is up and running...' ${NO_STATUS_OUTPUT:+>/dev/null}
+    until $curl --silent --connect-timeout 1 -I "http://localhost:$PXF_PORT" | grep 'PXF Server' >/dev/null; do
         if (( ++attempts == max_attempts )); then
-            echo 'ERROR: PXF is down - tomcat is not running'
+            eval echo 'ERROR: PXF is down - tomcat is not running' ${NO_STATUS_OUTPUT:+>/dev/null}
             return 1
         fi
-        echo "tomcat not responding, re-trying after $sleep_time second (attempt number ${attempts})"
+        eval echo "tomcat not responding, re-trying after $sleep_time second (attempt number ${attempts})" ${NO_STATUS_OUTPUT:+>/dev/null}
         sleep $sleep_time
     done
 
@@ -187,16 +187,16 @@ function checkWebapp()
 {
     waitForTomcat "$1" || return 1
 
-    echo 'Checking if PXF webapp is up and running...'
+    eval echo 'Checking if PXF webapp is up and running...' ${NO_STATUS_OUTPUT:+>/dev/null}
     curlResponse=$($curl -s "http://localhost:${PXF_PORT}/pxf/v0")
     expectedResponse='Wrong version v0, supported version is v[0-9]+'
 
     if [[ $curlResponse =~ $expectedResponse ]]; then
-        echo "PXF webapp is listening on port $PXF_PORT"
+        eval echo "PXF webapp is listening on port $PXF_PORT" ${NO_STATUS_OUTPUT:+>/dev/null}
         return 0
     fi
 
-    echo 'ERROR: PXF webapp is inaccessible but tomcat is up. Check logs for more information'
+    eval echo 'ERROR: PXF webapp is inaccessible but tomcat is up. Check logs for more information' ${NO_STATUS_OUTPUT:+>/dev/null}
     return 1
 }
 
@@ -346,7 +346,7 @@ function doReset()
         return 1
     fi
 
-    if doStatus >/dev/null; then
+    if NO_STATUS_OUTPUT=1 doStatus; then
         echo "PXF is running. Please stop PXF before running 'pxf [cluster] reset'"
         return 1
     fi
