@@ -188,3 +188,41 @@ fly -t ud set-pipeline \
     -v pxf-git-branch=master \
     -p pxf_cli
 ```
+
+# Build docker images locally
+
+Sometimes the docker pipeline can be inconsistent or you want to try some changes to the Dockerfile before committing to master. So if you need to rebuild images and push them to docker repository, you can do the following:
+
+```bash
+BUILD_CONTEXT=~/workspace/build_context
+mkdir -p "${BUILD_CONTEXT}"
+if [[ ! -d ${BUILD_CONTEXT}/pxf_src ]]; then
+  git clone git@github.com:greenplum-db/pxf "${BUILD_CONTEXT}/pxf_src"
+fi
+# optional: git -C "${BUILD_CONTEXT}/pxf_src" checkout <your-branch>
+# build and push the ubuntu18 PXF dev image
+docker build --build-arg BASE_IMAGE=gpdb-dev:ubuntu18 \
+  --tag pivotaldata/gpdb-pxf-dev:ubuntu18 \
+  --file "${BUILD_CONTEXT}/pxf_src/concourse/docker/pxf-dev-base/Dockerfile" "${BUILD_CONTEXT}"
+docker push pivotaldata/gpdb-pxf-dev:ubuntu18
+# build and push the ubuntu18 HDP2 server image
+mkdir -p "${BUILD_CONTEXT}/singlecluster"
+wget -O "${BUILD_CONTEXT}/singlecluster/singlecluster-HDP.tar.gz" http://storage.googleapis.com/pxf-public/singlecluster-HDP.tar.gz
+docker build --build-arg BASE_IMAGE=gpdb-pxf-dev:ubuntu18 \
+  --tag pivotaldata/gpdb-pxf-dev:ubuntu18-hdp2-server \
+  --file "${BUILD_CONTEXT}/pxf_src/concourse/docker/pxf-dev-server/Dockerfile" "${BUILD_CONTEXT}"
+docker push pivotaldata/gpdb-pxf-dev:ubuntu18-hdp2-server
+```
+
+Note that here we used `ubuntu18` as an example, but you can substitute `centos6` or `centos7` as well. If you want to do all three, you can do something like:
+
+```bash
+for i in ubuntu18 centos{6,7}; do
+  docker build --build-arg "BASE_IMAGE=gpdb-pxf-dev:${i}" \
+    --tag "pivotaldata/gpdb-pxf-dev:${i}-hdp2-server" \
+    --file "${BUILD_CONTEXT}/pxf_src/concourse/docker/pxf-dev-server/Dockerfile" "${BUILD_CONTEXT}" || break
+  docker push "pivotaldata/gpdb-pxf-dev:${i}-hdp2-server"
+done
+```
+
+Try to keep the `build_context` directory light, since it will get sent to the docker daemon each time you build.
