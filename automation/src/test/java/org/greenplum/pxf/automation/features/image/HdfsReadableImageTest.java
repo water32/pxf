@@ -11,13 +11,14 @@ import org.testng.annotations.Test;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
 public class HdfsReadableImageTest extends BaseFeature {
-    private static final int NUM_IMAGES = 5;
-    private String hdfsPath;
+    private static final int NUM_IMAGES = 20;
     private File[] imageFiles;
     private StringBuilder[] imagesPostgresArrays;
     private Table compareTable_intArray;
@@ -25,6 +26,7 @@ public class HdfsReadableImageTest extends BaseFeature {
     private ReadableExternalTable exTable_byteArray;
     private String[] fullPaths;
     private String[] parentDirectories;
+    private String[] oneHotEncodings;
     private String[] imageNames;
     private byte[][] imagesPostgresByteArray;
     private ProtocolEnum protocol;
@@ -37,7 +39,6 @@ public class HdfsReadableImageTest extends BaseFeature {
         super.beforeClass();
         protocol = ProtocolUtils.getProtocol();
         // path for storing data on HDFS (for processing by PXF)
-        hdfsPath = hdfs.getWorkingDirectory() + "/readableImage";
         prepareData();
     }
 
@@ -46,7 +47,35 @@ public class HdfsReadableImageTest extends BaseFeature {
         imageFiles = new File[NUM_IMAGES];
         fullPaths = new String[NUM_IMAGES];
         parentDirectories = new String[NUM_IMAGES];
+        oneHotEncodings = new String[NUM_IMAGES];
         imageNames = new String[NUM_IMAGES];
+        String[] relativePaths = new String[]{
+                "readableImages",
+                "readableImages",
+                "readableImages",
+                "readableImages",
+                "readableImages",
+                "readableImages/nested_dir",
+                "readableImages/nested_dir",
+                "readableImages/nested_dir",
+                "readableImages/nested_dir",
+                "readableImages/nested_dir",
+                "readableImages/1/2/3/4/deeply_nested_dir1",
+                "readableImages/1/2/3/4/deeply_nested_dir1",
+                "readableImages/1/2/3/4/deeply_nested_dir1",
+                "readableImages/1/2/3/4/deeply_nested_dir1",
+                "readableImages/1/2/3/4/deeply_nested_dir1",
+                "readableImages/1/2/3/4/5/deeply_nested_dir2",
+                "readableImages/1/2/3/4/5/deeply_nested_dir2",
+                "readableImages/1/2/3/4/5/deeply_nested_dir2",
+                "readableImages/1/2/3/4/5/deeply_nested_dir2",
+                "readableImages/1/2/3/4/5/deeply_nested_dir2"
+        };
+        Map<String, String> oneHotEncodingsMap = new HashMap<>();
+        oneHotEncodingsMap.put("deeply_nested_dir1", "{1,0,0,0}");
+        oneHotEncodingsMap.put("deeply_nested_dir2", "{0,1,0,0}");
+        oneHotEncodingsMap.put("nested_dir", "{0,0,1,0}");
+        oneHotEncodingsMap.put("readableImages", "{0,0,0,1}");
         for (int i = 0; i < NUM_IMAGES; i++) {
             bufferedImages[i] = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
         }
@@ -88,18 +117,22 @@ public class HdfsReadableImageTest extends BaseFeature {
         String publicStage = "/tmp/publicstage/pxf";
         createDirectory(publicStage);
 
-        int cnt = 0;
-        for (BufferedImage bi : bufferedImages) {
-            imageNames[cnt] = String.format("%d.png", cnt);
-            imageFiles[cnt] = new File(publicStage + "/" + imageNames[cnt]);
-            ImageIO.write(bi, "png", imageFiles[cnt]);
-            fullPaths[cnt] = (protocol != ProtocolEnum.HDFS ? hdfsPath.replaceFirst("[^/]*/", "/") : "/" + hdfsPath) + "/" + imageNames[cnt];
-            hdfs.copyFromLocal(imageFiles[cnt].toString(), hdfsPath + "/" + imageNames[cnt]);
-            hdfs.copyFromLocal(imageFiles[cnt].toString(), hdfsPath + "_extra_dir/" + imageNames[cnt]);
-            hdfs.copyFromLocal(imageFiles[cnt].toString(), hdfs.getWorkingDirectory() + "/streamingFragmentsReadableImage/dir1/" + imageNames[cnt]);
-            hdfs.copyFromLocal(imageFiles[cnt].toString(), hdfs.getWorkingDirectory() + "/streamingFragmentsReadableImage/dir2/" + imageNames[cnt]);
-            parentDirectories[cnt] = "readableImage";
-            cnt++;
+        // we shouldn't get any labels for empty directories
+        hdfs.createDirectory(hdfs.getWorkingDirectory() + "/empty_dir");
+        hdfs.createDirectory(hdfs.getWorkingDirectory() + "/nested_dir/empty_dir");
+
+        for (int i = 0; i < NUM_IMAGES; i++) {
+            imageNames[i] = String.format("%d.png", i);
+            imageFiles[i] = new File(publicStage + "/" + imageNames[i]);
+            ImageIO.write(bufferedImages[i], "png", imageFiles[i]);
+            // for cloud, we should drop bucket from path
+            String cloudPath = hdfs.getWorkingDirectory().replaceFirst("[^/]*/", "/");
+            fullPaths[i] = (protocol != ProtocolEnum.HDFS ? cloudPath : "/" + hdfs.getWorkingDirectory())
+                    + "/" + relativePaths[i] + "/"
+                    + imageNames[i];
+            hdfs.copyFromLocal(imageFiles[i].toString(), fullPaths[i].replaceFirst("^/", ""));
+            parentDirectories[i] = relativePaths[i].replaceFirst(".*/", "");
+            oneHotEncodings[i] = oneHotEncodingsMap.get(parentDirectories[i]);
         }
     }
 
@@ -142,10 +175,11 @@ public class HdfsReadableImageTest extends BaseFeature {
                 "directories TEXT[]",
                 "names TEXT[]",
                 "dimensions INT[]",
+                "one_hot_encodings INT[]",
                 "images INT[]"
         };
         exTable.setFields(imageTableFields_intArray);
-        exTable.setPath(hdfsPath + "/*.png");
+        exTable.setPath(hdfs.getWorkingDirectory() + "/*.png");
         exTable.setProfile(protocol.value() + ":image");
         compareTable_intArray = new Table("compare_table_bytea", imageTableFields_intArray);
         compareTable_intArray.setRandomDistribution();
@@ -158,55 +192,21 @@ public class HdfsReadableImageTest extends BaseFeature {
                 "directories TEXT[]",
                 "names TEXT[]",
                 "dimensions INT[]",
+                "one_hot_encodings INT[]",
                 "images BYTEA"
         };
         exTable_byteArray.setFields(imageTableFields_byteArray);
-        exTable_byteArray.setPath(hdfsPath + "/*.png");
+        exTable_byteArray.setPath(hdfs.getWorkingDirectory() + "/*.png");
         exTable_byteArray.setProfile(protocol.value() + ":image");
         compareTable_byteArray = new Table("compare_table_bytea", imageTableFields_byteArray);
         compareTable_byteArray.setRandomDistribution();
     }
 
     /**
-     * Read a single image from HDFS
+     * When FILES_PER_FRAGMENT isn't set, should return image data not in an array...
      */
     @Test(groups = {"features", "gpdb", "hcfs", "security"})
     public void oneFilePerFragment() throws Exception {
-        exTable.setName("image_test_one_file_per_fragment");
-        compareTable_intArray.setName("compare_table_one_file_per_fragment");
-        exTable_byteArray.setName("image_test_one_file_per_fragment_bytea");
-        compareTable_byteArray.setName("compare_table_one_file_per_fragment_bytea");
-        int cnt = 0;
-        for (StringBuilder image : imagesPostgresArrays) {
-            compareTable_intArray.addRow(new String[]{
-                    "'{" + fullPaths[cnt] + "}'",
-                    "'{" + parentDirectories[cnt] + "}'",
-                    "'{" + imageNames[cnt] + "}'",
-                    "'{" + 1 + "," + h + "," + w + ",3}'",
-                    "'{" + image + "}'"
-            });
-            compareTable_byteArray.addRow(new String[]{
-                    "'{" + fullPaths[cnt] + "}'",
-                    "'{" + parentDirectories[cnt] + "}'",
-                    "'{" + imageNames[cnt] + "}'",
-                    "'{" + 1 + "," + h + "," + w + ",3}'",
-                    "'\\x" + Hex.encodeHexString(imagesPostgresByteArray[cnt]) + "'"
-            });
-            cnt++;
-        }
-        gpdb.createTableAndVerify(exTable);
-        gpdb.createTableAndVerify(compareTable_intArray);
-        gpdb.runQuery(compareTable_intArray.constructInsertStmt());
-        gpdb.createTableAndVerify(exTable_byteArray);
-        gpdb.createTableAndVerify(compareTable_byteArray);
-        gpdb.runQuery(compareTable_byteArray.constructInsertStmt());
-
-        // Verify results
-        runTincTest("pxf.features.hdfs.readable.image.one_file_per_fragment.runTest");
-    }
-
-    @Test(groups = {"features", "gpdb", "hcfs", "security"})
-    public void oneFilePerFragment_streamingFragments() throws Exception {
         exTable.setName("image_test_one_file_per_fragment_streaming_fragments");
         exTable.setUserParameters(new String[]{"STREAM_FRAGMENTS=true"});
         exTable.setPath(hdfs.getWorkingDirectory() + "/streamingFragmentsReadableImage");
@@ -259,58 +259,10 @@ public class HdfsReadableImageTest extends BaseFeature {
     }
 
     /**
-     * Read a single image from HDFS
+     * When we have to break the set of images up into multiple fragments.
      */
     @Test(groups = {"features", "gpdb", "hcfs", "security"})
     public void multiFragment() throws Exception {
-        exTable.setName("image_test_multi_fragment");
-        exTable.setUserParameters(new String[]{"FILES_PER_FRAGMENT=3"});
-        compareTable_intArray.setName("compare_table_multi_fragment");
-        compareTable_intArray.addRow(new String[]{
-                "'{" + fullPaths[0] + "," + fullPaths[1] + "," + fullPaths[2] + "}'",
-                "'{" + parentDirectories[0] + "," + parentDirectories[1] + "," + parentDirectories[2] + "}'",
-                "'{" + imageNames[0] + "," + imageNames[1] + "," + imageNames[2] + "}'",
-                "'{" + 3 + "," + h + "," + w + ",3}'",
-                "'{" + imagesPostgresArrays[0] + "," + imagesPostgresArrays[1] + "," + imagesPostgresArrays[2] + "}'"
-        });
-        compareTable_intArray.addRow(new String[]{
-                "'{" + fullPaths[3] + "," + fullPaths[4] + "}'",
-                "'{" + parentDirectories[3] + "," + parentDirectories[4] + "}'",
-                "'{" + imageNames[3] + "," + imageNames[4] + "}'",
-                "'{" + 2 + "," + h + "," + w + ",3}'",
-                "'{" + imagesPostgresArrays[3] + "," + imagesPostgresArrays[4] + "}'"
-        });
-        gpdb.createTableAndVerify(exTable);
-        gpdb.createTableAndVerify(compareTable_intArray);
-        gpdb.runQuery(compareTable_intArray.constructInsertStmt());
-
-        exTable_byteArray.setName("image_test_multi_fragment_bytea");
-        exTable_byteArray.setUserParameters(new String[]{"FILES_PER_FRAGMENT=3"});
-        compareTable_byteArray.setName("compare_table_multi_fragment_bytea");
-        compareTable_byteArray.addRow(new String[]{
-                "'{" + fullPaths[0] + "," + fullPaths[1] + "," + fullPaths[2] + "}'",
-                "'{" + parentDirectories[0] + "," + parentDirectories[1] + "," + parentDirectories[2] + "}'",
-                "'{" + imageNames[0] + "," + imageNames[1] + "," + imageNames[2] + "}'",
-                "'{" + 3 + "," + h + "," + w + ",3}'",
-                "'\\x" + Hex.encodeHexString(imagesPostgresByteArray[0]) + Hex.encodeHexString(imagesPostgresByteArray[1]) + Hex.encodeHexString(imagesPostgresByteArray[2]) + "'"
-        });
-        compareTable_byteArray.addRow(new String[]{
-                "'{" + fullPaths[3] + "," + fullPaths[4] + "}'",
-                "'{" + parentDirectories[3] + "," + parentDirectories[4] + "}'",
-                "'{" + imageNames[3] + "," + imageNames[4] + "}'",
-                "'{" + 2 + "," + h + "," + w + ",3}'",
-                "'\\x" + Hex.encodeHexString(imagesPostgresByteArray[3]) + Hex.encodeHexString(imagesPostgresByteArray[4]) + "'"
-        });
-        gpdb.createTableAndVerify(exTable_byteArray);
-        gpdb.createTableAndVerify(compareTable_byteArray);
-        gpdb.runQuery(compareTable_byteArray.constructInsertStmt());
-
-        // Verify results
-        runTincTest("pxf.features.hdfs.readable.image.multi_fragment.runTest");
-    }
-
-    @Test(groups = {"features", "gpdb", "hcfs", "security"})
-    public void multiFragment_streamingFragments() throws Exception {
         exTable.setName("image_test_multi_fragment_streaming_fragments");
         exTable.setUserParameters(new String[]{"FILES_PER_FRAGMENT=3", "STREAM_FRAGMENTS=true"});
         exTable.setPath(hdfs.getWorkingDirectory() + "/streamingFragmentsReadableImage");
@@ -407,54 +359,10 @@ public class HdfsReadableImageTest extends BaseFeature {
     }
 
     /**
-     * Read a single image from HDFS
+     * When all images requested fit into a single fragment.
      */
     @Test(groups = {"features", "gpdb", "hcfs", "security"})
     public void singleFragment() throws Exception {
-        // all the files fit into a single fragment
-        exTable.setName("image_test_single_fragment");
-        exTable.setUserParameters(new String[]{"FILES_PER_FRAGMENT=10"});
-        compareTable_intArray.setName("compare_table_single_fragment");
-        compareTable_intArray.addRow(new String[]{
-                "'{" + fullPaths[0] + "," + fullPaths[1] + "," + fullPaths[2] + "," + fullPaths[3] + "," + fullPaths[4] + "}'",
-                "'{" + parentDirectories[0] + "," + parentDirectories[1] + "," + parentDirectories[2] + "," + parentDirectories[3] + "," + parentDirectories[4] + "}'",
-                "'{" + imageNames[0] + "," + imageNames[1] + "," + imageNames[2] + "," + imageNames[3] + "," + imageNames[4] + "}'",
-                "'{" + 5 + "," + h + "," + w + ",3}'",
-                "'{" + imagesPostgresArrays[0] + ","
-                        + imagesPostgresArrays[1] + ","
-                        + imagesPostgresArrays[2] + ","
-                        + imagesPostgresArrays[3] + ","
-                        + imagesPostgresArrays[4] + "}'"
-        });
-        gpdb.createTableAndVerify(exTable);
-        gpdb.createTableAndVerify(compareTable_intArray);
-        gpdb.runQuery(compareTable_intArray.constructInsertStmt());
-
-        exTable_byteArray.setName("image_test_single_fragment_bytea");
-        exTable_byteArray.setUserParameters(new String[]{"FILES_PER_FRAGMENT=10"});
-        compareTable_byteArray.setName("compare_table_single_fragment_bytea");
-        compareTable_byteArray.addRow(new String[]{
-                "'{" + fullPaths[0] + "," + fullPaths[1] + "," + fullPaths[2] + "," + fullPaths[3] + "," + fullPaths[4] + "}'",
-                "'{" + parentDirectories[0] + "," + parentDirectories[1] + "," + parentDirectories[2] + "," + parentDirectories[3] + "," + parentDirectories[4] + "}'",
-                "'{" + imageNames[0] + "," + imageNames[1] + "," + imageNames[2] + "," + imageNames[3] + "," + imageNames[4] + "}'",
-                "'{" + 5 + "," + h + "," + w + ",3}'",
-                "'\\x" + Hex.encodeHexString(imagesPostgresByteArray[0]) +
-                        Hex.encodeHexString(imagesPostgresByteArray[1]) +
-                        Hex.encodeHexString(imagesPostgresByteArray[2]) +
-                        Hex.encodeHexString(imagesPostgresByteArray[3]) +
-                        Hex.encodeHexString(imagesPostgresByteArray[4]) + "'"
-
-        });
-        gpdb.createTableAndVerify(exTable_byteArray);
-        gpdb.createTableAndVerify(compareTable_byteArray);
-        gpdb.runQuery(compareTable_byteArray.constructInsertStmt());
-
-        // Verify results
-        runTincTest("pxf.features.hdfs.readable.image.single_fragment.runTest");
-    }
-
-    @Test(groups = {"features", "gpdb", "hcfs", "security"})
-    public void singleFragment_streamingFragments() throws Exception {
         exTable.setName("image_test_single_fragment_streaming_fragments");
         exTable.setUserParameters(new String[]{"FILES_PER_FRAGMENT=10", "STREAM_FRAGMENTS=true"});
         exTable.setPath(hdfs.getWorkingDirectory() + "/streamingFragmentsReadableImage");
@@ -528,59 +436,46 @@ public class HdfsReadableImageTest extends BaseFeature {
     }
 
     /**
-     * Read a single image from HDFS
+     * Read images from HDFS:
+     * this test ensures that the different directories yield different
+     * image 'labels'
      */
     @Test(groups = {"features", "gpdb", "hcfs", "security"})
     public void filesInDifferentDirectories() throws Exception {
-        // this test ensures that the different directories yield different
-        // image 'labels'
         exTable.setName("image_test_images_in_different_directories");
+        exTable.setUserParameters(new String[]{"STREAM_FRAGMENTS=true", "FILES_PER_FRAGMENT=1"});
         compareTable_intArray.setName("compare_table_images_in_different_directories");
-        int cnt = 0;
-        for (StringBuilder image : imagesPostgresArrays) {
+        for (int i = 0; i < NUM_IMAGES; i++) {
             compareTable_intArray.addRow(new String[]{
-                    "'{" + fullPaths[cnt] + "}'",
-                    "'{" + parentDirectories[cnt] + "}'",
-                    "'{" + imageNames[cnt] + "}'",
+                    "'{" + fullPaths[i] + "}'",
+                    "'{" + parentDirectories[i] + "}'",
+                    "'{" + imageNames[i] + "}'",
                     "'{" + 1 + "," + h + "," + w + ",3}'",
-                    "'{" + image + "}'"
+                    "'{" + oneHotEncodings[i] + "}'",
+                    "'{" + imagesPostgresArrays[i] + "}'"
             });
-            compareTable_intArray.addRow(new String[]{
-                    "'{" + fullPaths[cnt].replace("readableImage", "readableImage_extra_dir") + "}'",
-                    "'{" + parentDirectories[cnt] + "_extra_dir}'", // different directory reflected in image 'label'
-                    "'{" + imageNames[cnt] + "}'",
-                    "'{" + 1 + "," + h + "," + w + ",3}'",
-                    "'{" + image + "}'"
-            });
-            cnt++;
         }
+
         exTable_byteArray.setName("image_test_images_in_different_directories_bytea");
+        exTable_byteArray.setUserParameters(new String[]{"STREAM_FRAGMENTS=true", "FILES_PER_FRAGMENT=1"});
         compareTable_byteArray.setName("compare_table_images_in_different_directories_bytea");
-        cnt = 0;
-        for (StringBuilder image : imagesPostgresArrays) {
+        for (int i = 0; i < NUM_IMAGES; i++) {
             compareTable_byteArray.addRow(new String[]{
-                    "'{" + fullPaths[cnt] + "}'",
-                    "'{" + parentDirectories[cnt] + "}'",
-                    "'{" + imageNames[cnt] + "}'",
+                    "'{" + fullPaths[i] + "}'",
+                    "'{" + parentDirectories[i] + "}'",
+                    "'{" + imageNames[i] + "}'",
                     "'{" + 1 + "," + h + "," + w + ",3}'",
-                    "'\\x" + Hex.encodeHexString(imagesPostgresByteArray[cnt]) + "'"
+                    "'{" + oneHotEncodings[i] + "}'",
+                    "'\\x" + Hex.encodeHexString(imagesPostgresByteArray[i]) + "'"
             });
-            compareTable_byteArray.addRow(new String[]{
-                    "'{" + fullPaths[cnt].replace("readableImage", "readableImage_extra_dir") + "}'",
-                    "'{" + parentDirectories[cnt] + "_extra_dir}'", // different directory reflected in image 'label'
-                    "'{" + imageNames[cnt] + "}'",
-                    "'{" + 1 + "," + h + "," + w + ",3}'",
-                    "'\\x" + Hex.encodeHexString(imagesPostgresByteArray[cnt]) + "'"
-            });
-            cnt++;
         }
 
         // open up path to include extra directory
-        exTable.setPath(hdfsPath + "*/*.png");
+        exTable.setPath(hdfs.getWorkingDirectory());
         gpdb.createTableAndVerify(exTable);
         gpdb.createTableAndVerify(compareTable_intArray);
         gpdb.runQuery(compareTable_intArray.constructInsertStmt());
-        exTable_byteArray.setPath(hdfsPath + "*/*.png");
+        exTable_byteArray.setPath(hdfs.getWorkingDirectory());
         gpdb.createTableAndVerify(exTable_byteArray);
         gpdb.createTableAndVerify(compareTable_byteArray);
         gpdb.runQuery(compareTable_byteArray.constructInsertStmt());
