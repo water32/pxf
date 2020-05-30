@@ -30,6 +30,11 @@ public class ArrayField extends OneField {
     @Override
     public String toString() {
         List<?> list = (List<?>) this.val;
-        return prefix + list.stream().map(Object::toString).collect(Collectors.joining(separator)) + suffix;
+        // in case we have nested arrays
+        return list.toString()
+                .replaceAll("\\[", prefix)
+                .replaceAll("]", suffix)
+                .replaceAll(",", separator)
+                .replaceAll(" ", "");
     }
 }

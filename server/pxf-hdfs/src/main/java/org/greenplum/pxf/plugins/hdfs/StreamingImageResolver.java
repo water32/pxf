@@ -16,6 +16,7 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -29,15 +30,14 @@ import java.util.List;
  */
 @SuppressWarnings("unchecked")
 public class StreamingImageResolver extends BasePlugin implements StreamingResolver {
-    private static final int IMAGE_DATA_COLUMN = 4;
+    private static final int IMAGE_DATA_COLUMN = 5;
     private StreamingImageAccessor accessor;
-    private List<String> paths;
     private int currentImage = 0, currentThread = 0, numImages, w, h;
     private static final int INTENSITIES = 256, NUM_COL = 3;
     // cache of strings for RGB arrays going to Greenplum
-    private static String[] r = new String[INTENSITIES];
-    private static String[] g = new String[INTENSITIES];
-    private static String[] b = new String[INTENSITIES];
+    private static final String[] r = new String[INTENSITIES];
+    private static final String[] g = new String[INTENSITIES];
+    private static final String[] b = new String[INTENSITIES];
     private DataType imageColumnType;
     private BufferedImage[] currentImages;
     private Thread[] threads;
@@ -64,19 +64,26 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
                 imageColumnType != DataType.INT8ARRAY && imageColumnType != DataType.BYTEA) {
             throw new UnsupportedTypeException("image data column must be an integer or byte array");
         }
-        paths = (ArrayList<String>) row.getKey();
+        List<String> paths = (ArrayList<String>) row.getKey();
         accessor = (StreamingImageAccessor) row.getData();
         List<String> fullPaths = new ArrayList<>();
         List<String> parentDirs = new ArrayList<>();
         List<String> fileNames = new ArrayList<>();
+        List<List<Integer>> oneHotArrays = new ArrayList<>();
 
         for (String pathString : paths) {
+            List<Integer> oneHotArray = Arrays.stream(pathString.split(","))
+                    .skip(1)
+                    .map(Integer::parseInt)
+                    .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+            pathString = pathString.split(",")[0];
             URI uri = URI.create(pathString);
             Path path = Paths.get(uri.getPath());
 
             fullPaths.add(uri.getPath());
             parentDirs.add(path.getParent().getFileName().toString());
             fileNames.add(path.getFileName().toString());
+            oneHotArrays.add(oneHotArray);
         }
 
         numImages = fileNames.size();
@@ -101,6 +108,7 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
                     add(w);
                     add(NUM_COL);
                 }}));
+                add(new ArrayField(DataType.INT8ARRAY.getOID(), oneHotArrays));
                 if (imageColumnType == DataType.BYTEA) {
                     add(new StreamingField(DataType.BYTEA.getOID(), StreamingImageResolver.this));
                 } else {

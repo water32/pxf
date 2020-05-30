@@ -28,8 +28,8 @@ public class HdfsReadableImageTest extends BaseFeature {
     private String[] imageNames;
     private byte[][] imagesPostgresByteArray;
     private ProtocolEnum protocol;
-    private int w = 256;
-    private int h = 128;
+    private final int w = 256;
+    private final int h = 128;
     private final static int COLOR_MAX = 256;
 
     @Override

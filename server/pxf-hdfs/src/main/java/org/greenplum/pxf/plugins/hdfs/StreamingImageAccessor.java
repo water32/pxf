@@ -81,7 +81,7 @@ public class StreamingImageAccessor extends BasePlugin implements Accessor {
         // input data stream, FileSystem.get actually
         // returns an FSDataInputStream
         paths = new ArrayList<>(Arrays.asList(context.getDataSource().split("\\|")));
-        fs = FileSystem.get(URI.create(paths.get(0)), configuration);
+        fs = FileSystem.get(URI.create(paths.get(0).split(",")[0]), configuration);
 
         return paths.size() > 0;
     }
@@ -105,7 +105,7 @@ public class StreamingImageAccessor extends BasePlugin implements Accessor {
     }
 
     public class FetchImageRunnable implements Runnable {
-        private int cnt;
+        private final int cnt;
 
         public FetchImageRunnable(int cnt) {
             this.cnt = cnt;
@@ -113,7 +113,7 @@ public class StreamingImageAccessor extends BasePlugin implements Accessor {
 
         @Override
         public void run() {
-            try (InputStream stream = fs.open(new Path(paths.get(currentPath + cnt)))) {
+            try (InputStream stream = fs.open(new Path(paths.get(currentPath + cnt).split(",")[0]))) {
                 currentImages[cnt] = ImageIO.read(stream);
             } catch (IOException e) {
                 throw new RuntimeException(String.format("Caught an IOException reading image in thread %d", cnt), e);

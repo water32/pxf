@@ -65,15 +65,15 @@ public class BridgeOutputBuilder {
     private static final Logger LOG = LoggerFactory.getLogger(BridgeOutputBuilder.class);
 
     private static final byte DELIM = 10; /* (byte)'\n'; */
-    private RequestContext context;
+    private final RequestContext context;
     private Writable output = null;
-    private LinkedList<Writable> outputList;
+    private final LinkedList<Writable> outputList;
     private Writable partialLine = null;
     private GPDBWritable errorRecord = null;
     private int[] schema;
     private String[] colNames;
-    private boolean samplingEnabled;
-    private GreenplumCSV greenplumCSV;
+    private final boolean samplingEnabled;
+    private final GreenplumCSV greenplumCSV;
 
     /**
      * Constructs a BridgeOutputBuilder.
@@ -172,7 +172,7 @@ public class BridgeOutputBuilder {
      */
     public class WritableIterator {
         private int fieldCounter = 0;
-        private int numFields;
+        private final int numFields;
         private OneField field;
         private StreamingResolver resolver = null;
         boolean currentlyStreaming = false;

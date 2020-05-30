@@ -32,8 +32,10 @@ import static org.mockito.Mockito.doAnswer;
 public class StreamingImageResolverTest {
     StreamingImageResolver resolver;
     List<String> paths;
+    List<String> strippedPaths;
     List<String> parentDirs;
     List<String> fileNames;
+    List<List<Integer>> oneHotArrays;
     List<Integer> dimensions;
     List<BufferedImage> images;
     List<byte[]> image_byteas;
@@ -53,6 +55,7 @@ public class StreamingImageResolverTest {
             add(new ColumnDescriptor("foo", DataType.TEXTARRAY.getOID(), 2, "foo", null));
             add(new ColumnDescriptor("foo", DataType.INT8ARRAY.getOID(), 3, "foo", null));
             add(new ColumnDescriptor("foo", DataType.INT8ARRAY.getOID(), 4, "foo", null));
+            add(new ColumnDescriptor("foo", DataType.INT8ARRAY.getOID(), 5, "foo", null));
         }});
         context.setConfig("fakeConfig");
         context.setServerName("fakeServerName");
@@ -62,6 +65,13 @@ public class StreamingImageResolverTest {
         context.setProfileScheme("localfile");
         resolver = new StreamingImageResolver();
         paths = new ArrayList<String>() {{
+            add("/foo/parentDir1/image1.png,1,0,0,0,0");
+            add("/foo/parentDir2/image2.png,0,1,0,0,0");
+            add("/foo/parentDir3/image3.png,0,0,1,0,0");
+            add("/foo/parentDir4/image4.png,0,0,0,1,0");
+            add("/foo/parentDir5/image5.png,0,0,0,0,1");
+        }};
+        strippedPaths = new ArrayList<String>() {{
             add("/foo/parentDir1/image1.png");
             add("/foo/parentDir2/image2.png");
             add("/foo/parentDir3/image3.png");
@@ -86,6 +96,13 @@ public class StreamingImageResolverTest {
             add(5);
             add(2);
             add(2);
+        }};
+        oneHotArrays = new ArrayList<List<Integer>>(){{
+            add(new ArrayList<Integer>(){{ add(1); add(0); add(0); add(0); add(0); }});
+            add(new ArrayList<Integer>(){{ add(0); add(1); add(0); add(0); add(0); }});
+            add(new ArrayList<Integer>(){{ add(0); add(0); add(1); add(0); add(0); }});
+            add(new ArrayList<Integer>(){{ add(0); add(0); add(0); add(1); add(0); }});
+            add(new ArrayList<Integer>(){{ add(0); add(0); add(0); add(0); add(1); }});
         }};
         images = ImageTestHelper.generateMonocolorImages(2, 2, new int[]{1, 5, 10, 50, 100});
         imageStrings = new ArrayList<String>() {{
@@ -126,23 +143,26 @@ public class StreamingImageResolverTest {
     public void testGetFields() throws IOException, InterruptedException {
         List<OneField> fields = resolver.getFields(row);
 
-        assertEquals(5, fields.size());
+        assertEquals(6, fields.size());
         assertTrue(fields.get(0) instanceof ArrayField);
         assertTrue(((ArrayField) fields.get(0)).val instanceof List);
         assertTrue(fields.get(1) instanceof ArrayField);
         assertTrue(((ArrayField) fields.get(1)).val instanceof List);
         assertTrue(fields.get(2) instanceof ArrayField);
         assertTrue(((ArrayField) fields.get(2)).val instanceof List);
-        assertTrue(fields.get(2) instanceof ArrayField);
+        assertTrue(fields.get(3) instanceof ArrayField);
         assertTrue(((ArrayField) fields.get(3)).val instanceof List);
-        assertTrue(fields.get(4) instanceof ArrayStreamingField);
-        assertTrue(((ArrayStreamingField) fields.get(4)).getResolver() instanceof StreamingImageResolver);
+        assertTrue(fields.get(4) instanceof ArrayField);
+        assertTrue(((ArrayField) fields.get(4)).val instanceof List);
+        assertTrue(fields.get(5) instanceof ArrayStreamingField);
+        assertTrue(((ArrayStreamingField) fields.get(5)).getResolver() instanceof StreamingImageResolver);
 
-        assertListEquals(paths, (List<?>) ((ArrayField) fields.get(0)).val);
+        assertListEquals(strippedPaths, (List<?>) ((ArrayField) fields.get(0)).val);
         assertListEquals(parentDirs, (List<?>) ((ArrayField) fields.get(1)).val);
         assertListEquals(fileNames, (List<?>) ((ArrayField) fields.get(2)).val);
         assertListEquals(dimensions, (List<?>) ((ArrayField) fields.get(3)).val);
-        assertEquals(resolver, ((ArrayStreamingField) fields.get(4)).getResolver());
+        assertListEquals(oneHotArrays, (List<?>) ((ArrayField) fields.get(4)).val);
+        assertEquals(resolver, ((ArrayStreamingField) fields.get(5)).getResolver());
         assertImages();
     }
 
@@ -153,33 +173,35 @@ public class StreamingImageResolverTest {
             add(new ColumnDescriptor("foo", DataType.TEXTARRAY.getOID(), 1, "foo", null));
             add(new ColumnDescriptor("foo", DataType.TEXTARRAY.getOID(), 2, "foo", null));
             add(new ColumnDescriptor("foo", DataType.INT8ARRAY.getOID(), 3, "foo", null));
-            add(new ColumnDescriptor("foo", DataType.BYTEA.getOID(), 4, "foo", null));
+            add(new ColumnDescriptor("foo", DataType.INT8ARRAY.getOID(), 4, "foo", null));
+            add(new ColumnDescriptor("foo", DataType.BYTEA.getOID(), 5, "foo", null));
         }});
         resolver.initialize(context);
         List<OneField> fields = resolver.getFields(row);
 
-        assertEquals(5, fields.size());
+        assertEquals(6, fields.size());
         assertTrue(fields.get(0) instanceof ArrayField);
         assertTrue(((ArrayField) fields.get(0)).val instanceof List);
         assertTrue(fields.get(1) instanceof ArrayField);
         assertTrue(((ArrayField) fields.get(1)).val instanceof List);
         assertTrue(fields.get(2) instanceof ArrayField);
         assertTrue(((ArrayField) fields.get(2)).val instanceof List);
-        assertTrue(fields.get(2) instanceof ArrayField);
+        assertTrue(fields.get(3) instanceof ArrayField);
         assertTrue(((ArrayField) fields.get(3)).val instanceof List);
-        assertTrue(fields.get(4) instanceof StreamingField);
-        assertTrue(((StreamingField) fields.get(4)).getResolver() instanceof StreamingImageResolver);
+        assertTrue(fields.get(5) instanceof StreamingField);
+        assertTrue(((StreamingField) fields.get(5)).getResolver() instanceof StreamingImageResolver);
 
-        assertListEquals(paths, (List<?>) ((ArrayField) fields.get(0)).val);
+        assertListEquals(strippedPaths, (List<?>) ((ArrayField) fields.get(0)).val);
         assertListEquals(parentDirs, (List<?>) ((ArrayField) fields.get(1)).val);
         assertListEquals(fileNames, (List<?>) ((ArrayField) fields.get(2)).val);
         assertListEquals(dimensions, (List<?>) ((ArrayField) fields.get(3)).val);
-        assertEquals(resolver, ((StreamingField) fields.get(4)).getResolver());
+        assertListEquals(oneHotArrays, (List<?>) ((ArrayField) fields.get(4)).val);
+        assertEquals(resolver, ((StreamingField) fields.get(5)).getResolver());
         assertImages();
     }
 
     @Test
-    public void testNextAndHasNext() throws IOException, InterruptedException {
+    public void testNextAndHasNext() throws InterruptedException {
         resolver.getFields(row);
         for (String image : imageStrings) {
             assertTrue(resolver.hasNext());

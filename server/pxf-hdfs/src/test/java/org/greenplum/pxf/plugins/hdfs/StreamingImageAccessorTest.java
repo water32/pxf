@@ -40,7 +40,7 @@ public class StreamingImageAccessorTest {
         context.setSegmentId(0);
         context.setTransactionId("testID");
         context.setProfileScheme("localfile");
-        context.setDataSource(String.join(",", paths));
+        context.setDataSource(String.join("|", paths));
         accessor.initialize(context);
     }
 

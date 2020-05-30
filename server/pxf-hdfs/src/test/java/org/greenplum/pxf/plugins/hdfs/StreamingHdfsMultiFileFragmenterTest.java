@@ -74,6 +74,12 @@ public class StreamingHdfsMultiFileFragmenterTest {
         tempFolder.newFolder("test", "dir2");
         tempFolder.newFolder("test", "dir1", "empty_dir", "foobar");
         tempFolder.newFolder("test", "a");
+        tempFolder.newFile("test/0.csv");
+        tempFolder.newFile("test/a/1.csv");
+        tempFolder.newFile("test/dir1/2.csv");
+        tempFolder.newFile("test/dir2/3.csv");
+        tempFolder.newFile("test/dir3/4.csv");
+        tempFolder.newFile("test/dir1/empty_dir/foobar/5.csv");
         context.setDataSource(path + "test");
         initFragmenter();
 
@@ -81,11 +87,11 @@ public class StreamingHdfsMultiFileFragmenterTest {
                          add(new Path("file://" + path + "test"));
                          add(new Path("file://" + path + "test/a"));
                          add(new Path("file://" + path + "test/dir1"));
-                         add(new Path("file://" + path + "test/dir1/empty_dir"));
+                         // add(new Path("file://" + path + "test/dir1/empty_dir"));
                          add(new Path("file://" + path + "test/dir1/empty_dir/foobar"));
                          add(new Path("file://" + path + "test/dir2"));
                          add(new Path("file://" + path + "test/dir3"));
-                         add(new Path("file://" + path + "test/empty_dir"));
+         //                add(new Path("file://" + path + "test/empty_dir"));
                      }},
                 streamingHdfsFileFragmenter.getDirs());
     }
@@ -94,15 +100,15 @@ public class StreamingHdfsMultiFileFragmenterTest {
     public void testNextAndHasNext_FilesPerFragmentNotGiven() throws Exception {
         initFragmenter();
 
-        assertFragment(new Fragment("file://" + path + "dir1/1.csv"));
-        assertFragment(new Fragment("file://" + path + "dir1/2.csv"));
-        assertFragment(new Fragment("file://" + path + "dir1/3.csv"));
-        assertFragment(new Fragment("file://" + path + "dir1/nested_dir/1.csv"));
-        assertFragment(new Fragment("file://" + path + "dir1/nested_dir/2.csv"));
-        assertFragment(new Fragment("file://" + path + "dir1/nested_dir/3.csv"));
-        assertFragment(new Fragment("file://" + path + "dir2/1.csv"));
-        assertFragment(new Fragment("file://" + path + "dir2/2.csv"));
-        assertFragment(new Fragment("file://" + path + "dir2/3.csv"));
+        assertFragment(new Fragment("file://" + path + "dir1/1.csv,1,0,0"));
+        assertFragment(new Fragment("file://" + path + "dir1/2.csv,1,0,0"));
+        assertFragment(new Fragment("file://" + path + "dir1/3.csv,1,0,0"));
+        assertFragment(new Fragment("file://" + path + "dir1/nested_dir/1.csv,0,0,1"));
+        assertFragment(new Fragment("file://" + path + "dir1/nested_dir/2.csv,0,0,1"));
+        assertFragment(new Fragment("file://" + path + "dir1/nested_dir/3.csv,0,0,1"));
+        assertFragment(new Fragment("file://" + path + "dir2/1.csv,0,1,0"));
+        assertFragment(new Fragment("file://" + path + "dir2/2.csv,0,1,0"));
+        assertFragment(new Fragment("file://" + path + "dir2/3.csv,0,1,0"));
         assertNoMoreFragments();
     }
 
@@ -115,8 +121,8 @@ public class StreamingHdfsMultiFileFragmenterTest {
         context.setDataSource(path + "test");
         initFragmenter();
 
-        assertFragment(new Fragment("file://" + path + "test/1.csv," +
-                "file://" + path + "test/2.csv"));
+        assertFragment(new Fragment("file://" + path + "test/1.csv,1|" +
+                "file://" + path + "test/2.csv,1"));
         assertNoMoreFragments();
     }
 
@@ -139,16 +145,16 @@ public class StreamingHdfsMultiFileFragmenterTest {
         initFragmenter();
 
         assertFragment(new Fragment(
-                "file://" + path + "test/dir1/1.csv,"
-                        + "file://" + path + "test/dir1/2.csv,"
-                        + "file://" + path + "test/dir1/3.csv,"
-                        + "file://" + path + "test/dir1/4.csv,"
-                        + "file://" + path + "test/dir1/5.csv,"
-                        + "file://" + path + "test/dir2/1.csv,"
-                        + "file://" + path + "test/dir2/2.csv,"
-                        + "file://" + path + "test/dir2/3.csv,"
-                        + "file://" + path + "test/dir2/4.csv,"
-                        + "file://" + path + "test/dir2/5.csv"
+                "file://" + path + "test/dir1/1.csv,1,0|"
+                        + "file://" + path + "test/dir1/2.csv,1,0|"
+                        + "file://" + path + "test/dir1/3.csv,1,0|"
+                        + "file://" + path + "test/dir1/4.csv,1,0|"
+                        + "file://" + path + "test/dir1/5.csv,1,0|"
+                        + "file://" + path + "test/dir2/1.csv,0,1|"
+                        + "file://" + path + "test/dir2/2.csv,0,1|"
+                        + "file://" + path + "test/dir2/3.csv,0,1|"
+                        + "file://" + path + "test/dir2/4.csv,0,1|"
+                        + "file://" + path + "test/dir2/5.csv,0,1"
         ));
         assertNoMoreFragments();
     }
@@ -159,15 +165,15 @@ public class StreamingHdfsMultiFileFragmenterTest {
         initFragmenter();
 
         assertFragment(new Fragment(
-                "file://" + path + "dir1/1.csv,"
-                        + "file://" + path + "dir1/2.csv,"
-                        + "file://" + path + "dir1/3.csv,"
-                        + "file://" + path + "dir1/nested_dir/1.csv,"
-                        + "file://" + path + "dir1/nested_dir/2.csv,"
-                        + "file://" + path + "dir1/nested_dir/3.csv,"
-                        + "file://" + path + "dir2/1.csv,"
-                        + "file://" + path + "dir2/2.csv,"
-                        + "file://" + path + "dir2/3.csv"
+                "file://" + path + "dir1/1.csv,1,0,0|"
+                        + "file://" + path + "dir1/2.csv,1,0,0|"
+                        + "file://" + path + "dir1/3.csv,1,0,0|"
+                        + "file://" + path + "dir1/nested_dir/1.csv,0,0,1|"
+                        + "file://" + path + "dir1/nested_dir/2.csv,0,0,1|"
+                        + "file://" + path + "dir1/nested_dir/3.csv,0,0,1|"
+                        + "file://" + path + "dir2/1.csv,0,1,0|"
+                        + "file://" + path + "dir2/2.csv,0,1,0|"
+                        + "file://" + path + "dir2/3.csv,0,1,0"
         ));
         assertNoMoreFragments();
     }
@@ -178,23 +184,23 @@ public class StreamingHdfsMultiFileFragmenterTest {
         initFragmenter();
 
         assertFragment(new Fragment(
-                "file://" + path + "dir1/1.csv,"
-                        + "file://" + path + "dir1/2.csv"
+                "file://" + path + "dir1/1.csv,1,0,0|"
+                        + "file://" + path + "dir1/2.csv,1,0,0"
         ));
         assertFragment(new Fragment(
-                "file://" + path + "dir1/3.csv,"
-                        + "file://" + path + "dir1/nested_dir/1.csv"
+                "file://" + path + "dir1/3.csv,1,0,0|"
+                        + "file://" + path + "dir1/nested_dir/1.csv,0,0,1"
         ));
         assertFragment(new Fragment(
-                "file://" + path + "dir1/nested_dir/2.csv,"
-                        + "file://" + path + "dir1/nested_dir/3.csv"
+                "file://" + path + "dir1/nested_dir/2.csv,0,0,1|"
+                        + "file://" + path + "dir1/nested_dir/3.csv,0,0,1"
         ));
         assertFragment(new Fragment(
-                "file://" + path + "dir2/1.csv,"
-                        + "file://" + path + "dir2/2.csv"
+                "file://" + path + "dir2/1.csv,0,1,0|"
+                        + "file://" + path + "dir2/2.csv,0,1,0"
         ));
         assertFragment(new Fragment(
-                "file://" + path + "dir2/3.csv"
+                "file://" + path + "dir2/3.csv,0,1,0"
         ));
         assertNoMoreFragments();
     }

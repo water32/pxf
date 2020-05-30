@@ -24,12 +24,12 @@ import static java.util.stream.Collectors.joining;
 
 public class StreamingHdfsMultiFileFragmenter extends HdfsMultiFileFragmenter implements StreamingFragmenter {
     private List<String> files = new ArrayList<>();
-    private List<Path> dirs = new ArrayList<>();
+    private final List<Path> dirs = new ArrayList<>();
     private int currentDir = 0;
     private int currentFile = 0;
     private FileSystem fs;
-    private Set<String> labelSet = new HashSet<>();
-    private Map<String, int[]> labels = new HashMap<>();
+    private final Set<String> labelSet = new HashSet<>();
+    private final Map<String, int[]> labels = new HashMap<>();
 
     @Override
     public List<Path> getDirs() {
@@ -105,7 +105,8 @@ public class StreamingHdfsMultiFileFragmenter extends HdfsMultiFileFragmenter im
 
     private void getDirs(Path path) throws IOException {
         boolean pathContainsRegularFiles = false;
-        RemoteIterator<FileStatus> iterator = fs.listStatusIterator(path); // no recursion
+        // this iterator only looks at one level of the directory tree
+        RemoteIterator<FileStatus> iterator = fs.listStatusIterator(path);
         while (iterator.hasNext()) {
             FileStatus fileStatus = iterator.next();
             if (fileStatus.isDirectory()) {
