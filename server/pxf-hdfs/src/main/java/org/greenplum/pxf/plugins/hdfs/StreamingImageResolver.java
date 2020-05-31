@@ -30,6 +30,7 @@ import java.util.List;
  */
 @SuppressWarnings("unchecked")
 public class StreamingImageResolver extends BasePlugin implements StreamingResolver {
+    private static final int IMAGE_FULL_PATH_COLUMN = 0;
     private static final int IMAGE_DATA_COLUMN = 5;
     private StreamingImageAccessor accessor;
     private int currentImage = 0, currentThread = 0, numImages, w, h;
@@ -38,6 +39,7 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
     private static final String[] r = new String[INTENSITIES];
     private static final String[] g = new String[INTENSITIES];
     private static final String[] b = new String[INTENSITIES];
+    private DataType imageFullPathColumnType;
     private DataType imageColumnType;
     private BufferedImage[] currentImages;
     private Thread[] threads;
@@ -59,11 +61,8 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
      */
     @Override
     public List<OneField> getFields(OneRow row) throws InterruptedException {
+        imageFullPathColumnType = context.getColumn(IMAGE_FULL_PATH_COLUMN).getDataType();
         imageColumnType = context.getColumn(IMAGE_DATA_COLUMN).getDataType();
-        if (imageColumnType != DataType.INT2ARRAY && imageColumnType != DataType.INT4ARRAY &&
-                imageColumnType != DataType.INT8ARRAY && imageColumnType != DataType.BYTEA) {
-            throw new UnsupportedTypeException("image data column must be an integer or byte array");
-        }
         List<String> paths = (ArrayList<String>) row.getKey();
         accessor = (StreamingImageAccessor) row.getData();
         List<String> fullPaths = new ArrayList<>();
@@ -99,20 +98,31 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
 
         return new ArrayList<OneField>() {
             {
-                add(new ArrayField(DataType.TEXTARRAY.getOID(), fullPaths));
-                add(new ArrayField(DataType.TEXTARRAY.getOID(), parentDirs));
-                add(new ArrayField(DataType.TEXTARRAY.getOID(), fileNames));
-                add(new ArrayField(DataType.INT8ARRAY.getOID(), new ArrayList<Integer>() {{
-                    add(numImages);
-                    add(h);
-                    add(w);
-                    add(NUM_COL);
-                }}));
-                add(new ArrayField(DataType.INT8ARRAY.getOID(), oneHotArrays));
+                List<Integer> imageDimensions = new ArrayList<>();
+                if (imageFullPathColumnType == DataType.TEXT) {
+                    add(new OneField(DataType.TEXT.getOID(), fullPaths.get(0)));
+                    add(new OneField(DataType.TEXT.getOID(), fileNames.get(0)));
+                    add(new OneField(DataType.TEXT.getOID(), parentDirs.get(0)));
+                    add(new ArrayField(DataType.INT8ARRAY.getOID(), oneHotArrays.get(0)));
+                } else {
+                    add(new ArrayField(DataType.TEXTARRAY.getOID(), fullPaths));
+                    add(new ArrayField(DataType.TEXTARRAY.getOID(), fileNames));
+                    add(new ArrayField(DataType.TEXTARRAY.getOID(), parentDirs));
+                    add(new ArrayField(DataType.INT8ARRAY.getOID(), oneHotArrays));
+                    imageDimensions.add(numImages);
+                }
+                imageDimensions.add(h);
+                imageDimensions.add(w);
+                imageDimensions.add(NUM_COL);
+                add(new ArrayField(DataType.INT8ARRAY.getOID(), imageDimensions));
                 if (imageColumnType == DataType.BYTEA) {
                     add(new StreamingField(DataType.BYTEA.getOID(), StreamingImageResolver.this));
                 } else {
-                    add(new ArrayStreamingField(StreamingImageResolver.this));
+                    if (imageFullPathColumnType == DataType.TEXT) {
+                        add(new StreamingField(DataType.INT8ARRAY.getOID(), StreamingImageResolver.this));
+                    } else {
+                        add(new ArrayStreamingField(StreamingImageResolver.this));
+                    }
                 }
             }
         };

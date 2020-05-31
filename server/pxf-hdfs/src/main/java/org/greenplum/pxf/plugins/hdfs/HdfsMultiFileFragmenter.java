@@ -1,6 +1,8 @@
 package org.greenplum.pxf.plugins.hdfs;
 
 import org.apache.hadoop.fs.Path;
+import org.greenplum.pxf.api.UnsupportedTypeException;
+import org.greenplum.pxf.api.io.DataType;
 import org.greenplum.pxf.api.model.Fragment;
 import org.greenplum.pxf.api.model.RequestContext;
 import org.greenplum.pxf.plugins.hdfs.utilities.PxfInputFormat;
@@ -10,8 +12,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class HdfsMultiFileFragmenter extends HdfsDataFragmenter {
-    public final static String FILES_PER_FRAGMENT_OPTION_NAME = "FILES_PER_FRAGMENT";
     protected int filesPerFragment;
+    public final static String FILES_PER_FRAGMENT_OPTION_NAME = "FILES_PER_FRAGMENT";
 
     public int getFilesPerFragment() {
         return filesPerFragment;

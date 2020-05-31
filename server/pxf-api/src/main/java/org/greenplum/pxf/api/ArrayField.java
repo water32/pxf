@@ -31,6 +31,10 @@ public class ArrayField extends OneField {
     public String toString() {
         List<?> list = (List<?>) this.val;
         // in case we have nested arrays
+        // String result = nested.stream().map(
+        //       nextList -> nextList.stream()
+        //         .collect(Collectors.joining("-")))
+        //       .collect(Collectors.joining("; "));
         return list.toString()
                 .replaceAll("\\[", prefix)
                 .replaceAll("]", suffix)

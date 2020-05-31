@@ -1,8 +1,10 @@
 package org.greenplum.pxf.plugins.hdfs;
 
 import org.apache.hadoop.fs.Path;
+import org.greenplum.pxf.api.io.DataType;
 import org.greenplum.pxf.api.model.Fragment;
 import org.greenplum.pxf.api.model.RequestContext;
+import org.greenplum.pxf.api.utilities.ColumnDescriptor;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -10,6 +12,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -17,10 +20,26 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-public class StreamingHdfsMultiFileFragmenterTest {
-    StreamingHdfsMultiFileFragmenter streamingHdfsFileFragmenter;
+public class StreamingImageFragmenterTest {
+    StreamingImageFragmenter streamingHdfsFileFragmenter;
     private RequestContext context;
     private String path;
+    private final List<ColumnDescriptor> textTupleDescription = new ArrayList<ColumnDescriptor>() {{
+        add(0, new ColumnDescriptor("col0", DataType.TEXT.getOID(), 0, "TEXT", null));
+        add(1, new ColumnDescriptor("col1", DataType.TEXT.getOID(), 1, "TEXT", null));
+        add(2, new ColumnDescriptor("col2", DataType.TEXT.getOID(), 2, "TEXT", null));
+        add(3, new ColumnDescriptor("col3", DataType.INT8ARRAY.getOID(), 3, "INT[]", null));
+        add(4, new ColumnDescriptor("col4", DataType.INT8ARRAY.getOID(), 4, "INT[]", null));
+        add(5, new ColumnDescriptor("col5", DataType.INT8ARRAY.getOID(), 5, "INT[]", null));
+    }};
+    private final List<ColumnDescriptor> textArrayTupleDescription = new ArrayList<ColumnDescriptor>() {{
+        add(0, new ColumnDescriptor("col0", DataType.TEXTARRAY.getOID(), 0, "TEXT[]", null));
+        add(1, new ColumnDescriptor("col1", DataType.TEXTARRAY.getOID(), 1, "TEXT[]", null));
+        add(2, new ColumnDescriptor("col2", DataType.TEXTARRAY.getOID(), 2, "TEXT[]", null));
+        add(3, new ColumnDescriptor("col3", DataType.INT8ARRAY.getOID(), 3, "INT[]", null));
+        add(4, new ColumnDescriptor("col4", DataType.INT8ARRAY.getOID(), 4, "INT[]", null));
+        add(5, new ColumnDescriptor("col5", DataType.INT8ARRAY.getOID(), 5, "INT[]", null));
+    }};
 
     @Rule
     public TemporaryFolder tempFolder;
@@ -31,7 +50,8 @@ public class StreamingHdfsMultiFileFragmenterTest {
         context.setConfig("default");
         context.setUser("user");
         context.setProfileScheme("localfile");
-        streamingHdfsFileFragmenter = new StreamingHdfsMultiFileFragmenter();
+        context.setTupleDescription(textArrayTupleDescription);
+        streamingHdfsFileFragmenter = new StreamingImageFragmenter();
         tempFolder = new TemporaryFolder();
         tempFolder.create();
         path = tempFolder.getRoot().toString() + "/";
@@ -52,7 +72,17 @@ public class StreamingHdfsMultiFileFragmenterTest {
     }
 
     @Test
-    public void testInitializeFilesPerFragmentNotGiven() throws Exception {
+    public void testInitializeFilesPerFragmentNotGiven() {
+        streamingHdfsFileFragmenter.initialize(context);
+
+        assertEquals(1, streamingHdfsFileFragmenter.getFilesPerFragment());
+    }
+
+
+    @Test
+    public void testInitializeFilesPerFragmentGivenWithTextColumn() {
+        context.setTupleDescription(textTupleDescription);
+        context.addOption(StreamingImageFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "100");
         streamingHdfsFileFragmenter.initialize(context);
 
         assertEquals(1, streamingHdfsFileFragmenter.getFilesPerFragment());
@@ -60,7 +90,7 @@ public class StreamingHdfsMultiFileFragmenterTest {
 
     @Test
     public void testInitializeFilesPerFragmentGiven() {
-        context.addOption(StreamingHdfsMultiFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "100");
+        context.addOption(StreamingImageFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "100");
         streamingHdfsFileFragmenter.initialize(context);
 
         assertEquals(100, streamingHdfsFileFragmenter.getFilesPerFragment());
@@ -87,11 +117,9 @@ public class StreamingHdfsMultiFileFragmenterTest {
                          add(new Path("file://" + path + "test"));
                          add(new Path("file://" + path + "test/a"));
                          add(new Path("file://" + path + "test/dir1"));
-                         // add(new Path("file://" + path + "test/dir1/empty_dir"));
                          add(new Path("file://" + path + "test/dir1/empty_dir/foobar"));
                          add(new Path("file://" + path + "test/dir2"));
                          add(new Path("file://" + path + "test/dir3"));
-         //                add(new Path("file://" + path + "test/empty_dir"));
                      }},
                 streamingHdfsFileFragmenter.getDirs());
     }
@@ -117,7 +145,7 @@ public class StreamingHdfsMultiFileFragmenterTest {
         tempFolder.newFolder("test");
         tempFolder.newFile("test/1.csv");
         tempFolder.newFile("test/2.csv");
-        context.addOption(StreamingHdfsMultiFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "10");
+        context.addOption(StreamingImageFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "10");
         context.setDataSource(path + "test");
         initFragmenter();
 
@@ -140,7 +168,7 @@ public class StreamingHdfsMultiFileFragmenterTest {
         tempFolder.newFile("test/dir2/3.csv");
         tempFolder.newFile("test/dir2/4.csv");
         tempFolder.newFile("test/dir2/5.csv");
-        context.addOption(StreamingHdfsMultiFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "10");
+        context.addOption(StreamingImageFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "10");
         context.setDataSource(path + "test");
         initFragmenter();
 
@@ -161,7 +189,7 @@ public class StreamingHdfsMultiFileFragmenterTest {
 
     @Test
     public void testNextAndHasNext_LargeFilesPerFragmentGiven() throws Exception {
-        context.addOption(StreamingHdfsMultiFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "100");
+        context.addOption(StreamingImageFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "100");
         initFragmenter();
 
         assertFragment(new Fragment(
@@ -180,7 +208,7 @@ public class StreamingHdfsMultiFileFragmenterTest {
 
     @Test
     public void testNextAndHasNext_SmallFilesPerFragmentGiven() throws Exception {
-        context.addOption(StreamingHdfsMultiFileFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "2");
+        context.addOption(StreamingImageFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "2");
         initFragmenter();
 
         assertFragment(new Fragment(

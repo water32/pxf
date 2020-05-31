@@ -158,11 +158,11 @@ public class StreamingImageResolverTest {
         assertTrue(((ArrayStreamingField) fields.get(5)).getResolver() instanceof StreamingImageResolver);
 
         assertListEquals(strippedPaths, (List<?>) ((ArrayField) fields.get(0)).val);
-        assertListEquals(parentDirs, (List<?>) ((ArrayField) fields.get(1)).val);
-        assertListEquals(fileNames, (List<?>) ((ArrayField) fields.get(2)).val);
-        assertListEquals(dimensions, (List<?>) ((ArrayField) fields.get(3)).val);
-        assertListEquals(oneHotArrays, (List<?>) ((ArrayField) fields.get(4)).val);
-        assertEquals(resolver, ((ArrayStreamingField) fields.get(5)).getResolver());
+        assertListEquals(fileNames, (List<?>) ((ArrayField) fields.get(1)).val);
+        assertListEquals(parentDirs, (List<?>) ((ArrayField) fields.get(2)).val);
+        assertListEquals(oneHotArrays, (List<?>) ((ArrayField) fields.get(3)).val);
+        assertListEquals(dimensions, (List<?>) ((ArrayField) fields.get(4)).val);
+        assertEquals(resolver, ((StreamingField) fields.get(5)).getResolver());
         assertImages();
     }
 
@@ -192,10 +192,10 @@ public class StreamingImageResolverTest {
         assertTrue(((StreamingField) fields.get(5)).getResolver() instanceof StreamingImageResolver);
 
         assertListEquals(strippedPaths, (List<?>) ((ArrayField) fields.get(0)).val);
-        assertListEquals(parentDirs, (List<?>) ((ArrayField) fields.get(1)).val);
-        assertListEquals(fileNames, (List<?>) ((ArrayField) fields.get(2)).val);
-        assertListEquals(dimensions, (List<?>) ((ArrayField) fields.get(3)).val);
-        assertListEquals(oneHotArrays, (List<?>) ((ArrayField) fields.get(4)).val);
+        assertListEquals(fileNames, (List<?>) ((ArrayField) fields.get(1)).val);
+        assertListEquals(parentDirs, (List<?>) ((ArrayField) fields.get(2)).val);
+        assertListEquals(oneHotArrays, (List<?>) ((ArrayField) fields.get(3)).val);
+        assertListEquals(dimensions, (List<?>) ((ArrayField) fields.get(4)).val);
         assertEquals(resolver, ((StreamingField) fields.get(5)).getResolver());
         assertImages();
     }

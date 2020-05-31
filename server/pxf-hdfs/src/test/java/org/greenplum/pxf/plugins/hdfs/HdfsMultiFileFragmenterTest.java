@@ -1,7 +1,9 @@
 package org.greenplum.pxf.plugins.hdfs;
 
+import org.greenplum.pxf.api.io.DataType;
 import org.greenplum.pxf.api.model.Fragment;
 import org.greenplum.pxf.api.model.RequestContext;
+import org.greenplum.pxf.api.utilities.ColumnDescriptor;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -18,6 +20,14 @@ public class HdfsMultiFileFragmenterTest {
     private List<Fragment> correctFragments;
     private RequestContext context;
     private String path;
+    private final List<ColumnDescriptor> textArrayTupleDescription = new ArrayList<ColumnDescriptor>() {{
+        add(0, new ColumnDescriptor("col0", DataType.TEXTARRAY.getOID(), 0, "TEXT[]", null));
+        add(1, new ColumnDescriptor("col1", DataType.TEXTARRAY.getOID(), 1, "TEXT[]", null));
+        add(2, new ColumnDescriptor("col2", DataType.TEXTARRAY.getOID(), 2, "TEXT[]", null));
+        add(3, new ColumnDescriptor("col3", DataType.INT8ARRAY.getOID(), 3, "INT[]", null));
+        add(4, new ColumnDescriptor("col4", DataType.INT8ARRAY.getOID(), 4, "INT[]", null));
+        add(5, new ColumnDescriptor("col5", DataType.INT8ARRAY.getOID(), 5, "INT[]", null));
+    }};
 
     @Before
     public void setup() {
@@ -25,6 +35,7 @@ public class HdfsMultiFileFragmenterTest {
         context = new RequestContext();
         context.setConfig("default");
         context.setUser("user");
+        context.setTupleDescription(textArrayTupleDescription);
         path = Objects.requireNonNull(this.getClass().getClassLoader().getResource("csv/")).getPath();
         context.setProfileScheme("localfile");
         context.setDataSource(path);
