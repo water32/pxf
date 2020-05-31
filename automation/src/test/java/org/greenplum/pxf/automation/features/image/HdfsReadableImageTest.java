@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 
 public class HdfsReadableImageTest extends BaseFeature {
     private static final int NUM_IMAGES = 20;
+    private static final int NUM_DIRS = 4;
     private File[] imageFiles;
     private StringBuilder[] imagesPostgresArrays;
     private Table compareTable_intArray;
@@ -29,6 +30,7 @@ public class HdfsReadableImageTest extends BaseFeature {
     private String[] fullPaths;
     private String[] parentDirectories;
     private String[] oneHotEncodings;
+    private byte[][] oneHotEncodings_bytea;
     private String[] imageNames;
     private byte[][] imagesPostgresByteArray;
     private ProtocolEnum protocol;
@@ -50,8 +52,10 @@ public class HdfsReadableImageTest extends BaseFeature {
         fullPaths = new String[NUM_IMAGES];
         parentDirectories = new String[NUM_IMAGES];
         oneHotEncodings = new String[NUM_IMAGES];
+        oneHotEncodings_bytea = new byte[NUM_IMAGES][NUM_DIRS];
         imageNames = new String[NUM_IMAGES];
         String[] relativePaths = new String[]{
+                // sorted order, that's the order that StreamingImageFragmenter processes in
                 "readableImages",
                 "readableImages",
                 "readableImages",
@@ -78,6 +82,12 @@ public class HdfsReadableImageTest extends BaseFeature {
         oneHotEncodingsMap.put("deeply_nested_dir2", "{0,1,0,0}");
         oneHotEncodingsMap.put("nested_dir", "{0,0,1,0}");
         oneHotEncodingsMap.put("readableImages", "{0,0,0,1}");
+        Map<String, byte[]> oneHotEncodingsMap_bytea = new HashMap<String, byte[]>(){{
+            put("deeply_nested_dir1", new byte[]{(byte) (1 & 0xff), (byte) 0, (byte) 0, (byte) 0});
+            put("deeply_nested_dir2", new byte[]{(byte) 0, (byte) (1 & 0xff), (byte) 0, (byte) 0});
+            put("nested_dir", new byte[]{(byte) 0, (byte) 0, (byte) (1 & 0xff), (byte) 0});
+            put("readableImages", new byte[]{(byte) 0, (byte) 0, (byte) 0, (byte) (1 & 0xff)});
+        }};
         for (int i = 0; i < NUM_IMAGES; i++) {
             bufferedImages[i] = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
         }
@@ -135,6 +145,7 @@ public class HdfsReadableImageTest extends BaseFeature {
             hdfs.copyFromLocal(imageFiles[i].toString(), fullPaths[i].replaceFirst("^/", ""));
             parentDirectories[i] = relativePaths[i].replaceFirst(".*/", "");
             oneHotEncodings[i] = oneHotEncodingsMap.get(parentDirectories[i]);
+            oneHotEncodings_bytea[i] = oneHotEncodingsMap_bytea.get(parentDirectories[i]);
         }
     }
 
@@ -225,7 +236,7 @@ public class HdfsReadableImageTest extends BaseFeature {
                 "fullpaths TEXT",
                 "names TEXT",
                 "directories TEXT",
-                "one_hot_encodings INT[]",
+                "one_hot_encodings BYTEA",
                 "dimensions INT[]",
                 "images BYTEA"
         };
@@ -254,7 +265,7 @@ public class HdfsReadableImageTest extends BaseFeature {
                     "'" + fullPaths[i] + "'",
                     "'" + imageNames[i] + "'",
                     "'" + parentDirectories[i] + "'",
-                    "'" + oneHotEncodings[i] + "'",
+                    "'\\x" + Hex.encodeHexString(oneHotEncodings_bytea[i]) + "'",
                     "'{" + h + "," + w + ",3}'",
                     "'\\x" + Hex.encodeHexString(imagesPostgresByteArray[i]) + "'"
             });
@@ -349,6 +360,16 @@ public class HdfsReadableImageTest extends BaseFeature {
         gpdb.createTableAndVerify(compareTable_intArray);
         gpdb.runQuery(compareTable_intArray.constructInsertStmt());
 
+        final String[] imageTableFields_byteArray = new String[]{
+                "fullpaths TEXT[]",
+                "names TEXT[]",
+                "directories TEXT[]",
+                "one_hot_encodings BYTEA",
+                "dimensions INT[]",
+                "images BYTEA"
+        };
+        exTable_byteArray.setFields(imageTableFields_byteArray);
+        compareTable_byteArray.setFields(imageTableFields_byteArray);
         exTable_byteArray.setName("image_test_single_fragment_streaming_fragments_bytea");
         exTable_byteArray.setUserParameters(new String[]{"FILES_PER_FRAGMENT=" + numFragments});
         exTable_byteArray.setPath(hdfs.getWorkingDirectory());
@@ -360,7 +381,7 @@ public class HdfsReadableImageTest extends BaseFeature {
                     "'{" + Arrays.stream(fullPaths).skip(i).limit(remaining).collect(Collectors.joining(",")) + "}'",
                     "'{" + Arrays.stream(imageNames).skip(i).limit(remaining).collect(Collectors.joining(",")) + "}'",
                     "'{" + Arrays.stream(parentDirectories).skip(i).limit(remaining).collect(Collectors.joining(",")) + "}'",
-                    "'{" + Arrays.stream(oneHotEncodings).skip(i).limit(remaining).collect(Collectors.joining(",")) + "}'",
+                    "'\\x" + Arrays.stream(oneHotEncodings_bytea).skip(i).limit(remaining).map(Hex::encodeHexString).collect(Collectors.joining("")) + "'",
                     "'{" + remaining + "," + h + "," + w + ",3}'",
                     "'\\x" + Arrays.stream(imagesPostgresByteArray).skip(i).limit(remaining).map(Hex::encodeHexString).collect(Collectors.joining("")) + "'"
             });

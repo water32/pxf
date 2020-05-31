@@ -31,6 +31,7 @@ import java.util.List;
 @SuppressWarnings("unchecked")
 public class StreamingImageResolver extends BasePlugin implements StreamingResolver {
     private static final int IMAGE_FULL_PATH_COLUMN = 0;
+    private static final int IMAGE_ONE_HOT_ENCODING_COLUMN = 3;
     private static final int IMAGE_DATA_COLUMN = 5;
     private StreamingImageAccessor accessor;
     private int currentImage = 0, currentThread = 0, numImages, w, h;
@@ -41,6 +42,7 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
     private static final String[] b = new String[INTENSITIES];
     private DataType imageFullPathColumnType;
     private DataType imageColumnType;
+    private DataType imageOneHotEncodingColumnType;
     private BufferedImage[] currentImages;
     private Thread[] threads;
     private Object[] imageArrays;
@@ -63,6 +65,8 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
     public List<OneField> getFields(OneRow row) throws InterruptedException {
         imageFullPathColumnType = context.getColumn(IMAGE_FULL_PATH_COLUMN).getDataType();
         imageColumnType = context.getColumn(IMAGE_DATA_COLUMN).getDataType();
+        imageOneHotEncodingColumnType = context.getColumn(IMAGE_ONE_HOT_ENCODING_COLUMN).getDataType();
+
         List<String> paths = (ArrayList<String>) row.getKey();
         accessor = (StreamingImageAccessor) row.getData();
         List<String> fullPaths = new ArrayList<>();
@@ -103,17 +107,35 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
                     add(new OneField(DataType.TEXT.getOID(), fullPaths.get(0)));
                     add(new OneField(DataType.TEXT.getOID(), fileNames.get(0)));
                     add(new OneField(DataType.TEXT.getOID(), parentDirs.get(0)));
-                    add(new ArrayField(DataType.INT8ARRAY.getOID(), oneHotArrays.get(0)));
+                    if (imageOneHotEncodingColumnType == DataType.BYTEA) {
+                        byte[] oneHotArrays_bytea = new byte[oneHotArrays.get(0).size()];
+                        for (int i = 0; i < oneHotArrays.get(0).size(); i++) {
+                            oneHotArrays_bytea[i] = (byte) (oneHotArrays.get(0).get(i) & 0xff);
+                        }
+                        add(new OneField((DataType.BYTEA.getOID()), oneHotArrays_bytea));
+                    } else {
+                        add(new ArrayField(DataType.INT8ARRAY.getOID(), oneHotArrays.get(0)));
+                    }
                 } else {
                     add(new ArrayField(DataType.TEXTARRAY.getOID(), fullPaths));
                     add(new ArrayField(DataType.TEXTARRAY.getOID(), fileNames));
                     add(new ArrayField(DataType.TEXTARRAY.getOID(), parentDirs));
-                    add(new ArrayField(DataType.INT8ARRAY.getOID(), oneHotArrays));
+                    if (imageOneHotEncodingColumnType == DataType.BYTEA) {
+                        byte[] oneHotArrays_bytea = new byte[oneHotArrays.size() * oneHotArrays.get(0).size()];
+                        for (int i = 0; i < oneHotArrays.size() * oneHotArrays.get(0).size(); i++) {
+                            List<Integer> current = oneHotArrays.get(i / oneHotArrays.get(0).size());
+                            oneHotArrays_bytea[i] = (byte) (current.get(i % oneHotArrays.get(0).size()) & 0xff);
+                        }
+                        add(new OneField(DataType.BYTEA.getOID(), oneHotArrays_bytea));
+                    } else {
+                        add(new ArrayField(DataType.INT8ARRAY.getOID(), oneHotArrays));
+                    }
                     imageDimensions.add(numImages);
                 }
                 imageDimensions.add(h);
                 imageDimensions.add(w);
                 imageDimensions.add(NUM_COL);
+
                 add(new ArrayField(DataType.INT8ARRAY.getOID(), imageDimensions));
                 if (imageColumnType == DataType.BYTEA) {
                     add(new StreamingField(DataType.BYTEA.getOID(), StreamingImageResolver.this));
@@ -171,23 +193,23 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
         return imageArrays[currentThread++];
     }
 
-    // private void checkCurrentImageSize() throws IOException {
-    //     if (w != currentImages[currentThread].getWidth() || h != currentImages[currentThread].getHeight()) {
-    //         throw new IOException(
-    //                 String.format(
-    //                         "Image from file %s has an inconsistent size %dx%d, should be %dx%d",
-    //                         paths.get(currentImage),
-    //                         currentImages[currentThread].getWidth(),
-    //                         currentImages[currentThread].getHeight(),
-    //                         w,
-    //                         h
-    //                 )
-    //         );
-    //     }
-    // }
+// private void checkCurrentImageSize() throws IOException {
+//     if (w != currentImages[currentThread].getWidth() || h != currentImages[currentThread].getHeight()) {
+//         throw new IOException(
+//                 String.format(
+//                         "Image from file %s has an inconsistent size %dx%d, should be %dx%d",
+//                         paths.get(currentImage),
+//                         currentImages[currentThread].getWidth(),
+//                         currentImages[currentThread].getHeight(),
+//                         w,
+//                         h
+//                 )
+//         );
+//     }
+// }
 
     class ProcessImageRunnable implements Runnable {
-        private int cnt;
+        private final int cnt;
 
         public ProcessImageRunnable(int cnt) {
             this.cnt = cnt;
@@ -225,6 +247,7 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
             if (imageColumnType == DataType.BYTEA) imageArrays[cnt] = imageToByteArray(currentImages[cnt]);
             else imageArrays[cnt] = imageToPostgresArray(currentImages[cnt]);
         }
+
     }
 
     private static void processImage(StringBuilder sb, BufferedImage image, int w, int h) {

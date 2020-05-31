@@ -179,7 +179,7 @@ public class BridgeOutputBuilder {
         String newline = greenplumCSV.getNewline();
         String quote = String.valueOf(greenplumCSV.getQuote());
         String delimiter = String.valueOf(greenplumCSV.getDelimiter());
-        private List<OneField> fields;
+        private final List<OneField> fields;
 
         /**
          * @param fields List of fields to create an iterator over

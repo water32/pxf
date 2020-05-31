@@ -172,8 +172,8 @@ public class StreamingImageFragmenter extends HdfsMultiFileFragmenter implements
             throw new UnsupportedTypeException("third column of image table (image parent directory) must be TEXT or TEXT[]");
         }
         DataType oneHotEncodingColumnType = context.getColumn(ONE_HOT_ENCODING_COLUMN).getDataType();
-        if (oneHotEncodingColumnType != DataType.INT2ARRAY && oneHotEncodingColumnType != DataType.INT4ARRAY && oneHotEncodingColumnType != DataType.INT8ARRAY) {
-            throw new UnsupportedTypeException("fourth column of image table (image one hot encoding array) must be INT[]");
+        if (oneHotEncodingColumnType != DataType.INT2ARRAY && oneHotEncodingColumnType != DataType.INT4ARRAY && oneHotEncodingColumnType != DataType.INT8ARRAY && oneHotEncodingColumnType != DataType.BYTEA) {
+            throw new UnsupportedTypeException("fourth column of image table (image one hot encoding array) must be INT[] or BYTEA");
         }
         DataType imageDimensionsColumnType = context.getColumn(IMAGE_DIMENSIONS_COLUMN).getDataType();
         if (imageDimensionsColumnType != DataType.INT2ARRAY && imageDimensionsColumnType != DataType.INT4ARRAY && imageDimensionsColumnType != DataType.INT8ARRAY) {
