@@ -169,15 +169,6 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
      */
     @Override
     public Object next() throws InterruptedException {
-        if ((currentImages == null && currentThread == imageArrays.length) || (currentThread < Objects.requireNonNull(currentImages).length && currentImages[currentThread] == null)) {
-            if (currentImage < numImages) {
-                throw new RuntimeException(
-                        String.format("File %s yielded a null image, check contents", paths.get(currentImage))
-                );
-            }
-            return null;
-        }
-
         if (currentThread == imageArrays.length) {
             for (int i = 0; i < currentImages.length; i++) {
                 threads[i] = new Thread(new ProcessImageRunnable(i));

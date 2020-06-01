@@ -10,11 +10,11 @@ import org.testng.annotations.Test;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import java.io.BufferedWriter;
 import java.io.File;
-import java.util.ArrayList;
+import java.io.FileWriter;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.stream.Collectors;
@@ -32,6 +32,8 @@ public class HdfsReadableImageTest extends BaseFeature {
     private String[] oneHotEncodings;
     private byte[][] oneHotEncodings_bytea;
     private String[] imageNames;
+    private File invalidImageFile;
+    private File badImageFile;
     private byte[][] imagesPostgresByteArray;
     private ProtocolEnum protocol;
     private final int w = 256;
@@ -81,7 +83,7 @@ public class HdfsReadableImageTest extends BaseFeature {
         oneHotEncodingsMap.put("deeply_nested_dir2", "{0,1,0,0}");
         oneHotEncodingsMap.put("nested_dir", "{0,0,1,0}");
         oneHotEncodingsMap.put("readableImages", "{0,0,0,1}");
-        Map<String, byte[]> oneHotEncodingsMap_bytea = new HashMap<String, byte[]>(){{
+        Map<String, byte[]> oneHotEncodingsMap_bytea = new HashMap<String, byte[]>() {{
             put("deeply_nested_dir1", new byte[]{(byte) (1 & 0xff), (byte) 0, (byte) 0, (byte) 0});
             put("deeply_nested_dir2", new byte[]{(byte) 0, (byte) (1 & 0xff), (byte) 0, (byte) 0});
             put("nested_dir", new byte[]{(byte) 0, (byte) 0, (byte) (1 & 0xff), (byte) 0});
@@ -127,6 +129,14 @@ public class HdfsReadableImageTest extends BaseFeature {
 
         String publicStage = "/tmp/publicstage/pxf";
         createDirectory(publicStage);
+
+        invalidImageFile = new File(publicStage + "/invalid_image.png");
+        BufferedWriter badImageWriter = new BufferedWriter(new FileWriter(invalidImageFile));
+        badImageWriter.write("this isn't going to be a good image data");
+        badImageWriter.close();
+
+        badImageFile = new File(publicStage + "/bad_image.png");
+        ImageIO.write(new BufferedImage(w + 1, h - 1, BufferedImage.TYPE_INT_RGB), "png", badImageFile);
 
         // we shouldn't get any labels for empty directories
         hdfs.createDirectory(hdfs.getWorkingDirectory() + "/empty_dir");
@@ -442,6 +452,52 @@ public class HdfsReadableImageTest extends BaseFeature {
         runTincTest("pxf.features.hdfs.readable.image.images_in_different_directories.runTest");
     }
 
+    /**
+     * Make sure that invalid image files are caught
+     */
+    @Test(groups = {"features", "gpdb", "hcfs", "security"})
+    public void errorsOnInvalidImages() throws Exception {
+        exTable.setName("invalid_image_on_path");
+        exTable.setUserParameters(new String[]{"FILES_PER_FRAGMENT=1"});
+        exTable_byteArray.setName("invalid_image_on_path_bytea");
+        exTable_byteArray.setUserParameters(new String[]{"FILES_PER_FRAGMENT=1"});
+        exTable.setPath(hdfs.getWorkingDirectory());
+
+        gpdb.createTableAndVerify(exTable);
+        exTable_byteArray.setPath(hdfs.getWorkingDirectory());
+        gpdb.createTableAndVerify(exTable_byteArray);
+
+        // put bad file in place
+        hdfs.createDirectory(hdfs.getWorkingDirectory() + "/invalid_image_directory");
+        hdfs.copyFromLocal(invalidImageFile.getPath(), hdfs.getWorkingDirectory() + "/invalid_image_directory");
+
+        // Verify results
+        runTincTest("pxf.features.hdfs.readable.image.invalid_image_on_path.runTest");
+        hdfs.removeDirectory(hdfs.getWorkingDirectory() + "/invalid_image_directory");
+    }
+
+    /**
+     * Make sure that badly sized image files are caught (w, h not consistent)
+     */
+    @Test(groups = {"features", "gpdb", "hcfs", "security"})
+    public void errorsOnBadImageSize() throws Exception {
+        exTable.setName("badly_sized_image_on_path");
+        exTable.setUserParameters(new String[]{"FILES_PER_FRAGMENT=1"});
+        exTable_byteArray.setName("badly_sized_image_on_path_bytea");
+        exTable_byteArray.setUserParameters(new String[]{"FILES_PER_FRAGMENT=1"});
+        exTable.setPath(hdfs.getWorkingDirectory());
+        gpdb.createTableAndVerify(exTable);
+        exTable_byteArray.setPath(hdfs.getWorkingDirectory());
+        gpdb.createTableAndVerify(exTable_byteArray);
+
+        // put bad file in place
+        hdfs.createDirectory(hdfs.getWorkingDirectory() + "/badly_sized_image_directory");
+        hdfs.copyFromLocal(badImageFile.getPath(), hdfs.getWorkingDirectory() + "/badly_sized_image_directory/");
+
+        // Verify results
+        runTincTest("pxf.features.hdfs.readable.image.badly_sized_image_on_path.runTest");
+        hdfs.removeDirectory(hdfs.getWorkingDirectory() + "/badly_sized_image_directory");
+    }
 
     @Override
     public void afterClass() throws Exception {
@@ -453,6 +509,12 @@ public class HdfsReadableImageTest extends BaseFeature {
             if (!fileToDelete.delete()) {
                 throw new RuntimeException(String.format("Could not delete %s", fileToDelete));
             }
+        }
+        if (!invalidImageFile.delete()) {
+            throw new RuntimeException(String.format("Could not delete %s", invalidImageFile));
+        }
+        if (!badImageFile.delete()) {
+            throw new RuntimeException(String.format("Could not delete %s", badImageFile));
         }
     }
 }

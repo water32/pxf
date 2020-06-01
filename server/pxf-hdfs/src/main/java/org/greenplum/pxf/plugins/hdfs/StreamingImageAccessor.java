@@ -113,7 +113,8 @@ public class StreamingImageAccessor extends BasePlugin implements Accessor {
 
         @Override
         public void run() {
-            try (InputStream stream = fs.open(new Path(paths.get(currentPath + cnt).split(",")[0]))) {
+            String filePath = paths.get(currentPath + cnt).split(",")[0];
+            try (InputStream stream = fs.open(new Path(filePath))) {
                 currentImages[cnt] = ImageIO.read(stream);
             } catch (IOException e) {
                 throw new RuntimeException(String.format("Caught an IOException reading image in thread %d", cnt), e);
@@ -143,6 +144,10 @@ public class StreamingImageAccessor extends BasePlugin implements Accessor {
         }
         for (int i = 0; i < numThreads; i++) {
             threads[i].join();
+            if (currentImages[i] == null) {
+                String filePath = paths.get(currentPath + i).split(",")[0];
+                throw new RuntimeException(String.format("Unable to read image data in %s", filePath));
+            }
         }
         // if (LOG.isDebugEnabled()) {
         //     now = System.currentTimeMillis();
@@ -153,6 +158,7 @@ public class StreamingImageAccessor extends BasePlugin implements Accessor {
         // }
         // currentPath++;
         currentPath += numThreads;
+
         return currentImages;
     }
 
