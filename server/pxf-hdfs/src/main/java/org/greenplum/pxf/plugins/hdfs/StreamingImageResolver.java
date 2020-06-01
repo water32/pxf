@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * This implementation of StreamingResolver works with the StreamingImageAccessor to
@@ -45,6 +46,7 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
     private BufferedImage[] currentImages;
     private Thread[] threads;
     private Object[] imageArrays;
+    List<String> paths;
 
     static {
         String intStr;
@@ -66,7 +68,7 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
         imageColumnType = context.getColumn(IMAGE_DATA_COLUMN).getDataType();
         imageOneHotEncodingColumnType = context.getColumn(IMAGE_ONE_HOT_ENCODING_COLUMN).getDataType();
 
-        List<String> paths = (ArrayList<String>) row.getKey();
+        paths = (ArrayList<String>) row.getKey();
         accessor = (StreamingImageAccessor) row.getData();
         List<String> fullPaths = new ArrayList<>();
         List<String> parentDirs = new ArrayList<>();
@@ -78,7 +80,7 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
             List<Integer> oneHotIndexes = Arrays.stream(oneHotData.split("/"))
                     .map(Integer::parseInt)
                     .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
-            List<Integer> oneHotArray = new ArrayList<>(Collections.nCopies(oneHotIndexes.get(1), 0));;
+            List<Integer> oneHotArray = new ArrayList<>(Collections.nCopies(oneHotIndexes.get(1), 0));
             oneHotArray.set(oneHotIndexes.get(0), 1);
             pathString = pathString.split(",")[0];
             URI uri = URI.create(pathString);
@@ -167,14 +169,14 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
      */
     @Override
     public Object next() throws InterruptedException {
-        // if ((currentImages == null && currentThread == imageArrays.length) || (currentThread < currentImages.length && currentImages[currentThread] == null)) {
-        //     if (currentImage < numImages) {
-        //         throw new IOException(
-        //                 String.format("File %s yielded a null image, check contents", paths.get(currentImage))
-        //         );
-        //     }
-        //     return null;
-        // }
+        if ((currentImages == null && currentThread == imageArrays.length) || (currentThread < Objects.requireNonNull(currentImages).length && currentImages[currentThread] == null)) {
+            if (currentImage < numImages) {
+                throw new RuntimeException(
+                        String.format("File %s yielded a null image, check contents", paths.get(currentImage))
+                );
+            }
+            return null;
+        }
 
         if (currentThread == imageArrays.length) {
             for (int i = 0; i < currentImages.length; i++) {
@@ -188,26 +190,29 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
             getNextImages();
         }
 
-        // checkCurrentImageSize();
+        checkCurrentImageSize();
 
         currentImage++;
         return imageArrays[currentThread++];
     }
 
-// private void checkCurrentImageSize() throws IOException {
-//     if (w != currentImages[currentThread].getWidth() || h != currentImages[currentThread].getHeight()) {
-//         throw new IOException(
-//                 String.format(
-//                         "Image from file %s has an inconsistent size %dx%d, should be %dx%d",
-//                         paths.get(currentImage),
-//                         currentImages[currentThread].getWidth(),
-//                         currentImages[currentThread].getHeight(),
-//                         w,
-//                         h
-//                 )
-//         );
-//     }
-// }
+    private void checkCurrentImageSize() {
+        if (currentImages == null) {
+            return;
+        }
+        if (w != currentImages[currentThread].getWidth() || h != currentImages[currentThread].getHeight()) {
+            throw new RuntimeException(
+                    String.format(
+                            "Image from file %s has an inconsistent size %dx%d, should be %dx%d",
+                            paths.get(currentImage),
+                            currentImages[currentThread].getWidth(),
+                            currentImages[currentThread].getHeight(),
+                            w,
+                            h
+                    )
+            );
+        }
+    }
 
     class ProcessImageRunnable implements Runnable {
         private final int cnt;
