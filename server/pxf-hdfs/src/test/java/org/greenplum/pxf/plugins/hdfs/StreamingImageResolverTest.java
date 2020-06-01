@@ -68,11 +68,11 @@ public class StreamingImageResolverTest {
         context.setProfileScheme("localfile");
         resolver = new StreamingImageResolver();
         paths = new ArrayList<String>() {{
-            add("/foo/parentDir1/image1.png,1,0,0,0,0");
-            add("/foo/parentDir2/image2.png,0,1,0,0,0");
-            add("/foo/parentDir3/image3.png,0,0,1,0,0");
-            add("/foo/parentDir4/image4.png,0,0,0,1,0");
-            add("/foo/parentDir5/image5.png,0,0,0,0,1");
+            add("/foo/parentDir1/image1.png,0/5");
+            add("/foo/parentDir2/image2.png,1/5");
+            add("/foo/parentDir3/image3.png,2/5");
+            add("/foo/parentDir4/image4.png,3/5");
+            add("/foo/parentDir5/image5.png,4/5");
         }};
         strippedPaths = new ArrayList<String>() {{
             add("/foo/parentDir1/image1.png");

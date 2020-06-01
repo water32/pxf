@@ -5,18 +5,17 @@ import org.greenplum.pxf.api.ArrayStreamingField;
 import org.greenplum.pxf.api.OneField;
 import org.greenplum.pxf.api.OneRow;
 import org.greenplum.pxf.api.StreamingField;
-import org.greenplum.pxf.api.UnsupportedTypeException;
 import org.greenplum.pxf.api.io.DataType;
 import org.greenplum.pxf.api.model.BasePlugin;
 import org.greenplum.pxf.api.model.StreamingResolver;
 
 import java.awt.image.BufferedImage;
-import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -75,10 +74,12 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
         List<List<Integer>> oneHotArrays = new ArrayList<>();
 
         for (String pathString : paths) {
-            List<Integer> oneHotArray = Arrays.stream(pathString.split(","))
-                    .skip(1)
+            String oneHotData = pathString.split(",")[1];
+            List<Integer> oneHotIndexes = Arrays.stream(oneHotData.split("/"))
                     .map(Integer::parseInt)
                     .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+            List<Integer> oneHotArray = new ArrayList<>(Collections.nCopies(oneHotIndexes.get(1), 0));;
+            oneHotArray.set(oneHotIndexes.get(0), 1);
             pathString = pathString.split(",")[0];
             URI uri = URI.create(pathString);
             Path path = Paths.get(uri.getPath());

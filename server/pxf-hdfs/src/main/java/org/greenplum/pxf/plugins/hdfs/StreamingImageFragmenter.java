@@ -23,8 +23,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static java.util.stream.Collectors.joining;
-
 public class StreamingImageFragmenter extends HdfsMultiFileFragmenter implements StreamingFragmenter {
     private static final short FULL_PATH_COLUMN = 0;
     private static final short IMAGE_NAME_COLUMN = 1;
@@ -40,7 +38,7 @@ public class StreamingImageFragmenter extends HdfsMultiFileFragmenter implements
     private int currentFile = 0;
     private FileSystem fs;
     private final Set<String> labelSet = new HashSet<>();
-    private final Map<String, int[]> labels = new HashMap<>();
+    private final Map<String, String> labels = new HashMap<>();
 
     @Override
     public void initialize(RequestContext context) {
@@ -68,10 +66,9 @@ public class StreamingImageFragmenter extends HdfsMultiFileFragmenter implements
         dirs.sort(Comparator.comparing(Path::toString));
         int cnt = 0;
         for (Object o : Arrays.stream(labelSet.toArray()).sorted().toArray()) {
-            int[] arr = new int[dirs.size()];
-            arr[cnt++] = 1;
-            labels.put((String) o, arr);
-            LOG.debug("hot-encoding: dir name: {}, encoding: {}", o, arr);
+            labels.put((String) o, cnt + "/" + dirs.size());
+            LOG.debug("hot-encoding: dir name: {}, encoding: {}", o, cnt + "/" + dirs.size());
+            cnt++;
         }
     }
 
@@ -117,8 +114,7 @@ public class StreamingImageFragmenter extends HdfsMultiFileFragmenter implements
             files = Arrays
                     .stream(fs.listStatus(dir))
                     .filter(file -> !file.isDirectory())
-                    .map(file -> file.getPath().toUri().toString() + "," +
-                            Arrays.stream(labels.get(file.getPath().getParent().getName())).mapToObj(String::valueOf).collect(joining(",")))
+                    .map(file -> file.getPath().toUri().toString() + "," + labels.get(file.getPath().getParent().getName()))
                     .sorted()
                     .collect(Collectors.toList());
         }
