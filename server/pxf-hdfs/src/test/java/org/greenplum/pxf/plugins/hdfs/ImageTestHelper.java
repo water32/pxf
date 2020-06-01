@@ -18,13 +18,13 @@ public class ImageTestHelper {
         put("b", 0);
     }};
 
-    public static List<BufferedImage> generateRandomImages(int w, int h, int numImages, List<String> paths, String imageLocation) throws IOException {
+    public static List<BufferedImage> generateRandomImages(int w, int h, int numImages, List<String> fileNames, String imageLocation) throws IOException {
         List<BufferedImage> images = new ArrayList<>();
-        if (paths == null) {
-            paths = new ArrayList<>(); // will only be accessible here
+        if (fileNames == null) {
+            fileNames = new ArrayList<>(); // will only be accessible here
         }
         for (int i = 0; i < numImages; i++) {
-            paths.add(imageLocation + "/image" + i + ".png");
+            fileNames.add("image" + i + ".png");
             images.add(new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB));
         }
 
@@ -45,8 +45,8 @@ public class ImageTestHelper {
         createDirectory(imageLocation);
 
         int cnt = 0;
-        for (String location : paths) {
-            final File file = new File(location);
+        for (String location : fileNames) {
+            final File file = new File(imageLocation + "/" + location);
             ImageIO.write(images.get(cnt++), "png", file);
         }
         return images;

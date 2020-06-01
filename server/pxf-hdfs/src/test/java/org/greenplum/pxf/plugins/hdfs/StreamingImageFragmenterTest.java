@@ -54,7 +54,7 @@ public class StreamingImageFragmenterTest {
         streamingHdfsFileFragmenter = new StreamingImageFragmenter();
         tempFolder = new TemporaryFolder();
         tempFolder.create();
-        path = tempFolder.getRoot().toString() + "/";
+        path = tempFolder.getRoot().toString();
         context.setDataSource(path);
         // important to test empty directories, but empty dirs are not tracked in git
         tempFolder.newFolder("empty_dir");
@@ -110,16 +110,16 @@ public class StreamingImageFragmenterTest {
         tempFolder.newFile("test/dir2/3.csv");
         tempFolder.newFile("test/dir3/4.csv");
         tempFolder.newFile("test/dir1/empty_dir/foobar/5.csv");
-        context.setDataSource(path + "test");
+        context.setDataSource(path + "/test");
         initFragmenter();
 
         assertEquals(new ArrayList<Path>() {{
-                         add(new Path("file://" + path + "test"));
-                         add(new Path("file://" + path + "test/a"));
-                         add(new Path("file://" + path + "test/dir1"));
-                         add(new Path("file://" + path + "test/dir1/empty_dir/foobar"));
-                         add(new Path("file://" + path + "test/dir2"));
-                         add(new Path("file://" + path + "test/dir3"));
+                         add(new Path("file://" + path + "/test"));
+                         add(new Path("file://" + path + "/test/a"));
+                         add(new Path("file://" + path + "/test/dir1"));
+                         add(new Path("file://" + path + "/test/dir1/empty_dir/foobar"));
+                         add(new Path("file://" + path + "/test/dir2"));
+                         add(new Path("file://" + path + "/test/dir3"));
                      }},
                 streamingHdfsFileFragmenter.getDirs());
     }
@@ -128,15 +128,15 @@ public class StreamingImageFragmenterTest {
     public void testNextAndHasNext_FilesPerFragmentNotGiven() throws Exception {
         initFragmenter();
 
-        assertFragment(new Fragment("file://" + path + "dir1/1.csv,0/3"));
-        assertFragment(new Fragment("file://" + path + "dir1/2.csv,0/3"));
-        assertFragment(new Fragment("file://" + path + "dir1/3.csv,0/3"));
-        assertFragment(new Fragment("file://" + path + "dir1/nested_dir/1.csv,2/3"));
-        assertFragment(new Fragment("file://" + path + "dir1/nested_dir/2.csv,2/3"));
-        assertFragment(new Fragment("file://" + path + "dir1/nested_dir/3.csv,2/3"));
-        assertFragment(new Fragment("file://" + path + "dir2/1.csv,1/3"));
-        assertFragment(new Fragment("file://" + path + "dir2/2.csv,1/3"));
-        assertFragment(new Fragment("file://" + path + "dir2/3.csv,1/3"));
+        assertFragment(new Fragment("file://" + path + "|" + "dir1/1.csv,0/3"));
+        assertFragment(new Fragment("file://" + path + "|" + "dir1/2.csv,0/3"));
+        assertFragment(new Fragment("file://" + path + "|" + "dir1/3.csv,0/3"));
+        assertFragment(new Fragment("file://" + path + "|" + "dir1/nested_dir/1.csv,2/3"));
+        assertFragment(new Fragment("file://" + path + "|" + "dir1/nested_dir/2.csv,2/3"));
+        assertFragment(new Fragment("file://" + path + "|" + "dir1/nested_dir/3.csv,2/3"));
+        assertFragment(new Fragment("file://" + path + "|" + "dir2/1.csv,1/3"));
+        assertFragment(new Fragment("file://" + path + "|" + "dir2/2.csv,1/3"));
+        assertFragment(new Fragment("file://" + path + "|" + "dir2/3.csv,1/3"));
         assertNoMoreFragments();
     }
 
@@ -146,11 +146,11 @@ public class StreamingImageFragmenterTest {
         tempFolder.newFile("test/1.csv");
         tempFolder.newFile("test/2.csv");
         context.addOption(StreamingImageFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "10");
-        context.setDataSource(path + "test");
+        context.setDataSource(path + "/test");
         initFragmenter();
 
-        assertFragment(new Fragment("file://" + path + "test/1.csv,0/1|" +
-                "file://" + path + "test/2.csv,0/1"));
+        assertFragment(new Fragment("file://" + path + "/test|1.csv,0/1|" +
+                "2.csv,0/1"));
         assertNoMoreFragments();
     }
 
@@ -169,20 +169,20 @@ public class StreamingImageFragmenterTest {
         tempFolder.newFile("test/dir2/4.csv");
         tempFolder.newFile("test/dir2/5.csv");
         context.addOption(StreamingImageFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "10");
-        context.setDataSource(path + "test");
+        context.setDataSource(path + "/test");
         initFragmenter();
 
-        assertFragment(new Fragment(
-                "file://" + path + "test/dir1/1.csv,0/2|"
-                        + "file://" + path + "test/dir1/2.csv,0/2|"
-                        + "file://" + path + "test/dir1/3.csv,0/2|"
-                        + "file://" + path + "test/dir1/4.csv,0/2|"
-                        + "file://" + path + "test/dir1/5.csv,0/2|"
-                        + "file://" + path + "test/dir2/1.csv,1/2|"
-                        + "file://" + path + "test/dir2/2.csv,1/2|"
-                        + "file://" + path + "test/dir2/3.csv,1/2|"
-                        + "file://" + path + "test/dir2/4.csv,1/2|"
-                        + "file://" + path + "test/dir2/5.csv,1/2"
+        assertFragment(new Fragment("file://" + path + "/test|"
+                + "dir1/1.csv,0/2|"
+                + "dir1/2.csv,0/2|"
+                + "dir1/3.csv,0/2|"
+                + "dir1/4.csv,0/2|"
+                + "dir1/5.csv,0/2|"
+                + "dir2/1.csv,1/2|"
+                + "dir2/2.csv,1/2|"
+                + "dir2/3.csv,1/2|"
+                + "dir2/4.csv,1/2|"
+                + "dir2/5.csv,1/2"
         ));
         assertNoMoreFragments();
     }
@@ -192,16 +192,16 @@ public class StreamingImageFragmenterTest {
         context.addOption(StreamingImageFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "100");
         initFragmenter();
 
-        assertFragment(new Fragment(
-                "file://" + path + "dir1/1.csv,0/3|"
-                        + "file://" + path + "dir1/2.csv,0/3|"
-                        + "file://" + path + "dir1/3.csv,0/3|"
-                        + "file://" + path + "dir1/nested_dir/1.csv,2/3|"
-                        + "file://" + path + "dir1/nested_dir/2.csv,2/3|"
-                        + "file://" + path + "dir1/nested_dir/3.csv,2/3|"
-                        + "file://" + path + "dir2/1.csv,1/3|"
-                        + "file://" + path + "dir2/2.csv,1/3|"
-                        + "file://" + path + "dir2/3.csv,1/3"
+        assertFragment(new Fragment("file://" + path + "|" +
+                "dir1/1.csv,0/3|"
+                + "dir1/2.csv,0/3|"
+                + "dir1/3.csv,0/3|"
+                + "dir1/nested_dir/1.csv,2/3|"
+                + "dir1/nested_dir/2.csv,2/3|"
+                + "dir1/nested_dir/3.csv,2/3|"
+                + "dir2/1.csv,1/3|"
+                + "dir2/2.csv,1/3|"
+                + "dir2/3.csv,1/3"
         ));
         assertNoMoreFragments();
     }
@@ -211,24 +211,24 @@ public class StreamingImageFragmenterTest {
         context.addOption(StreamingImageFragmenter.FILES_PER_FRAGMENT_OPTION_NAME, "2");
         initFragmenter();
 
-        assertFragment(new Fragment(
-                "file://" + path + "dir1/1.csv,0/3|"
-                        + "file://" + path + "dir1/2.csv,0/3"
+        assertFragment(new Fragment("file://" + path + "|"
+                + "dir1/1.csv,0/3|"
+                + "dir1/2.csv,0/3"
         ));
-        assertFragment(new Fragment(
-                "file://" + path + "dir1/3.csv,0/3|"
-                        + "file://" + path + "dir1/nested_dir/1.csv,2/3"
+        assertFragment(new Fragment("file://" + path + "|"
+                + "dir1/3.csv,0/3|"
+                + "dir1/nested_dir/1.csv,2/3"
         ));
-        assertFragment(new Fragment(
-                "file://" + path + "dir1/nested_dir/2.csv,2/3|"
-                        + "file://" + path + "dir1/nested_dir/3.csv,2/3"
+        assertFragment(new Fragment("file://" + path + "|"
+                + "dir1/nested_dir/2.csv,2/3|"
+                + "dir1/nested_dir/3.csv,2/3"
         ));
-        assertFragment(new Fragment(
-                "file://" + path + "dir2/1.csv,1/3|"
-                        + "file://" + path + "dir2/2.csv,1/3"
+        assertFragment(new Fragment("file://" + path + "|"
+                + "dir2/1.csv,1/3|"
+                + "dir2/2.csv,1/3"
         ));
-        assertFragment(new Fragment(
-                "file://" + path + "dir2/3.csv,1/3"
+        assertFragment(new Fragment("file://" + path + "|"
+                + "dir2/3.csv,1/3"
         ));
         assertNoMoreFragments();
     }

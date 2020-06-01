@@ -39,6 +39,7 @@ public class StreamingImageFragmenter extends HdfsMultiFileFragmenter implements
     private FileSystem fs;
     private final Set<String> labelSet = new HashSet<>();
     private final Map<String, String> labels = new HashMap<>();
+    private String pathPrefix;
 
     @Override
     public void initialize(RequestContext context) {
@@ -61,6 +62,7 @@ public class StreamingImageFragmenter extends HdfsMultiFileFragmenter implements
             return;
         }
         String path = hcfsType.getDataUri(jobConf, context);
+        pathPrefix = path.replaceAll("/$", "");
         fs = FileSystem.get(new URI(path), jobConf);
         getDirs(new Path(path));
         dirs.sort(Comparator.comparing(Path::toString));
@@ -84,6 +86,9 @@ public class StreamingImageFragmenter extends HdfsMultiFileFragmenter implements
                 if (currentFile == files.size() && currentDir == dirs.size()) {
                     break;
                 }
+            }
+            if (pathList.length() == 0) {
+                pathList.append(pathPrefix).append("|");
             }
             pathList.append(files.set(currentFile++, null)).append("|");
         }
@@ -114,7 +119,7 @@ public class StreamingImageFragmenter extends HdfsMultiFileFragmenter implements
             files = Arrays
                     .stream(fs.listStatus(dir))
                     .filter(file -> !file.isDirectory())
-                    .map(file -> file.getPath().toUri().toString() + "," + labels.get(file.getPath().getParent().getName()))
+                    .map(file -> file.getPath().toUri().toString().replaceFirst(pathPrefix + "/", "") + "," + labels.get(file.getPath().getParent().getName()))
                     .sorted()
                     .collect(Collectors.toList());
         }

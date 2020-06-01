@@ -11,6 +11,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -22,6 +23,7 @@ public class StreamingImageAccessorTest {
     private StreamingImageAccessor accessor;
     private List<BufferedImage> images;
     private List<String> paths;
+    private List<String> correctPaths;
     private static final int NUM_IMAGES = 5;
     private static final String imageLocation = "/tmp/publicstage/pxf/StreamingImageAccessorTest";
 
@@ -31,7 +33,12 @@ public class StreamingImageAccessorTest {
     @Before
     public void setup() throws IOException {
         paths = new ArrayList<>();
-        images = ImageTestHelper.generateRandomImages(8, 4, NUM_IMAGES, paths, imageLocation);
+        correctPaths = new ArrayList<>();
+        List<String> fileNames = new ArrayList<>();
+        images = ImageTestHelper.generateRandomImages(8, 4, NUM_IMAGES, fileNames, imageLocation);
+        paths.add(imageLocation);
+        paths.addAll(fileNames.stream().map(f -> f + ",0/2").collect(Collectors.toList()));
+        correctPaths.addAll(paths.stream().skip(1).map(p -> imageLocation + "/" + p).collect(Collectors.toList()));
         accessor = new StreamingImageAccessor();
         RequestContext context = new RequestContext();
         context.setConfig("fakeConfig");
@@ -61,7 +68,7 @@ public class StreamingImageAccessorTest {
         assertTrue(row.getData() instanceof StreamingImageAccessor);
         int cnt = 0;
         for (Object path : (List<?>) row.getKey()) {
-            assertEquals(paths.get(cnt++), path);
+            assertEquals(correctPaths.get(cnt++), path);
         }
         assertEquals(NUM_IMAGES, cnt);
         assertNull(accessor.readNextObject());

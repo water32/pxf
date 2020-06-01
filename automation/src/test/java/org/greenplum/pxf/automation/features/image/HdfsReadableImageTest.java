@@ -42,7 +42,6 @@ public class HdfsReadableImageTest extends BaseFeature {
     public void beforeClass() throws Exception {
         super.beforeClass();
         protocol = ProtocolUtils.getProtocol();
-        // path for storing data on HDFS (for processing by PXF)
         prepareData();
     }
 
@@ -139,10 +138,9 @@ public class HdfsReadableImageTest extends BaseFeature {
             ImageIO.write(bufferedImages[i], "png", imageFiles[i]);
             // for cloud, we should drop bucket from path
             String cloudPath = hdfs.getWorkingDirectory().replaceFirst("[^/]*/", "/");
-            fullPaths[i] = (protocol != ProtocolEnum.HDFS ? cloudPath : "/" + hdfs.getWorkingDirectory())
-                    + "/" + relativePaths[i] + "/"
-                    + imageNames[i];
-            hdfs.copyFromLocal(imageFiles[i].toString(), fullPaths[i].replaceFirst("^/", ""));
+            String pathSuffix = "/" + relativePaths[i] + "/" + imageNames[i];
+            fullPaths[i] = (protocol != ProtocolEnum.HDFS ? cloudPath : "/" + hdfs.getWorkingDirectory()) + pathSuffix;
+            hdfs.copyFromLocal(imageFiles[i].toString(), hdfs.getWorkingDirectory() + pathSuffix);
             parentDirectories[i] = relativePaths[i].replaceFirst(".*/", "");
             oneHotEncodings[i] = oneHotEncodingsMap.get(parentDirectories[i]);
             oneHotEncodings_bytea[i] = oneHotEncodingsMap_bytea.get(parentDirectories[i]);

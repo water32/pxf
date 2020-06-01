@@ -34,9 +34,9 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Accessor that can access multiple image files, treating the collection of images
@@ -54,6 +54,7 @@ public class StreamingImageAccessor extends BasePlugin implements Accessor {
     private Thread[] threads;
     // private int currentImage;
     private static final String CONCURRENT_IMAGE_READS_OPTION = "ACCESSOR_THREADS";
+    private String pathPrefix;
 
     @Override
     public void initialize(RequestContext requestContext) {
@@ -77,10 +78,9 @@ public class StreamingImageAccessor extends BasePlugin implements Accessor {
         if (!isWorkingSegment()) {
             return false;
         }
-
-        // input data stream, FileSystem.get actually
-        // returns an FSDataInputStream
-        paths = new ArrayList<>(Arrays.asList(context.getDataSource().split("\\|")));
+        // dataSource looks like file://path/prefix|file1.png,0/2|file2.png,1/2
+        pathPrefix = context.getDataSource().split("\\|")[0];
+        paths = Arrays.stream(context.getDataSource().split("\\|")).skip(1).map(p -> pathPrefix + "/" + p).collect(Collectors.toList());
         fs = FileSystem.get(URI.create(paths.get(0).split(",")[0]), configuration);
 
         return paths.size() > 0;
