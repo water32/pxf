@@ -126,16 +126,6 @@ public class StreamingImageAccessor extends BasePlugin implements Accessor {
         if (currentPath == paths.size()) {
             return null;
         }
-        // long now;
-        // if (currentImage == NUM_THREADS) {
-        // if (LOG.isDebugEnabled()) {
-        //     now = System.currentTimeMillis();
-        //     if (numThreads > 0) {
-        //         LOG.debug("---> {} images were resolved in {} ms", numThreads, now - then);
-        //     }
-        //     then = now;
-        // }
-        // private long then = System.currentTimeMillis();
         int numThreads = currentPath + NUM_THREADS <= paths.size() ? NUM_THREADS : paths.size() - currentPath;
         currentImages = new BufferedImage[numThreads];
         for (int i = 0; i < numThreads; i++) {
@@ -149,14 +139,6 @@ public class StreamingImageAccessor extends BasePlugin implements Accessor {
                 throw new RuntimeException(String.format("Unable to read image data in %s", filePath));
             }
         }
-        // if (LOG.isDebugEnabled()) {
-        //     now = System.currentTimeMillis();
-        //     LOG.debug("---> {} images were fetched in {} ms", numThreads, now - then);
-        //     then = now;
-        // }
-        // currentImage = 0;
-        // }
-        // currentPath++;
         currentPath += numThreads;
 
         return currentImages;

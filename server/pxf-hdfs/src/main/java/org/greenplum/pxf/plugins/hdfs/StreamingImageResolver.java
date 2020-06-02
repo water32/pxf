@@ -17,7 +17,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * This implementation of StreamingResolver works with the StreamingImageAccessor to
@@ -181,28 +180,8 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
             getNextImages();
         }
 
-        checkCurrentImageSize();
-
         currentImage++;
         return imageArrays[currentThread++];
-    }
-
-    private void checkCurrentImageSize() {
-        if (currentImages == null) {
-            return;
-        }
-        if (w != currentImages[currentThread].getWidth() || h != currentImages[currentThread].getHeight()) {
-            throw new RuntimeException(
-                    String.format(
-                            "Image from file %s has an inconsistent size %dx%d, should be %dx%d",
-                            paths.get(currentImage),
-                            currentImages[currentThread].getWidth(),
-                            currentImages[currentThread].getHeight(),
-                            w,
-                            h
-                    )
-            );
-        }
     }
 
     class ProcessImageRunnable implements Runnable {
