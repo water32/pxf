@@ -36,9 +36,13 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
     private int currentImage = 0, currentThread = 0, numImages, w, h;
     private static final int INTENSITIES = 256, NUM_COL = 3;
     // cache of strings for RGB arrays going to Greenplum
-    private static final String[] r = new String[INTENSITIES];
-    private static final String[] g = new String[INTENSITIES];
-    private static final String[] b = new String[INTENSITIES];
+    private static final String[] rInteger = new String[INTENSITIES];
+    private static final String[] gInteger = new String[INTENSITIES];
+    private static final String[] bInteger = new String[INTENSITIES];
+    private static final String[] rFloat = new String[INTENSITIES];
+    private static final String[] gFloat = new String[INTENSITIES];
+    private static final String[] bFloat = new String[INTENSITIES];
+    private static final float[] floats = new float[INTENSITIES];
     private DataType imageFullPathColumnType;
     private DataType imageColumnType;
     private DataType imageOneHotEncodingColumnType;
@@ -49,11 +53,17 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
 
     static {
         String intStr;
+        String floatStr;
         for (int i = 0; i < INTENSITIES; i++) {
             intStr = String.valueOf(i);
-            r[i] = "{" + intStr;
-            g[i] = "," + intStr + ",";
-            b[i] = intStr + "}";
+            rInteger[i] = "{" + intStr;
+            gInteger[i] = "," + intStr + ",";
+            bInteger[i] = intStr + "}";
+            floats[i] = (float) (i / 255.0);
+            floatStr = String.valueOf(floats[i]);
+            rFloat[i] = "{" + floatStr;
+            gFloat[i] = "," + floatStr + ",";
+            bFloat[i] = floatStr + "}";
         }
     }
 
@@ -202,18 +212,28 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
             return bytea;
         }
 
+        private byte[] imageToNormalizedByteArray(BufferedImage image) {
+            byte[] bytea = new byte[4 * w * h * NUM_COL];
+            int cnt = 0;
+            for (int pixel : image.getRGB(0, 0, w, h, null, 0, w)) {
+                byte[] rgb = new byte[]{ (byte) ((pixel >> 16) & 0xff), (byte) ((pixel >> 8) & 0xff), (byte) (pixel & 0xff)};
+                for (byte color : rgb) {
+                    int bits = Float.floatToIntBits(floats[color]);
+                    bytea[cnt++] = (byte) (bits >> 24);
+                    bytea[cnt++] = (byte) (bits >> 16);
+                    bytea[cnt++] = (byte) (bits >> 8);
+                    bytea[cnt++] = (byte) (bits);
+                }
+            }
+            return bytea;
+        }
+
         private String imageToPostgresArray(BufferedImage image) {
             StringBuilder sb;
             // avoid arrayCopy() in sb.append() by pre-calculating max image size
-            sb = new StringBuilder(
-                    w * h * 13 +  // each RGB is at most 13 chars: {255,255,255}
-                            (w - 1) * h + // commas separating RGBs
-                            h * 2 +       // curly braces surrounding each row of RGBs
-                            h - 1 +       // commas separating each row
-                            2             // outer curly braces for the image
-            );
+            sb = new StringBuilder();
             LOG.debug("Image length: {}, cap: {}", sb.length(), sb.capacity());
-            processImage(sb, image, w, h);
+            processImage(sb, image, w, h, false);
             LOG.debug("Image length: {}, cap: {}", sb.length(), sb.capacity());
             return sb.toString();
         }
@@ -223,14 +243,20 @@ public class StreamingImageResolver extends BasePlugin implements StreamingResol
             if (imageColumnType == DataType.BYTEA) imageArrays[cnt] = imageToByteArray(currentImages[cnt]);
             else imageArrays[cnt] = imageToPostgresArray(currentImages[cnt]);
         }
-
     }
 
-    private static void processImage(StringBuilder sb, BufferedImage image, int w, int h) {
+    private static void processImage(StringBuilder sb, BufferedImage image, int w, int h, boolean asFloats) {
         if (image == null) {
             return;
         }
-
+        String[] r = rInteger;
+        String[] g = gInteger;
+        String[] b = bInteger;
+        if (asFloats) {
+            r = rFloat;
+            g = gFloat;
+            b = bFloat;
+        }
         sb.append("{{");
         int cnt = 0;
         for (int pixel : image.getRGB(0, 0, w, h, null, 0, w)) {
