@@ -85,10 +85,10 @@ public class HdfsReadableImageTest extends BaseFeature {
         oneHotEncodingsMap.put("nested_dir", "{0,0,1,0}");
         oneHotEncodingsMap.put("readableImages", "{0,0,0,1}");
         Map<String, byte[]> oneHotEncodingsMap_bytea = new HashMap<String, byte[]>() {{
-            put("deeply_nested_dir1", new byte[]{(byte) (1 & 0xff), (byte) 0, (byte) 0, (byte) 0});
-            put("deeply_nested_dir2", new byte[]{(byte) 0, (byte) (1 & 0xff), (byte) 0, (byte) 0});
-            put("nested_dir", new byte[]{(byte) 0, (byte) 0, (byte) (1 & 0xff), (byte) 0});
-            put("readableImages", new byte[]{(byte) 0, (byte) 0, (byte) 0, (byte) (1 & 0xff)});
+            put("deeply_nested_dir1", new byte[]{(byte) 1, (byte) 0, (byte) 0, (byte) 0});
+            put("deeply_nested_dir2", new byte[]{(byte) 0, (byte) 1, (byte) 0, (byte) 0});
+            put("nested_dir", new byte[]{(byte) 0, (byte) 0, (byte) 1, (byte) 0});
+            put("readableImages", new byte[]{(byte) 0, (byte) 0, (byte) 0, (byte) 1});
         }};
         for (int i = 0; i < NUM_IMAGES; i++) {
             bufferedImages[i] = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
@@ -120,20 +120,20 @@ public class HdfsReadableImageTest extends BaseFeature {
                 imagesPostgresByteArray[j][i * 3 + 1] = (byte) g;
                 imagesPostgresByteArray[j][i * 3 + 2] = (byte) b;
                 int intBits = Float.floatToIntBits((float) ((r < 0 ? r + 256 : r) / 255.0));
-                imagesPostgresFloatByteArray[j][i * 12] = (byte) ((intBits >> 24) & 0xff);
-                imagesPostgresFloatByteArray[j][i * 12 + 1] = (byte) ((intBits >> 16) & 0xff);
-                imagesPostgresFloatByteArray[j][i * 12 + 2] = (byte) ((intBits >> 8) & 0xff);
-                imagesPostgresFloatByteArray[j][i * 12 + 3] = (byte) ((intBits) & 0xff);
+                imagesPostgresFloatByteArray[j][i * 12] = (byte) (intBits >> 24);
+                imagesPostgresFloatByteArray[j][i * 12 + 1] = (byte) (intBits >> 16);
+                imagesPostgresFloatByteArray[j][i * 12 + 2] = (byte) (intBits >> 8);
+                imagesPostgresFloatByteArray[j][i * 12 + 3] = (byte) intBits;
                 intBits = Float.floatToIntBits((float) ((g < 0 ? g + 256 : g) / 255.0));
-                imagesPostgresFloatByteArray[j][i * 12 + 4] = (byte) ((intBits >> 24) & 0xff);
-                imagesPostgresFloatByteArray[j][i * 12 + 5] = (byte) ((intBits >> 16) & 0xff);
-                imagesPostgresFloatByteArray[j][i * 12 + 6] = (byte) ((intBits >> 8) & 0xff);
-                imagesPostgresFloatByteArray[j][i * 12 + 7] = (byte) ((intBits) & 0xff);
+                imagesPostgresFloatByteArray[j][i * 12 + 4] = (byte) (intBits >> 24);
+                imagesPostgresFloatByteArray[j][i * 12 + 5] = (byte) (intBits >> 16);
+                imagesPostgresFloatByteArray[j][i * 12 + 6] = (byte) (intBits >> 8);
+                imagesPostgresFloatByteArray[j][i * 12 + 7] = (byte) intBits;
                 intBits = Float.floatToIntBits((float) ((b < 0 ? b + 256 : b) / 255.0));
-                imagesPostgresFloatByteArray[j][i * 12 + 8] = (byte) ((intBits >> 24) & 0xff);
-                imagesPostgresFloatByteArray[j][i * 12 + 9] = (byte) ((intBits >> 16) & 0xff);
-                imagesPostgresFloatByteArray[j][i * 12 + 10] = (byte) ((intBits >> 8) & 0xff);
-                imagesPostgresFloatByteArray[j][i * 12 + 11] = (byte) ((intBits) & 0xff);
+                imagesPostgresFloatByteArray[j][i * 12 + 8] = (byte) (intBits >> 24);
+                imagesPostgresFloatByteArray[j][i * 12 + 9] = (byte) (intBits >> 16);
+                imagesPostgresFloatByteArray[j][i * 12 + 10] = (byte) (intBits >> 8);
+                imagesPostgresFloatByteArray[j][i * 12 + 11] = (byte) intBits;
                 if ((i + 1) % w == 0) {
                     appendToImage(imagesPostgresArrays[j], "},{", 1);
                     appendToImage(imagesPostgresFloatArrays[j], "},{", 1);

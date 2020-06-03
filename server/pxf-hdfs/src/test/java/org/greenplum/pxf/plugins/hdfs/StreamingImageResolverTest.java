@@ -177,7 +177,7 @@ public class StreamingImageResolverTest {
                 add(100);
             }}) {
                 byte[] bytes = new byte[12 * 4];
-                int intbits = Float.floatToIntBits((float) (j / 255.0));
+                int intbits = Float.floatToIntBits((float) ((j < 0 ? j + 256 : j) / 255.0));
                 for (int i = 0; i < 12; i++) {
                     bytes[i * 4] = (byte) (intbits >> 24);
                     bytes[i * 4 + 1] = (byte) (intbits >> 16);
