@@ -42,12 +42,14 @@ public class StreamingImageResolverTest {
     List<Integer> dimensions;
     List<BufferedImage> images;
     List<byte[]> image_byteas;
+    List<byte[]> image_float_byteas;
     private static final int NUM_IMAGES = 5;
     OneRow row;
     RequestContext context;
     @Mock
     StreamingImageAccessor accessor;
     List<String> imageStrings;
+    List<String> imageFloatStrings;
 
     @Before
     public void setup() throws IOException, InterruptedException {
@@ -138,11 +140,11 @@ public class StreamingImageResolverTest {
             }});
         }};
         oneHotArrays_bytea = new byte[]{
-                (byte) (1 & 0xff), (byte) (0), (byte) (0), (byte) (0), (byte) (0),
-                (byte) (0), (byte) (1 & 0xff), (byte) (0), (byte) (0), (byte) (0),
-                (byte) (0), (byte) (0), (byte) (1 & 0xff), (byte) (0), (byte) (0),
-                (byte) (0), (byte) (0), (byte) (0), (byte) (1 & 0xff), (byte) (0),
-                (byte) (0), (byte) (0), (byte) (0), (byte) (0), (byte) (1 & 0xff),
+                (byte) 1, (byte) 0, (byte) 0, (byte) 0, (byte) 0,
+                (byte) 0, (byte) 1, (byte) 0, (byte) 0, (byte) 0,
+                (byte) 0, (byte) 0, (byte) 1, (byte) 0, (byte) 0,
+                (byte) 0, (byte) 0, (byte) 0, (byte) 1, (byte) 0,
+                (byte) 0, (byte) 0, (byte) 0, (byte) 0, (byte) 1,
         };
         images = ImageTestHelper.generateMonocolorImages(2, 2, new int[]{1, 5, 10, 50, 100});
         imageStrings = new ArrayList<String>() {{
@@ -152,12 +154,38 @@ public class StreamingImageResolverTest {
             add("{{{50,50,50},{50,50,50}},{{50,50,50},{50,50,50}}}");
             add("{{{100,100,100},{100,100,100}},{{100,100,100},{100,100,100}}}");
         }};
+        imageFloatStrings = new ArrayList<String>() {{
+            add("{{{0.003921569,0.003921569,0.003921569},{0.003921569,0.003921569,0.003921569}},{{0.003921569,0.003921569,0.003921569},{0.003921569,0.003921569,0.003921569}}}");
+            add("{{{0.019607844,0.019607844,0.019607844},{0.019607844,0.019607844,0.019607844}},{{0.019607844,0.019607844,0.019607844},{0.019607844,0.019607844,0.019607844}}}");
+            add("{{{0.039215688,0.039215688,0.039215688},{0.039215688,0.039215688,0.039215688}},{{0.039215688,0.039215688,0.039215688},{0.039215688,0.039215688,0.039215688}}}");
+            add("{{{0.19607843,0.19607843,0.19607843},{0.19607843,0.19607843,0.19607843}},{{0.19607843,0.19607843,0.19607843},{0.19607843,0.19607843,0.19607843}}}");
+            add("{{{0.39215687,0.39215687,0.39215687},{0.39215687,0.39215687,0.39215687}},{{0.39215687,0.39215687,0.39215687},{0.39215687,0.39215687,0.39215687}}}");
+        }};
         image_byteas = new ArrayList<byte[]>() {{
             add(new byte[]{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
             add(new byte[]{5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5});
             add(new byte[]{10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10});
             add(new byte[]{50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50});
             add(new byte[]{100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100});
+        }};
+        image_float_byteas = new ArrayList<byte[]>() {{
+            for (int j : new ArrayList<Integer>() {{
+                add(1);
+                add(5);
+                add(10);
+                add(50);
+                add(100);
+            }}) {
+                byte[] bytes = new byte[12 * 4];
+                int intbits = Float.floatToIntBits((float) (j / 255.0));
+                for (int i = 0; i < 12; i++) {
+                    bytes[i * 4] = (byte) (intbits >> 24);
+                    bytes[i * 4 + 1] = (byte) (intbits >> 16);
+                    bytes[i * 4 + 2] = (byte) (intbits >> 8);
+                    bytes[i * 4 + 3] = (byte) (intbits);
+                }
+                add(bytes);
+            }
         }};
         doAnswer(new Answer<Object>() {
             int cnt = 0;
@@ -203,7 +231,44 @@ public class StreamingImageResolverTest {
         assertListEquals(oneHotArrays, (List<?>) ((ArrayField) fields.get(3)).val);
         assertListEquals(dimensions, (List<?>) ((ArrayField) fields.get(4)).val);
         assertEquals(resolver, ((StreamingField) fields.get(5)).getResolver());
-        assertImages();
+        assertImages(imageStrings);
+    }
+
+    @Test
+    public void testGetFields_normalized() throws InterruptedException {
+        context.addOption("NORMALIZE", "True");
+        context.setTupleDescription(new ArrayList<ColumnDescriptor>() {{
+            add(new ColumnDescriptor("paths", DataType.TEXTARRAY.getOID(), 0, "TEXT[]", null));
+            add(new ColumnDescriptor("names", DataType.TEXTARRAY.getOID(), 1, "TEXT[]", null));
+            add(new ColumnDescriptor("parent_dirs", DataType.TEXTARRAY.getOID(), 2, "TEXT[]", null));
+            add(new ColumnDescriptor("one_hot_encodings", DataType.INT8ARRAY.getOID(), 3, "INT[]", null));
+            add(new ColumnDescriptor("dimensions", DataType.INT8ARRAY.getOID(), 4, "INT[]", null));
+            add(new ColumnDescriptor("images", DataType.FLOAT4ARRAY.getOID(), 5, "REAL[]", null));
+        }});
+        resolver.initialize(context);
+        List<OneField> fields = resolver.getFields(row);
+
+        assertEquals(6, fields.size());
+        assertTrue(fields.get(0) instanceof ArrayField);
+        assertTrue(((ArrayField) fields.get(0)).val instanceof List);
+        assertTrue(fields.get(1) instanceof ArrayField);
+        assertTrue(((ArrayField) fields.get(1)).val instanceof List);
+        assertTrue(fields.get(2) instanceof ArrayField);
+        assertTrue(((ArrayField) fields.get(2)).val instanceof List);
+        assertTrue(fields.get(3) instanceof ArrayField);
+        assertTrue(((ArrayField) fields.get(3)).val instanceof List);
+        assertTrue(fields.get(4) instanceof ArrayField);
+        assertTrue(((ArrayField) fields.get(4)).val instanceof List);
+        assertTrue(fields.get(5) instanceof ArrayStreamingField);
+        assertTrue(((ArrayStreamingField) fields.get(5)).getResolver() instanceof StreamingImageResolver);
+
+        assertListEquals(strippedPaths, (List<?>) ((ArrayField) fields.get(0)).val);
+        assertListEquals(fileNames, (List<?>) ((ArrayField) fields.get(1)).val);
+        assertListEquals(parentDirs, (List<?>) ((ArrayField) fields.get(2)).val);
+        assertListEquals(oneHotArrays, (List<?>) ((ArrayField) fields.get(3)).val);
+        assertListEquals(dimensions, (List<?>) ((ArrayField) fields.get(4)).val);
+        assertEquals(resolver, ((StreamingField) fields.get(5)).getResolver());
+        assertImages(imageFloatStrings);
     }
 
     @Test
@@ -239,7 +304,7 @@ public class StreamingImageResolverTest {
         assertListEquals(oneHotArrays.get(0), (List<?>) ((ArrayField) fields.get(3)).val);
         assertListEquals(dimensions.subList(1, dimensions.size()), (List<?>) ((ArrayField) fields.get(4)).val);
         assertEquals(resolver, ((StreamingField) fields.get(5)).getResolver());
-        assertImages();
+        assertImages(imageStrings);
     }
 
     @Test
@@ -275,7 +340,44 @@ public class StreamingImageResolverTest {
         assertArrayEquals(Arrays.copyOfRange(oneHotArrays_bytea, 0, 5), (byte[]) fields.get(3).val);
         assertListEquals(dimensions.subList(1, dimensions.size()), (List<?>) ((ArrayField) fields.get(4)).val);
         assertEquals(resolver, ((StreamingField) fields.get(5)).getResolver());
-        assertImages();
+        assertImagesBytea(image_byteas);
+    }
+
+    @Test
+    public void testGetFields_scalarFields_Normalized_bytea() throws InterruptedException {
+        context.addOption("NORMALIZE", "True");
+        context.setTupleDescription(new ArrayList<ColumnDescriptor>() {{
+            add(new ColumnDescriptor("paths", DataType.TEXT.getOID(), 0, "TEXT", null));
+            add(new ColumnDescriptor("names", DataType.TEXT.getOID(), 1, "TEXT", null));
+            add(new ColumnDescriptor("parent_dirs", DataType.TEXT.getOID(), 2, "TEXT", null));
+            add(new ColumnDescriptor("one_hot_encodings", DataType.BYTEA.getOID(), 3, "BYTEA", null));
+            add(new ColumnDescriptor("dimensions", DataType.INT8ARRAY.getOID(), 4, "INT[]", null));
+            add(new ColumnDescriptor("images", DataType.BYTEA.getOID(), 5, "BYTEA", null));
+        }});
+        resolver.initialize(context);
+        List<OneField> fields = resolver.getFields(row);
+
+        assertEquals(6, fields.size());
+        assertNotNull(fields.get(0));
+        assertTrue((fields.get(0)).val instanceof String);
+        assertNotNull(fields.get(1));
+        assertTrue((fields.get(1)).val instanceof String);
+        assertNotNull(fields.get(2));
+        assertTrue((fields.get(2)).val instanceof String);
+        assertNotNull(fields.get(3));
+        assertTrue(fields.get(3).val instanceof byte[]);
+        assertTrue(fields.get(4) instanceof ArrayField);
+        assertTrue(((ArrayField) fields.get(4)).val instanceof List);
+        assertTrue(fields.get(5) instanceof StreamingField);
+        assertTrue(((StreamingField) fields.get(5)).getResolver() instanceof StreamingImageResolver);
+
+        assertEquals(strippedPaths.get(0), fields.get(0).val);
+        assertEquals(fileNames.get(0), fields.get(1).val);
+        assertEquals(parentDirs.get(0), fields.get(2).val);
+        assertArrayEquals(Arrays.copyOfRange(oneHotArrays_bytea, 0, 5), (byte[]) fields.get(3).val);
+        assertListEquals(dimensions.subList(1, dimensions.size()), (List<?>) ((ArrayField) fields.get(4)).val);
+        assertEquals(resolver, ((StreamingField) fields.get(5)).getResolver());
+        assertImagesBytea(image_float_byteas);
     }
 
     @Test
@@ -311,7 +413,7 @@ public class StreamingImageResolverTest {
         assertArrayEquals(oneHotArrays_bytea, (byte[]) fields.get(3).val);
         assertListEquals(dimensions, (List<?>) ((ArrayField) fields.get(4)).val);
         assertEquals(resolver, ((StreamingField) fields.get(5)).getResolver());
-        assertImages();
+        assertImagesBytea(image_byteas);
     }
 
     @Test
@@ -332,18 +434,29 @@ public class StreamingImageResolverTest {
         }
     }
 
-    private void assertImages() throws InterruptedException {
+    private void assertImagesBytea(List<byte[]> byteas) throws InterruptedException {
         int cnt = 0;
         while (resolver.hasNext()) {
             Object o = resolver.next();
             if (cnt == NUM_IMAGES) {
                 assertNull(o);
                 return;
-            } else if (o instanceof String) {
-                assertEquals(imageStrings.get(cnt++), o);
             } else {
                 assertTrue(o instanceof byte[]);
-                assertArrayEquals(image_byteas.get(cnt++), (byte[]) o);
+                assertArrayEquals(byteas.get(cnt++), (byte[]) o);
+            }
+        }
+    }
+
+    private void assertImages(List<String> strings) throws InterruptedException {
+        int cnt = 0;
+        while (resolver.hasNext()) {
+            Object o = resolver.next();
+            if (cnt == NUM_IMAGES) {
+                assertNull(o);
+                return;
+            } else {
+                assertEquals(strings.get(cnt++), o);
             }
         }
     }

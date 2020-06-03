@@ -136,7 +136,6 @@ public class StreamingImageFragmenter extends HdfsMultiFileFragmenter implements
                 getDirs(curPath);
             } else if (!pathContainsRegularFiles) {
                 pathContainsRegularFiles = true;
-                // labelSet.add(path.toString().replaceFirst(".*/([^/]+)/?$", "$1"));
                 labelSet.add(path.getName());
                 dirs.add(path);
             }
@@ -181,7 +180,7 @@ public class StreamingImageFragmenter extends HdfsMultiFileFragmenter implements
             throw new UnsupportedTypeException("fifth column of image table (image dimensions array) must be INT[]");
         }
         DataType imageDataColumnType = context.getColumn(IMAGE_DATA_COLUMN).getDataType();
-        if (imageDataColumnType != DataType.INT2ARRAY && imageDataColumnType != DataType.INT4ARRAY && imageDataColumnType != DataType.INT8ARRAY && imageDataColumnType != DataType.BYTEA) {
+        if (imageDataColumnType != DataType.INT2ARRAY && imageDataColumnType != DataType.INT4ARRAY && imageDataColumnType != DataType.INT8ARRAY && imageDataColumnType != DataType.FLOAT4ARRAY && imageDataColumnType != DataType.BYTEA) {
             throw new UnsupportedTypeException("sixth column of image table (image data array) must be INT[] or BYTEA");
         }
         if (fullPathColumnType != imageNameColumnType || fullPathColumnType != parentDirectoryColumnType) {
