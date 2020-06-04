@@ -34,6 +34,7 @@ function compile_pxf() {
         source /opt/gcc_env.sh
     fi
     bash -c "
+        echo 'export LANG=en_US.UTF-8' >> ~/.pxfrc
         source ~/.pxfrc
         VENDOR='${VENDOR}' LICENSE='${LICENSE}' make -C '${PWD}/pxf_src' rpm-tar
     "
