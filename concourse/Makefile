@@ -34,6 +34,7 @@ GS                          ?= false
 MINIO                       ?= false
 OEL7                        ?= false
 FILE                        ?= false
+OSS                         ?= false
 
 .PHONY: build certification dev pr cloudbuild
 build: set-build-pipeline
@@ -114,6 +115,7 @@ set-dev-build-pipeline:
 		gs=$(GS) \
 		minio=$(MINIO) \
 		oel7=$(OEL7) \
+		oss=$(OSS) \
 		dev_pipeline=true \
 		user=$(USER) \
 		branch=$(BRANCH) \
