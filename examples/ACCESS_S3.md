@@ -7,7 +7,7 @@ This section provides examples on how to access external data residing on S3 usi
 - [Foreign Data Wrappers](#foreign-data-wrappers)
 - [External Tables](#external-tables)
 
-The examples include syntax and the configuration parameters required to access S3.
+The examples includes syntax and the configuration parameters required to access S3.
 
 ## Prerequisites
 
