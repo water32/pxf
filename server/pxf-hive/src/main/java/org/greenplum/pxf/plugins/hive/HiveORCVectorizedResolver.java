@@ -44,6 +44,7 @@ import org.apache.hadoop.hive.ql.exec.vector.DecimalColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.DoubleColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.LongColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
+import org.apache.hadoop.hive.ql.io.orc.Reader;
 import org.apache.hadoop.hive.serde2.io.DateWritable;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
@@ -58,6 +59,7 @@ import org.greenplum.pxf.api.io.DataType;
 import org.greenplum.pxf.api.model.RequestContext;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector.PrimitiveCategory;
+import org.greenplum.pxf.plugins.hive.utilities.HiveUtilities;
 
 /**
  * Class which implements resolving a batch of records at once
@@ -348,5 +350,12 @@ public class HiveORCVectorizedResolver extends HiveResolver implements ReadVecto
                         + getClass().getSimpleName());
             }
         }
+    }
+
+    /**
+     * @return ORC file reader
+     */
+    private Reader getOrcReader() {
+        return HiveUtilities.getOrcReader(configuration, context);
     }
 }
