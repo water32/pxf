@@ -26,7 +26,6 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.io.IOConstants;
-import org.apache.hadoop.hive.ql.io.orc.Reader;
 import org.apache.hadoop.hive.ql.io.sarg.ConvertAstToSearchArg;
 import org.apache.hadoop.hive.ql.io.sarg.SearchArgument;
 import org.apache.hadoop.hive.serde.serdeConstants;
@@ -588,7 +587,7 @@ public class HiveAccessor extends HdfsSplittableDataAccessor {
         Node root = new FilterParser().parse(filterStr);
 
         // Prune the parsed tree with valid supported datatypes and operators and then
-        // traverse the pruned tree with the searchArgumentBuilder to produce a SearchArgument for ORC
+        // traverse the pruned tree with the searchArgumentBuilder to produce a SearchArgument
         TRAVERSER.traverse(
                 root,
                 new SupportedDataTypePruner(context.getTupleDescription(), getSupportedDatatypesForPushdown()),
