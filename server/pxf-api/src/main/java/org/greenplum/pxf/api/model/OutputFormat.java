@@ -26,8 +26,9 @@ import org.greenplum.pxf.api.error.UnsupportedTypeException;
  * PXF supported output formats, enum which contains serializations classes
  */
 public enum OutputFormat {
-    TEXT("org.greenplum.pxf.api.io.Text"),
-    GPDBWritable("org.greenplum.pxf.api.io.GPDBWritable");
+    BINARY("org.greenplum.pxf.api.io.Binary"),
+    GPDBWritable("org.greenplum.pxf.api.io.GPDBWritable"),
+    TEXT("org.greenplum.pxf.api.io.Text");
 
     private String className;
 
@@ -48,8 +49,8 @@ public enum OutputFormat {
      * Looks up output format for given class name if it exists.
      *
      * @param className class name implementing certain output format
-     * @throws UnsupportedTypeException if output format with given class wasn't found
      * @return an output format with given class name
+     * @throws UnsupportedTypeException if output format with given class wasn't found
      */
     public static OutputFormat getOutputFormat(String className) {
         for (OutputFormat of : values()) {
