@@ -49,23 +49,11 @@ public class RequestContext {
      */
     private RequestType requestType;
 
-    public RequestType getRequestType() {
-        return requestType;
-    }
-
-    /**
-     * The request type can be set when parsing http parameters, etc.
-     * {@link org.greenplum.pxf.service.HttpRequestParser#parseRequest()}
-     */
-    public void setRequestType(RequestType requestType) {
-        this.requestType = requestType;
-    }
-
     public enum RequestType {
         FRAGMENTER,
         READ_BRIDGE,
         WRITE_BRIDGE,
-        READ_CONTROLLER,
+        SCAN_CONTROLLER,
     }
 
     // ----- NAMED PROPERTIES -----
@@ -514,15 +502,19 @@ public class RequestContext {
             fail("Missing parameter: STATS-SAMPLE-RATIO and STATS-MAX-FRAGMENTS must be set together");
         }
 
-        if (requestType == RequestType.FRAGMENTER) {
-            // fragmenter is required for fragmentation call only (PXF write
-            // does not require a fragmenter)
-            ensureNotNull("FRAGMENTER", fragmenter);
-        }
+        if (requestType == RequestType.SCAN_CONTROLLER) {
+            ensureNotNull("PROTOCOL", protocol);
+        } else {
+            if (requestType == RequestType.FRAGMENTER) {
+                // fragmenter is required for fragmentation call only (PXF write
+                // does not require a fragmenter)
+                ensureNotNull("FRAGMENTER", fragmenter);
+            }
 
-        // accessor and resolver are user properties, might be missing if profile is not set
-        ensureNotNull("ACCESSOR", accessor);
-        ensureNotNull("RESOLVER", resolver);
+            // accessor and resolver are user properties, might be missing if profile is not set
+            ensureNotNull("ACCESSOR", accessor);
+            ensureNotNull("RESOLVER", resolver);
+        }
     }
 
     private void ensureNotNull(String property, Object value) {

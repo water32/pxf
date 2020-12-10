@@ -19,7 +19,7 @@ import org.springframework.util.MultiValueMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-import static org.greenplum.pxf.api.model.RequestContext.RequestType.READ_CONTROLLER;
+import static org.greenplum.pxf.api.model.RequestContext.RequestType.SCAN_CONTROLLER;
 
 /**
  * The {@code QuerySessionManager} manages {@code QuerySession} objects.
@@ -99,7 +99,7 @@ public class QuerySessionManager {
     private QuerySession initializeQuerySession(MultiValueMap<String, String> headers) {
 
         // Parses the request once
-        RequestContext context = parser.parseRequest(headers, READ_CONTROLLER);
+        RequestContext context = parser.parseRequest(headers, SCAN_CONTROLLER);
 
         // Initialize the configuration for this request
         // Configuration initialization is expensive, so we only
