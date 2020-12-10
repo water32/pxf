@@ -4,12 +4,15 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.RemovalListener;
 import com.google.common.util.concurrent.UncheckedExecutionException;
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.greenplum.pxf.api.model.ConfigurationFactory;
+import org.greenplum.pxf.api.factory.ConfigurationFactory;
+import org.greenplum.pxf.api.model.Processor;
 import org.greenplum.pxf.api.model.QuerySession;
 import org.greenplum.pxf.api.model.RequestContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MultiValueMap;
 
@@ -37,14 +40,16 @@ public class QuerySessionManager {
     private static final String MISSING_HEADER_ERROR = "Header %s is missing in the request";
     private static final String EMPTY_HEADER_ERROR = "Header %s is empty in the request";
 
+    private final ApplicationContext applicationContext;
     private final Cache<String, QuerySession> querySessionCache;
     private final ConfigurationFactory configurationFactory;
     private final Logger LOG = LoggerFactory.getLogger(this.getClass());
     private final RequestParser<MultiValueMap<String, String>> parser;
 
-    QuerySessionManager(RequestParser<MultiValueMap<String, String>> parser,
-                        ConfigurationFactory configurationFactory) {
-        querySessionCache = CacheBuilder.newBuilder()
+    QuerySessionManager(ApplicationContext applicationContext,
+                        ConfigurationFactory configurationFactory,
+                        RequestParser<MultiValueMap<String, String>> parser) {
+        this.querySessionCache = CacheBuilder.newBuilder()
                 .expireAfterAccess(EXPIRE_AFTER_ACCESS_DURATION_MILLIS, TimeUnit.MILLISECONDS)
                 .removalListener((RemovalListener<String, QuerySession>) notification ->
                         LOG.debug("Removed querySessionCache entry for key {} with cause {}",
@@ -52,8 +57,9 @@ public class QuerySessionManager {
                                 notification.getCause().toString()))
                 .build();
 
-        this.parser = parser;
+        this.applicationContext = applicationContext;
         this.configurationFactory = configurationFactory;
+        this.parser = parser;
     }
 
     public QuerySession get(final MultiValueMap<String, String> headers)
@@ -62,21 +68,24 @@ public class QuerySessionManager {
         final String dataSource = getHeaderValue(headers, DATA_SOURCE_HEADER, true);
         final String filterString = getHeaderValue(headers, FILTER_HEADER, false);
         final String serverName = getHeaderValue(headers, SERVER_HEADER, true);
-        final Integer segmentId = getHeaderValueInt(headers, SEGMENT_ID_HEADER);
+        final int segmentId = getHeaderValueInt(headers, SEGMENT_ID_HEADER);
         final String transactionId = getHeaderValue(headers, TRANSACTION_ID_HEADER, true);
 
         final String cacheKey = String.format("%s:%s:%s:%s",
                 serverName, transactionId, dataSource, filterString);
 
         try {
-
             QuerySession querySession = querySessionCache
                     .get(cacheKey, () -> {
                         LOG.debug("Caching querySession for key={} from segmentId={}",
                                 cacheKey, segmentId);
-                        return initializeQuerySession(headers);
+                        QuerySession session = initializeQuerySession(headers);
+                        initializeProducerTask(session);
+                        return session;
                     });
 
+            // Register the segment to the session
+            querySession.registerSegment(segmentId);
 
             return querySession;
         } catch (UncheckedExecutionException | ExecutionException e) {
@@ -89,7 +98,7 @@ public class QuerySessionManager {
 
     private QuerySession initializeQuerySession(MultiValueMap<String, String> headers) {
 
-        // Parses the request, this operation is expensive
+        // Parses the request once
         RequestContext context = parser.parseRequest(headers, READ_CONTROLLER);
 
         // Initialize the configuration for this request
@@ -104,11 +113,33 @@ public class QuerySessionManager {
 
         context.setConfiguration(configuration);
 
-        QuerySession querySession = new QuerySession(context);
+        return new QuerySession(context, getProcessor(context));
+    }
 
-        // TODO: associate a processor to the QuerySession
+    public Processor<?> getProcessor(RequestContext context) {
+        return (Processor<?>) applicationContext
+                .getBeansOfType(Processor.class)
+                .values()
+                .stream()
+                .filter(p -> p.canProcessRequest(context))
+                .findFirst()
+                .orElseThrow(() -> {
+                    String errorMessage;
+                    if (StringUtils.isBlank(context.getFormat())) {
+                        errorMessage = String.format("There are no registered processors to handle the '%s' protocol", context.getProtocol());
+                    } else {
+                        errorMessage = String.format("There are no registered processors to handle the '%s' protocol and '%s' format", context.getProtocol(), context.getFormat());
+                    }
+                    return new IllegalArgumentException(errorMessage);
+                });
+    }
 
-        return querySession;
+    private void initializeProducerTask(QuerySession querySession) {
+        // TODO: schedule work for the given query session.
+        //  queryManager.register(querySession, segmentId);
+        // Schedule splits
+
+
     }
 
     /**

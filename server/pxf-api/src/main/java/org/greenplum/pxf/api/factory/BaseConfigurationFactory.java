@@ -1,4 +1,4 @@
-package org.greenplum.pxf.api.model;
+package org.greenplum.pxf.api.factory;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;

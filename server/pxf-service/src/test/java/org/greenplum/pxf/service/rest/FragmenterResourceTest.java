@@ -5,7 +5,7 @@ import com.google.common.cache.CacheBuilder;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.greenplum.pxf.api.configuration.PxfServerProperties;
-import org.greenplum.pxf.api.model.ConfigurationFactory;
+import org.greenplum.pxf.api.factory.ConfigurationFactory;
 import org.greenplum.pxf.api.model.Fragment;
 import org.greenplum.pxf.api.model.Fragmenter;
 import org.greenplum.pxf.api.model.RequestContext;

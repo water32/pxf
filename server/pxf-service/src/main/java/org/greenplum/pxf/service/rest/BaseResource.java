@@ -1,7 +1,7 @@
 package org.greenplum.pxf.service.rest;
 
 import org.apache.hadoop.conf.Configuration;
-import org.greenplum.pxf.api.model.ConfigurationFactory;
+import org.greenplum.pxf.api.factory.ConfigurationFactory;
 import org.greenplum.pxf.api.model.RequestContext;
 import org.greenplum.pxf.service.RequestParser;
 import org.slf4j.Logger;

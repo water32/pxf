@@ -15,20 +15,19 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.TimeUnit;
 
-public class ReadResponse implements StreamingResponseBody {
+public class ScanResponse implements StreamingResponseBody {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ReadResponse.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ScanResponse.class);
     private static final Serializer BINARY_SERIALIZER = new BinarySerializer();
 
     private final QuerySession querySession;
     private final RequestContext context;
     private final List<ColumnDescriptor> columnDescriptors;
 
-    public ReadResponse(QuerySession querySession) {
+    public ScanResponse(QuerySession querySession) {
         this.querySession = querySession;
         this.context = querySession.getContext();
         this.columnDescriptors = context.getTupleDescription();
@@ -38,7 +37,10 @@ public class ReadResponse implements StreamingResponseBody {
     @Override
     public void writeTo(OutputStream output) {
 
-        LOG.debug("{}-{}-- Starting streaming for {}", context.getTransactionId(), context.getSegmentId(), querySession);
+        LOG.debug("{}-{}-- Starting streaming for {}",
+                context.getTransactionId(),
+                context.getSegmentId(),
+                querySession);
 
         int recordCount = 0;
         BlockingDeque<List<List<Object>>> outputQueue = querySession.getOutputQueue();
@@ -47,28 +49,14 @@ public class ReadResponse implements StreamingResponseBody {
             serializer.open(output);
 
             while (querySession.isActive()) {
-                List<List<Object>> fieldList = outputQueue.poll(100, TimeUnit.MILLISECONDS);
-                if (fieldList != null) {
-
-                    List<ColumnDescriptor> columnDescriptors = this.columnDescriptors;
-                    for (List<Object> fields : fieldList) {
-                        serializer.startRow(columnDescriptors.size());
-                        for (int i = 0; i < columnDescriptors.size(); i++) {
-                            ColumnDescriptor columnDescriptor = columnDescriptors.get(i);
-                            Object field = fields.get(i);
-                            serializer.startField();
-                            serializer.writeField(columnDescriptor.getDataType(), field);
-                            serializer.endField();
-                        }
-                        serializer.endRow();
-                    }
-                    recordCount += fieldList.size();
-                } else {
-                    if (querySession.hasFinishedProducing()
-                            && (querySession.getCompletedTasks() == querySession.getCreatedTasks())
-                            && outputQueue.isEmpty()) {
-                        break;
-                    }
+                List<List<Object>> batch = outputQueue.poll(100, TimeUnit.MILLISECONDS);
+                if (batch != null) {
+                    serializeTupleBatch(serializer, batch);
+                    recordCount += batch.size();
+                } else if (querySession.hasFinishedProducing()
+                        && (querySession.getCompletedTaskCount() == querySession.getCreatedTaskCount())
+                        && outputQueue.isEmpty()) {
+                    break;
                 }
             }
 
@@ -91,6 +79,10 @@ public class ReadResponse implements StreamingResponseBody {
             } else {
                 LOG.warn("Remote connection closed by Greenplum (segment {}) (Enable debug for stacktrace)", context.getSegmentId());
             }
+            // Re-throw the exception so Spring MVC is aware that an IO error has occurred
+            throw e;
+        } catch (IOException e) {
+            throw e;
         } catch (Exception e) {
             querySession.errorQuery(e);
             LOG.error(e.getMessage() != null ? e.getMessage() : "ERROR", e);
@@ -98,19 +90,33 @@ public class ReadResponse implements StreamingResponseBody {
         } finally {
             querySession.deregisterSegment(recordCount);
             LOG.debug("{}-{}-- Stopped streaming {} record{} for {}",
-                    context.getTransactionId(), context.getSegmentId(), recordCount,
-                    recordCount == 1 ? "" : "s", querySession);
+                    context.getTransactionId(),
+                    context.getSegmentId(),
+                    recordCount,
+                    recordCount == 1 ? "" : "s",
+                    querySession);
         }
+    }
 
-        if (!querySession.isActive()) {
-            Optional<Exception> firstException = querySession.getErrors().stream()
-                    .filter(e -> !(e instanceof ClientAbortException))
-                    .findFirst();
-
-            if (firstException.isPresent()) {
-                Exception e = firstException.get();
-                throw new IOException(e.getMessage(), e);
+    /**
+     * Serializes the batch of tuples to the output stream
+     *
+     * @param serializer the serializer for this request
+     * @param batch      the batch of tuples
+     * @throws IOException when a serialization error occurs
+     */
+    private void serializeTupleBatch(Serializer serializer, List<List<Object>> batch) throws IOException {
+        List<ColumnDescriptor> columnDescriptors = this.columnDescriptors;
+        for (List<Object> fields : batch) {
+            serializer.startRow(columnDescriptors.size());
+            for (int i = 0; i < columnDescriptors.size(); i++) {
+                ColumnDescriptor columnDescriptor = columnDescriptors.get(i);
+                Object field = fields.get(i);
+                serializer.startField();
+                serializer.writeField(columnDescriptor.getDataType(), field);
+                serializer.endField();
             }
+            serializer.endRow();
         }
     }
 
@@ -126,7 +132,8 @@ public class ReadResponse implements StreamingResponseBody {
             case BINARY:
                 return BINARY_SERIALIZER;
             default:
-                throw new UnsupportedOperationException(String.format("The output format '%s' is not supported", context.getOutputFormat()));
+                throw new UnsupportedOperationException(
+                        String.format("The output format '%s' is not supported", context.getOutputFormat()));
         }
     }
 }

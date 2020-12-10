@@ -1,6 +1,7 @@
 package org.greenplum.pxf.api.model;
 
 import org.apache.hadoop.conf.Configuration;
+import org.greenplum.pxf.api.factory.BaseConfigurationFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -12,9 +13,9 @@ import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.greenplum.pxf.api.model.ConfigurationFactory.PXF_CONFIG_RESOURCE_PATH_PROPERTY;
-import static org.greenplum.pxf.api.model.ConfigurationFactory.PXF_CONFIG_SERVER_DIRECTORY_PROPERTY;
-import static org.greenplum.pxf.api.model.ConfigurationFactory.PXF_SESSION_USER_PROPERTY;
+import static org.greenplum.pxf.api.factory.ConfigurationFactory.PXF_CONFIG_RESOURCE_PATH_PROPERTY;
+import static org.greenplum.pxf.api.factory.ConfigurationFactory.PXF_CONFIG_SERVER_DIRECTORY_PROPERTY;
+import static org.greenplum.pxf.api.factory.ConfigurationFactory.PXF_SESSION_USER_PROPERTY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;

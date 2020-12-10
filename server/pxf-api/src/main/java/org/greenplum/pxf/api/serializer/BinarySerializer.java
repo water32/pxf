@@ -31,6 +31,26 @@ public class BinarySerializer extends BaseSerializer {
 
     @Override
     public <T> void writeField(DataType dataType, T field) throws IOException {
+
+
+        switch (dataType) {
+            case BOOLEAN:
+                buffer.writeInt(1);
+                buffer.writeByte((byte) field);
+                break;
+
+            case TEXT:
+                byte[] utf8Bytes = (byte[]) field;
+                buffer.writeInt(utf8Bytes.length);
+                buffer.write(utf8Bytes);
+                break;
+
+            case INTEGER:
+                buffer.writeInt(4);
+                buffer.writeInt((int) field);
+                break;
+        }
+
         valueHandlerProvider.resolve(dataType).handle(buffer, field);
     }
 

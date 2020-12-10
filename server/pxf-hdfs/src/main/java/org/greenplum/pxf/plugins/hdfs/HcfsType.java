@@ -15,8 +15,8 @@ import java.net.URI;
 import java.util.Arrays;
 
 import static org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY;
-import static org.greenplum.pxf.api.model.ConfigurationFactory.PXF_CONFIG_SERVER_DIRECTORY_PROPERTY;
-import static org.greenplum.pxf.api.model.ConfigurationFactory.PXF_SERVER_NAME_PROPERTY;
+import static org.greenplum.pxf.api.factory.ConfigurationFactory.PXF_CONFIG_SERVER_DIRECTORY_PROPERTY;
+import static org.greenplum.pxf.api.factory.ConfigurationFactory.PXF_SERVER_NAME_PROPERTY;
 
 public enum HcfsType {
     ADL,
