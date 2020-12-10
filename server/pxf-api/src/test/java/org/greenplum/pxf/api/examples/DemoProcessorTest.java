@@ -3,6 +3,7 @@ package org.greenplum.pxf.api.examples;
 import org.greenplum.pxf.api.io.DataType;
 import org.greenplum.pxf.api.model.DataSplit;
 import org.greenplum.pxf.api.model.Processor;
+import org.greenplum.pxf.api.model.QuerySession;
 import org.greenplum.pxf.api.model.RequestContext;
 import org.greenplum.pxf.api.utilities.ColumnDescriptor;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,11 +25,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class DemoProcessorTest {
 
     private Processor<String> processor;
-    private RequestContext context;
+    private QuerySession querySession;
 
     @BeforeEach
     void setup() {
-        context = new RequestContext();
+        RequestContext context = new RequestContext();
 
         List<ColumnDescriptor> columnDescriptors = new ArrayList<>();
         columnDescriptors.add(new ColumnDescriptor("cdate", DataType.TEXT.getOID(), 1, "text", null));
@@ -41,17 +42,18 @@ class DemoProcessorTest {
         context.setTupleDescription(columnDescriptors);
 
         processor = new DemoProcessor();
+        querySession = new QuerySession(context, processor);
     }
 
     @Test
     void testDataSplitter() {
-        assertSame(DemoDataSplitter.class, processor.getDataSplitter(context).getClass());
+        assertSame(DemoDataSplitter.class, processor.getDataSplitter(querySession).getClass());
     }
 
     @Test
     void testTupleIterator() throws IOException {
         DataSplit split = new DataSplit("foo.5", new DemoFragmentMetadata("fragment5"));
-        Iterator<String> tupleIterator = processor.getTupleIterator(context, split);
+        Iterator<String> tupleIterator = processor.getTupleIterator(querySession, split);
 
         assertNotNull(tupleIterator);
         assertTrue(tupleIterator.hasNext());

@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class RequestContextTest {
+class RequestContextTest {
 
     private RequestContext context;
 
@@ -109,6 +109,15 @@ public class RequestContextTest {
         Exception e = assertThrows(IllegalArgumentException.class,
                 () -> context.validate());
         assertEquals("Property RESOLVER has no value in the current request", e.getMessage());
+    }
+
+    @Test
+    public void testValidateFailsWhenProtocolIsNotSetForScanController() {
+        context.setProtocol(null);
+        context.setRequestType(RequestContext.RequestType.SCAN_CONTROLLER);
+        Exception e = assertThrows(IllegalArgumentException.class,
+                () -> context.validate());
+        assertEquals("Property PROTOCOL has no value in the current request", e.getMessage());
     }
 
     @Test

@@ -122,8 +122,8 @@ public class RequestContext {
     private Object metadata;
 
     /**
-     * The current output format, either {@link OutputFormat#TEXT} or
-     * {@link OutputFormat#GPDBWritable}.
+     * The current output format, either {@link OutputFormat#TEXT},
+     * {@link OutputFormat#Binary}, or {@link OutputFormat#GPDBWritable}.
      */
     private OutputFormat outputFormat;
 

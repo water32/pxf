@@ -4,6 +4,7 @@ import com.google.common.collect.Lists;
 import org.greenplum.pxf.api.concurrent.BoundedExecutor;
 import org.greenplum.pxf.api.model.DataSplit;
 import org.greenplum.pxf.api.model.DataSplitSegmentIterator;
+import org.greenplum.pxf.api.model.DataSplitter;
 import org.greenplum.pxf.api.model.QuerySession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,15 +12,15 @@ import org.slf4j.LoggerFactory;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.BlockingDeque;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 import static java.util.Objects.requireNonNull;
 
-public class ProducerTask extends Thread {
+public class ProducerTask implements Runnable {
 
     private static final int DEFAULT_MAX_THREADS = 10;
-    // TODO: decide a configuration name for the maxThreads
+    // TODO: decide a property name for the maxThreads
     private static final String PXF_PRODUCER_MAX_THREADS_PROPERTY = "pxf.producer.max-threads";
 
     protected Logger LOG = LoggerFactory.getLogger(this.getClass());
@@ -27,15 +28,12 @@ public class ProducerTask extends Thread {
     private final QuerySession querySession;
     private final BoundedExecutor boundedExecutor;
 
-    public ProducerTask(QuerySession querySession) {
+    public ProducerTask(QuerySession querySession, Executor executor) {
         this.querySession = requireNonNull(querySession, "querySession cannot be null");
-        ExecutorService executor = ExecutorServiceProvider.get();
-
         // Defaults to the minimum between DEFAULT_MAX_THREADS and the number of available processors
         int maxThreads = querySession.getContext().getConfiguration()
                 .getInt(PXF_PRODUCER_MAX_THREADS_PROPERTY,
                         Math.min(DEFAULT_MAX_THREADS, Runtime.getRuntime().availableProcessors()));
-
         this.boundedExecutor = new BoundedExecutor(executor, maxThreads);
     }
 
@@ -45,15 +43,16 @@ public class ProducerTask extends Thread {
     @Override
     public void run() {
         try {
-
-            int segmentCount = 0;
+            int segmentCount = 0,
+                    totalSegments = querySession.getContext().getTotalSegments();
             Integer segmentId;
 
             // Materialize the list of splits
-            List<DataSplit> splits = Lists.newArrayList(querySession.getProcessor().getDataSplitter(querySession));
+            DataSplitter splitter = querySession.getProcessor().getDataSplitter(querySession);
+            List<DataSplit> splitList = Lists.newArrayList(splitter);
+            // get the queue of segments IDs that have registered to this QuerySession
             BlockingDeque<Integer> registeredSegmentQueue = querySession.getRegisteredSegmentQueue();
 
-            LOG.debug("fetching DataSplit iterator");
             while (querySession.isActive()) {
                 segmentId = registeredSegmentQueue.poll(10, TimeUnit.MILLISECONDS);
                 if (segmentId == null) {
@@ -68,8 +67,7 @@ public class ProducerTask extends Thread {
                 }
 
                 segmentCount++;
-                Iterator<DataSplit> iterator = new DataSplitSegmentIterator<>(segmentId, querySession.getContext().getTotalSegments(), splits.iterator());
-                LOG.debug("new DataSplit iterator fetched");
+                Iterator<DataSplit> iterator = new DataSplitSegmentIterator<>(segmentId, totalSegments, splitList.iterator());
                 while (iterator.hasNext() && querySession.isActive()) {
                     DataSplit split = iterator.next();
                     LOG.debug("Submitting {} to the pool for query {}", split, querySession);
@@ -78,7 +76,6 @@ public class ProducerTask extends Thread {
                     querySession.registerTask();
                 }
             }
-
         } catch (Exception ex) {
             querySession.errorQuery(ex);
             throw new RuntimeException(ex);

@@ -148,7 +148,7 @@ BuildUriForRead(PxfFdwScanState *pxfsstate)
 	Assert(options->pxf_protocol != NULL && options->pxf_host != NULL && options->pxf_port > 0);
 
 	resetStringInfo(&pxfsstate->uri);
-	appendStringInfo(&pxfsstate->uri, "%s://%s:%d/%s/%s/read", options->pxf_protocol, options->pxf_host, options->pxf_port, PXF_SERVICE_PREFIX, PXF_VERSION);
+	appendStringInfo(&pxfsstate->uri, "%s://%s:%d/%s/%s/scan", options->pxf_protocol, options->pxf_host, options->pxf_port, PXF_SERVICE_PREFIX, PXF_VERSION);
 	elog(DEBUG2, "pxf_fdw: uri %s for read", pxfsstate->uri.data);
 }
 

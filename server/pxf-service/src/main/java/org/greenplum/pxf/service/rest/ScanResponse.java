@@ -129,7 +129,7 @@ public class ScanResponse implements StreamingResponseBody {
         switch (context.getOutputFormat()) {
             case TEXT:
                 return new CsvSerializer(context.getGreenplumCSV());
-            case BINARY:
+            case Binary:
                 return BINARY_SERIALIZER;
             default:
                 throw new UnsupportedOperationException(

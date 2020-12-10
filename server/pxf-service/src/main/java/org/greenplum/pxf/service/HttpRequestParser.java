@@ -11,7 +11,6 @@ import org.greenplum.pxf.api.utilities.FragmentMetadata;
 import org.greenplum.pxf.api.utilities.FragmentMetadataSerDe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.MultiValueMap;
 
@@ -41,19 +40,17 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
     private static final String PROFILE_SCHEME = "PROFILE-SCHEME";
 
     private final PluginConf pluginConf;
-    protected FragmentMetadataSerDe metadataSerDe;
+    private final FragmentMetadataSerDe metadataSerDe;
 
     /**
      * Create a new instance of the HttpRequestParser with the given PluginConf
+     * and FragmentMetadataSerDe
      *
-     * @param pluginConf the plugin conf
+     * @param pluginConf    the plugin conf
+     * @param metadataSerDe the metadata serializer/deserializer
      */
-    public HttpRequestParser(PluginConf pluginConf) {
+    public HttpRequestParser(PluginConf pluginConf, FragmentMetadataSerDe metadataSerDe) {
         this.pluginConf = pluginConf;
-    }
-
-    @Autowired
-    public void setMetadataSerDe(FragmentMetadataSerDe metadataSerDe) {
         this.metadataSerDe = metadataSerDe;
     }
 
@@ -71,28 +68,48 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
 
         // fill the Request-scoped RequestContext with parsed values
 
-        // whether we are in a fragmenter, read_bridge, or write_bridge scenario
+        // whether we are in a fragmenter, read_bridge, write_bridge, or scan_controller scenario
         context.setRequestType(requestType);
 
-        // first of all, set profile and enrich parameters with information from specified profile
         String profileUserValue = params.removeUserProperty("PROFILE");
         String profile = profileUserValue == null ? null : profileUserValue.toLowerCase();
-        context.setProfile(profile);
-        addProfilePlugins(profile, params);
 
-        // Ext table uses system property FORMAT for wire serialization format
-        String wireFormat = params.removeProperty("FORMAT");
-        context.setOutputFormat(OutputFormat.valueOf(wireFormat));
+        if (requestType == RequestContext.RequestType.SCAN_CONTROLLER) {
+            // the protocol is required for the SCAN_CONTROLLER
+            String protocol = params.removeProperty("PROTOCOL");
+            context.setProtocol(protocol);
 
-        // FDW uses user property FORMAT to indicate format of data
-        String format = params.removeUserProperty("FORMAT");
-        format = StringUtils.isNotBlank(format) ? format : context.inferFormatName();
-        context.setFormat(format);
+            // FDW uses system property WIRE-FORMAT for wire serialization format
+            String wireFormat = params.removeProperty("WIRE-FORMAT");
+            context.setOutputFormat(OutputFormat.valueOf(wireFormat));
+
+            // FDW uses user property FORMAT to indicate format of data
+            String format = params.removeOptionalProperty("FORMAT");
+            context.setFormat(format);
+
+            context.setServerName(params.removeProperty("SERVER"));
+            context.setDataSource(params.removeProperty("RESOURCE"));
+        } else {
+            // first of all, set profile and enrich parameters with information from specified profile
+            context.setProfile(profile);
+            addProfilePlugins(profile, params);
+
+            // Ext table uses system property FORMAT for wire serialization format
+            String wireFormat = params.removeProperty("FORMAT");
+            context.setOutputFormat(OutputFormat.valueOf(wireFormat));
+
+            String format = params.removeUserProperty("FORMAT");
+            format = StringUtils.isNotBlank(format) ? format : context.inferFormatName();
+            context.setFormat(format);
+
+            context.setProtocol(params.removeUserProperty("PROTOCOL"));
+            context.setLastFragment(params.removeOptionalBoolProperty("LAST-FRAGMENT"));
+            context.setServerName(params.removeUserProperty("SERVER"));
+            context.setDataSource(params.removeProperty("DATA-DIR"));
+        }
 
         context.setAccessor(params.removeUserProperty("ACCESSOR"));
         context.setAggType(EnumAggregationType.getAggregationType(params.removeOptionalProperty("AGG-TYPE")));
-
-        context.setDataSource(params.removeProperty("DATA-DIR"));
 
         String filterString = params.removeOptionalProperty("FILTER");
         String hasFilter = params.removeProperty("HAS-FILTER");
@@ -118,17 +135,14 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
         }
         context.setFragmentMetadata(fragmentMetadata);
 
-        context.setLastFragment(params.removeOptionalBoolProperty("LAST-FRAGMENT"));
         context.setHost(params.removeProperty("URL-HOST"));
         context.setMetadata(params.removeUserProperty("METADATA"));
         context.setPort(params.removeIntProperty("URL-PORT"));
         context.setProfileScheme(params.removeUserProperty(PROFILE_SCHEME));
-        context.setProtocol(params.removeUserProperty("PROTOCOL"));
         context.setRemoteLogin(params.removeOptionalProperty("REMOTE-USER"));
         context.setRemoteSecret(params.removeOptionalProperty("REMOTE-PASS"));
         context.setResolver(params.removeUserProperty("RESOLVER"));
         context.setSegmentId(params.removeIntProperty("SEGMENT-ID"));
-        context.setServerName(params.removeUserProperty("SERVER"));
 
         // An optional CONFIG value specifies the name of the server
         // configuration directory, if not provided the config is the server name

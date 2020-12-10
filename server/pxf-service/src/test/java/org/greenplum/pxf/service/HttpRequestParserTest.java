@@ -103,8 +103,7 @@ public class HttpRequestParserTest {
         parameters.add("X-GP-OPTIONS-SERVER", "custom_server");
         parameters.add("X-GP-XID", "transaction:id");
 
-        parser = new HttpRequestParser(mockPluginConf);
-        parser.setMetadataSerDe(serDe);
+        parser = new HttpRequestParser(mockPluginConf, serDe);
     }
 
     @AfterEach

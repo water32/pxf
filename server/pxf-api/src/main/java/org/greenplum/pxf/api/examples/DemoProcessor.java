@@ -38,7 +38,7 @@ public class DemoProcessor implements Processor<String> {
      * {@inheritDoc}
      */
     @Override
-    public Iterator<Interface> getFields(String tuple) {
+    public Iterator<Object> getFields(String tuple) {
         return new TupleItr(tuple);
     }
 
@@ -108,15 +108,13 @@ public class DemoProcessor implements Processor<String> {
      * An iterator that splits the String tuple and returns an iterator over
      * the String splits
      */
-    private static class TupleItr implements Iterator<Interface> {
+    private static class TupleItr implements Iterator<Object> {
         private int currentField;
         private final String[] fields;
-        private Interface wrapper;
 
         public TupleItr(String tuple) {
             currentField = 0;
             fields = tuple.split("\\|");
-            wrapper = new StringWrapper();
         }
 
         /**
@@ -131,20 +129,10 @@ public class DemoProcessor implements Processor<String> {
          * {@inheritDoc}
          */
         @Override
-        public Interface next() {
+        public String next() {
             if (currentField >= fields.length)
                 throw new NoSuchElementException();
-            wrapper.setString(fields[currentField++]);
-            return wrapper;
+            return fields[currentField++];
         }
-    }
-    
-    class StringWrapper implements Interface {
-        String s
-        
-        
-        public StringWrapper(String s) {
-            
-        } 
     }
 }

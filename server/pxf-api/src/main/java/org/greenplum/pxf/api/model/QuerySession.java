@@ -292,6 +292,13 @@ public class QuerySession {
     }
 
     /**
+     * Keeps track of tasks that have completed
+     */
+    public void registerCompletedTask() {
+        completedTaskCount.incrementAndGet();
+    }
+
+    /**
      * {@inheritDoc}
      */
     @Override

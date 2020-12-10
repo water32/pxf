@@ -19,6 +19,8 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.time.Duration;
+
 /**
  * Configures the {@link AsyncTaskExecutor} for tasks that will stream data to
  * clients
@@ -33,6 +35,16 @@ public class PxfConfiguration implements WebMvcConfigurer {
      * Bean name of PXF's {@link TaskExecutor}.
      */
     public static final String PXF_RESPONSE_STREAM_TASK_EXECUTOR = "pxfResponseStreamTaskExecutor";
+
+    /**
+     * Bean name of PXF's {@link TaskExecutor} for producer tasks.
+     */
+    public static final String PXF_PRODUCER_TASK_EXECUTOR = "pxfProducerTaskExecutor";
+
+    /**
+     * Bean name of PXF's {@link TaskExecutor} for tuple tasks.
+     */
+    public static final String PXF_TUPLE_TASK_EXECUTOR = "pxfTupleTaskExecutor";
 
     private final ListableBeanFactory beanFactory;
 
@@ -99,5 +111,25 @@ public class PxfConfiguration implements WebMvcConfigurer {
                 shutdown.getAwaitTerminationPeriod());
 
         return builder.build(PxfThreadPoolTaskExecutor.class);
+    }
+
+    @Bean(name = PXF_PRODUCER_TASK_EXECUTOR)
+    public ThreadPoolTaskExecutor pxfProducerTaskExecutor() {
+        TaskExecutorBuilder builder = new TaskExecutorBuilder();
+        builder = builder.corePoolSize(8);
+        builder = builder.allowCoreThreadTimeOut(false);
+        builder = builder.keepAlive(Duration.ofSeconds(60));
+        builder = builder.threadNamePrefix("pxf-producer-");
+        return builder.build();
+    }
+
+    @Bean(name = PXF_TUPLE_TASK_EXECUTOR)
+    public ThreadPoolTaskExecutor pxfTupleTaskExecutor() {
+        TaskExecutorBuilder builder = new TaskExecutorBuilder();
+        builder = builder.corePoolSize(8);
+        builder = builder.allowCoreThreadTimeOut(false);
+        builder = builder.keepAlive(Duration.ofSeconds(60));
+        builder = builder.threadNamePrefix("pxf-tuple-");
+        return builder.build();
     }
 }

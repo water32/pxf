@@ -297,8 +297,12 @@ AddProjectionDescHttpHeader(PXF_CURL_HEADERS headers, List *retrieved_attrs)
 	{
 		int			attno = lfirst_int(lc1);
 
-		/* zero-based index in the server side */
-		PxfCurlHeadersAppend(headers, psprintf("X-GP-ATTRS-PROJ-IDX-%d", (attno - 1)), "true");
+		if (attno > InvalidAttrNumber)
+		{
+			/* zero-based index in the server side */
+			pg_ltoa(attno - 1, long_number);
+			PxfCurlHeadersAppend(headers, "X-GP-ATTRS-PROJ-IDX", long_number);
+		}
 	}
 
 	if (retrieved_attrs->length == 0)
