@@ -34,7 +34,11 @@
 /* helper function declarations */
 static void BuildUriForRead(PxfFdwScanState *pxfsstate);
 static void BuildUriForWrite(PxfFdwModifyState *pxfmstate);
+#if PG_VERSION_NUM >= 90600
+static size_t FillBuffer(PxfFdwScanState *pxfsstate, char *start, int minlen, int maxlen);
+#else
 static size_t FillBuffer(PxfFdwScanState *pxfsstate, char *start, size_t size);
+#endif
 
 /*
  * Clean up churl related data structures from the PXF FDW modify state.
@@ -51,12 +55,15 @@ PxfControllerCleanup(PxfFdwModifyState *pxfmstate)
 	PxfCurlHeadersCleanup(pxfmstate->curl_headers);
 	pxfmstate->curl_headers = NULL;
 
-	/* TODO: do we need to cleanup filter_str for foreign scan? */
-/*	if (pxfmstate->filter_str != NULL)
+	if (pxfmstate->uri.data)
 	{
-		pfree(pxfmstate->filter_str);
-		pxfmstate->filter_str = NULL;
-	}*/
+		pfree(pxfmstate->uri.data);
+	}
+
+	if (pxfmstate->options)
+	{
+		pfree(pxfmstate->options);
+	}
 }
 
 /*
@@ -100,10 +107,18 @@ PxfControllerExportStart(PxfFdwModifyState *pxfmstate)
  * Reads data from the PXF server into the given buffer of a given size
  */
 int
+#if PG_VERSION_NUM >= 90600
+PxfControllerRead(void *outbuf, int minlen, int maxlen, void *extra)
+#else
 PxfControllerRead(void *outbuf, int datasize, void *extra)
+#endif
 {
 	PxfFdwScanState *pxfsstate = (PxfFdwScanState *) extra;
+#if PG_VERSION_NUM >= 90600
+	return (int) FillBuffer(pxfsstate, outbuf, minlen, maxlen);
+#else
 	return (int) FillBuffer(pxfsstate, outbuf, datasize);
+#endif
 }
 
 /*
@@ -154,15 +169,28 @@ BuildUriForWrite(PxfFdwModifyState *pxfmstate)
  * Read data from churl until the buffer is full or there is no more data to be read
  */
 static size_t
+#if PG_VERSION_NUM >= 90600
+FillBuffer(PxfFdwScanState *pxfsstate, char *start, int minlen, int maxlen)
+#else
 FillBuffer(PxfFdwScanState *pxfsstate, char *start, size_t size)
+#endif
 {
 	size_t		n = 0;
 	char	   *ptr = start;
-	char	   *end = ptr + size;
+#if PG_VERSION_NUM >= 90600
+	char	   *minend = ptr + minlen;
+	char	   *maxend = ptr + maxlen;
+
+	while (ptr < minend)
+	{
+		n = PxfCurlRead(pxfsstate->curl_handle, ptr, maxend - ptr);
+#else
+		char	   *end = ptr + size;
 
 	while (ptr < end)
 	{
 		n = PxfCurlRead(pxfsstate->curl_handle, ptr, end - ptr);
+#endif
 		if (n == 0)
 		{
 			/*

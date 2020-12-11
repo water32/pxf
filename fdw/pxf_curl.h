@@ -95,22 +95,6 @@ PXF_CURL_HEADERS PxfCurlHeadersInit(void);
 void		PxfCurlHeadersAppend(PXF_CURL_HEADERS headers, const char *key, const char *value);
 
 /*
- * Override header with given 'key'.
- * If header doesn't exist, create new one (using PxfCurlHeadersAppend).
- * Headers are added in the form 'key: value'
- */
-void		PxfCurlHeadersOverride(PXF_CURL_HEADERS headers, const char *key, const char *value);
-
-/*
- * Remove header with given 'key'.
- * has_value specifies if the header has a value or only a key.
- * If the header doesn't exist, do nothing.
- * If the header is the first one on the list,
- * point the headers list to the next element.
- */
-void		PxfCurlHeadersRemove(PXF_CURL_HEADERS headers, const char *key, bool has_value);
-
-/*
  * Cleanup handle for headers
  */
 void		PxfCurlHeadersCleanup(PXF_CURL_HEADERS headers);
@@ -126,12 +110,6 @@ PXF_CURL_HANDLE PxfCurlInitUpload(const char *url, PXF_CURL_HEADERS headers, Pxf
  * returns a handle to churl transfer
  */
 PXF_CURL_HANDLE PxfCurlInitDownload(const char *url, PXF_CURL_HEADERS headers, PxfSSLOptions *ssl_options);
-
-/*
- * Restart a session to a new URL
- * This will use the same headers
- */
-void		PxfCurlDownloadRestart(PXF_CURL_HANDLE, const char *url, PXF_CURL_HEADERS headers);
 
 /*
  * Send buf of bufsize

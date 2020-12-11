@@ -18,7 +18,6 @@
  */
 
 #include "pxf_curl.h"
-#include "miscadmin.h"
 #include "utils/builtins.h"
 #include "utils/fmgroids.h"
 #include "utils/guc.h"
@@ -38,9 +37,9 @@
  */
 typedef struct curl_buffer
 {
-	char		*ptr;
+	char	   *ptr;
 	int			max;
-	int		bot,
+	int			bot,
 				top;
 
 } curl_buffer;
@@ -123,7 +122,7 @@ static void	CleanupInternalBuffer(curl_buffer *buffer);
 static void	CurlCleanupContext(curl_context *context);
 static size_t	WriteCallback(char *buffer, size_t size, size_t nitems, void *userp);
 static void	FillInternalBuffer(curl_context *context, int want);
-static void	CurlHeadersSet(curl_context *context, PXF_CURL_HEADERS settings);
+static void	CurlHeadersSet(curl_context *context, PXF_CURL_HEADERS headers);
 static void	CheckResponseStatus(curl_context *context);
 static void	CheckResponseCode(curl_context *context);
 static void	CheckResponse(curl_context *context);
@@ -133,7 +132,7 @@ static void	FreeHttpResponse(curl_context *context);
 static void	CompactInternalBuffer(curl_buffer *buffer);
 static void	ReallocInternalBuffer(curl_buffer *buffer, size_t required);
 static bool	HandleSpecialError(long response, StringInfo err);
-static char	*GetHttpErrorMsg(long http_ret_code, char *msg, char *curl_error_buffer, char **trace_message);
+static char	*GetHttpErrorMsg(long http_ret_code, char *msg, char *curl_error_buffer, char **hint_message, char **trace_message);
 static char	*BuildHeaderStr(const char *format, const char *key, const char *value);
 static bool	FileExistsAndCanRead(char *filename);
 static bool	IsValidJson(text *json);
@@ -192,7 +191,7 @@ BuildHeaderStr(const char *format, const char *key, const char *value)
 		/* Only encode custom headers */
 		if (pg_strncasecmp("X-GP-", key, 5) == 0)
 		{
-			output = curl_easy_escape(NULL, value, strlen(value));
+			output = curl_easy_escape(NULL, value, (int) strlen(value));
 
 			if (!output)
 				elog(ERROR, "internal error: curl_easy_escape failed for value %s", value);
@@ -221,113 +220,6 @@ PxfCurlHeadersAppend(PXF_CURL_HEADERS headers, const char *key, const char *valu
 	settings->headers = curl_slist_append(settings->headers,
 										  header_option);
 	pfree(header_option);
-}
-
-void
-PxfCurlHeadersOverride(PXF_CURL_HEADERS headers, const char *key, const char *value)
-{
-
-	churl_settings *settings = (churl_settings *) headers;
-	struct curl_slist *header_cell = settings->headers;
-	char	   *key_option = NULL;
-	char	   *header_data = NULL;
-
-	/* key must not be empty */
-	Assert(key != NULL);
-
-	/* key to compare with in the headers */
-	key_option = BuildHeaderStr("%s:%s", key, value ? "" : NULL);
-
-	/* find key in headers list */
-	while (header_cell != NULL)
-	{
-		header_data = header_cell->data;
-
-		if (strncmp(key_option, header_data, strlen(key_option)) == 0)
-		{
-			elog(DEBUG2, "PxfCurlHeadersOverride: Found existing header %s with key %s (for new value %s)",
-				 header_data, key_option, value);
-			break;
-		}
-		header_cell = header_cell->next;
-	}
-
-	if (header_cell != NULL)	/* found key */
-	{
-		char	   *new_data = BuildHeaderStr("%s: %s", key, value);
-		char	   *old_data = header_cell->data;
-
-		header_cell->data = strdup(new_data);
-		elog(DEBUG4, "PxfCurlHeadersOverride: new data: %s, old data: %s", new_data, old_data);
-		free(old_data);
-		pfree(new_data);
-	}
-	else
-	{
-		PxfCurlHeadersAppend(headers, key, value);
-	}
-
-	pfree(key_option);
-}
-
-void
-PxfCurlHeadersRemove(PXF_CURL_HEADERS headers, const char *key, bool has_value)
-{
-
-	churl_settings *settings = (churl_settings *) headers;
-	struct curl_slist *to_del_cell = settings->headers;
-	struct curl_slist *prev_cell = NULL;
-	char	   *key_option = NULL;
-	char	   *header_data = NULL;
-
-	/* key must not be empty */
-	Assert(key != NULL);
-
-	/* key to compare with in the headers */
-	key_option = BuildHeaderStr("%s:%s", key, has_value ? "" : NULL);
-
-	/* find key in headers list */
-	while (to_del_cell != NULL)
-	{
-
-		header_data = to_del_cell->data;
-
-		if (strncmp(key_option, header_data, strlen(key_option)) == 0)
-		{
-			elog(DEBUG2, "PxfCurlHeadersRemove: Found existing header %s with key %s",
-				 header_data, key_option);
-			break;
-		}
-		prev_cell = to_del_cell;
-		to_del_cell = to_del_cell->next;
-	}
-
-	if (to_del_cell != NULL)	/* found key */
-	{
-		/* skip this cell */
-		if (prev_cell != NULL)
-		{
-			/* not the header */
-			prev_cell->next = to_del_cell->next;
-		}
-		else
-		{
-			/* remove header - make the next cell header now */
-			settings->headers = to_del_cell->next;
-		}
-
-		/* remove header data and cell */
-		if (to_del_cell->data)
-			free(to_del_cell->data);
-		free(to_del_cell);
-	}
-	else
-	{
-		elog(DEBUG2, "PxfCurlHeadersRemove: No header with key %s to remove",
-			 key_option);
-	}
-
-	pfree(key_option);
 }
 
 void
@@ -408,7 +300,7 @@ PxfCurlInit(const char *url, PXF_CURL_HEADERS headers, PxfSSLOptions *ssl_option
 
 			if (!FileExistsAndCanRead(ssl_options->client_cert_path))
 				ereport(ERROR,
-					(errcode(errcode_for_file_access()),
+					(errcode_for_file_access(),
 						errmsg("could not open client certificate file \"%s\": %m", ssl_options->client_cert_path)));
 
 			SetCurlOption(context, CURLOPT_SSLCERT, ssl_options->client_cert_path);
@@ -427,7 +319,7 @@ PxfCurlInit(const char *url, PXF_CURL_HEADERS headers, PxfSSLOptions *ssl_option
 
 			if (!FileExistsAndCanRead(ssl_options->private_key_path))
 				ereport(ERROR,
-					(errcode(errcode_for_file_access()),
+					(errcode_for_file_access(),
 						errmsg("could not open private key file \"%s\": %m", ssl_options->private_key_path)));
 
 			SetCurlOption(context, CURLOPT_SSLKEY, ssl_options->private_key_path);
@@ -440,7 +332,7 @@ PxfCurlInit(const char *url, PXF_CURL_HEADERS headers, PxfSSLOptions *ssl_option
 
 			if (!FileExistsAndCanRead(ssl_options->trusted_ca_path))
 				ereport(ERROR,
-					(errcode(errcode_for_file_access()),
+					(errcode_for_file_access(),
 						errmsg("could not open trusted certificate authorities file \"%s\": %m", ssl_options->trusted_ca_path)));
 
 			SetCurlOption(context, CURLOPT_CAINFO, ssl_options->trusted_ca_path);
@@ -477,7 +369,7 @@ PxfCurlInitUpload(const char *url, PXF_CURL_HEADERS headers, PxfSSLOptions *ssl_
 
 	context->upload = true;
 
-	SetCurlOption(context, CURLOPT_POST, (const void *) TRUE);
+	SetCurlOption(context, CURLOPT_POST, (const void *) true);
 	SetCurlOption(context, CURLOPT_READFUNCTION, ReadCallback);
 	SetCurlOption(context, CURLOPT_READDATA, context);
 	PxfCurlHeadersAppend(headers, "Content-Type", "application/octet-stream");
@@ -499,27 +391,6 @@ PxfCurlInitDownload(const char *url, PXF_CURL_HEADERS headers, PxfSSLOptions *ss
 	PxfPrintHttpHeaders(headers);
 	SetupMultiHandle(context);
 	return (PXF_CURL_HANDLE) context;
-}
-
-void
-PxfCurlDownloadRestart(PXF_CURL_HANDLE handle, const char *url, PXF_CURL_HEADERS headers)
-{
-	curl_context *context = (curl_context *) handle;
-
-	Assert(!context->upload);
-
-	/* halt current transfer */
-	MultiRemoveHandle(context);
-
-	/* set a new url */
-	SetCurlOption(context, CURLOPT_URL, url);
-
-	/* set headers again */
-	if (headers)
-		CurlHeadersSet(context, headers);
-
-	/* restart */
-	SetupMultiHandle(context);
 }
 
 /*
@@ -566,7 +437,7 @@ PxfCurlReadCheckConnectivity(PXF_CURL_HANDLE handle)
 size_t
 PxfCurlRead(PXF_CURL_HANDLE handle, char *buf, size_t max_size)
 {
-	int			n = 0;
+	int			n;
 	curl_context *context = (curl_context *) handle;
 	curl_buffer *context_buffer = context->download_buffer;
 
@@ -737,11 +608,11 @@ FlushInternalBuffer(curl_context *context)
 		MultiPerform(context);
 	}
 
+	CheckResponse(context);
+
 	if ((context->curl_still_running == 0) &&
 		((context_buffer->top - context_buffer->bot) > 0))
 		elog(ERROR, "failed sending to remote component %s", GetDestAddress(context->curl_handle));
-
-	CheckResponse(context);
 
 	context_buffer->top = 0;
 	context_buffer->bot = 0;
@@ -889,7 +760,10 @@ FillInternalBuffer(curl_context *context, int want)
 	fd_set		fdwrite;
 	fd_set		fdexcep;
 	struct		timeval timeout;
-	int		maxfd, nfds, curl_error, timeout_count = 0;
+	int			maxfd;
+	int			nfds;
+	int			curl_error;
+	int			timeout_count = 0;
 	long		curl_timeo = -1;
 
 	/* attempt to fill buffer */
@@ -933,13 +807,15 @@ FillInternalBuffer(curl_context *context, int want)
 		}
 		else if ((nfds = select(maxfd+1, &fdread, &fdwrite, &fdexcep, &timeout)) == -1)
 		{
+			int save_errno = errno;
 			if (errno == EINTR || errno == EAGAIN)
 			{
-				elog(DEBUG2, "select failed on curl_multi_fdset (maxfd %d) (%d - %s)", maxfd, errno, strerror(errno));
+				elog(DEBUG2, "select failed on curl_multi_fdset (maxfd %d) (%d - %s)", maxfd,
+					 save_errno, strerror(save_errno));
 				continue;
 			}
 			elog(ERROR, "internal error: select failed on curl_multi_fdset (maxfd %d) (%d - %s)",
-				 maxfd, errno, strerror(errno));
+				 maxfd, save_errno, strerror(save_errno));
 		}
 		else if (nfds == 0)
 		{
@@ -1002,11 +878,19 @@ CheckResponseStatus(curl_context *context)
 			continue;
 		if (CURLE_OK != (status = msg->data.result))
 		{
+			char	   *addr = GetDestAddress(msg->easy_handle);
 			StringInfoData err;
+
 			initStringInfo(&err);
+
 			appendStringInfo(&err, "transfer error (%ld): %s",
 							 status, curl_easy_strerror(status));
 
+			if (addr)
+			{
+				appendStringInfo(&err, " from %s", addr);
+				pfree(addr);
+			}
 			elog(ERROR, "%s", err.data);
 		}
 		elog(DEBUG2, "CheckResponseStatus: msg %d done with status OK", i++);
@@ -1021,8 +905,8 @@ static void
 CheckResponseCode(curl_context *context)
 {
 	long		response_code;
-	char		*response_text = NULL;
-	int		curl_error;
+	char	   *response_text = NULL;
+	int			curl_error;
 
 	if (CURLE_OK != (curl_error = curl_easy_getinfo(context->curl_handle, CURLINFO_RESPONSE_CODE, &response_code)))
 	{
@@ -1038,7 +922,8 @@ CheckResponseCode(curl_context *context)
 	else if (response_code != 200 && response_code != 100)
 	{
 		StringInfoData err;
-		char	   *http_error_msg,
+		char	   *hint_msg = NULL,
+				   *http_error_msg,
 				   *trace_msg = NULL;
 
 		initStringInfo(&err);
@@ -1050,8 +935,12 @@ CheckResponseCode(curl_context *context)
 			response_text = context->download_buffer->ptr + context->download_buffer->bot;
 		}
 
-		/* add remote http error code */
-		appendStringInfo(&err, "PXF server error (%ld)", response_code);
+		appendStringInfo(&err, "PXF server error");
+		if ((LOG >= log_min_messages) || (LOG >= client_min_messages))
+		{
+			/* add remote http error code */
+			appendStringInfo(&err, "(%ld)", response_code);
+		}
 
 		if (!HandleSpecialError(response_code, &err))
 		{
@@ -1060,24 +949,38 @@ CheckResponseCode(curl_context *context)
 			 * response_text could be NULL in some cases. GetHttpErrorMsg
 			 * checks for that.
 			 */
-			http_error_msg = GetHttpErrorMsg(response_code, response_text, context->curl_error_buffer, &trace_msg);
+			http_error_msg = GetHttpErrorMsg(response_code, response_text, context->curl_error_buffer, &hint_msg, &trace_msg);
 
 			appendStringInfo(&err, ": %s", http_error_msg);
 		}
 
-		if (trace_msg != NULL)
+		if (trace_msg != NULL && hint_msg != NULL)
 		{
 			ereport(ERROR,
-				(errcode(ERRCODE_FDW_ERROR),
+				(errcode(ERRCODE_CONNECTION_EXCEPTION),
 				errmsg("%s", err.data),
-				errhint("%s", trace_msg)));
+				errdetail("%s", trace_msg),
+				errhint("%s", hint_msg)));
+		}
+		else if (trace_msg != NULL)
+		{
+			ereport(ERROR,
+				(errcode(ERRCODE_CONNECTION_EXCEPTION),
+				errmsg("%s", err.data),
+				errdetail("%s", trace_msg)));
+		}
+		else if (hint_msg != NULL)
+		{
+			ereport(ERROR,
+				(errcode(ERRCODE_CONNECTION_EXCEPTION),
+				errmsg("%s", err.data),
+				errhint("%s", hint_msg)));
 		}
 		else
 		{
 			ereport(ERROR,
-				(errcode(ERRCODE_FDW_ERROR),
-				errmsg("%s", err.data),
-				errhint("Check the PXF logs located in the '$PXF_CONF/logs' directory or 'set client_min_messages=DEBUG1' for additional details")));
+				(errcode(ERRCODE_CONNECTION_EXCEPTION),
+				errmsg("%s", err.data)));
 		}
 	}
 
@@ -1085,113 +988,8 @@ CheckResponseCode(curl_context *context)
 }
 
 /*
- * Extracts the error message from the full HTTP response
- * We test for several conditions in the http_ret_code and the HTTP response message.
- * The first condition that matches, defines the final message string and ends the function.
- * The layout of the HTTP response message is:
-
- {
-  "timestamp": "the server timestamp",
-  "status": status code int,
-  "error": "error description",
-  "message": "error message",
-  "trace": "the stack trace for the error",
-  "path": "uri for the request"
- }
-
- * We try to get the message and trace.
+ * Returns true if the provided json text is valid JSON, false otherwise
  */
-static char*
-GetHttpErrorMsg(long http_ret_code, char *msg, char *curl_error_buffer, char **trace_message)
-{
-	char	   *res,
-			   *fmessagestr = "message",
-			   *ftracestr = "trace";
-	text	   *error_text;
-	Datum		result;
-	StringInfoData errMsg;
-	FmgrInfo *json_object_field_text_fn;
-
-	initStringInfo(&errMsg);
-	*trace_message = NULL;
-
-	/*
-	 * 1. The server not listening on the port specified in the <create
-	 * external...> statement" In this case there is no Response from the
-	 * server, so we issue our own message
-	 */
-
-	if (http_ret_code == 0)
-	{
-		if (curl_error_buffer == NULL)
-			return "There is no PXF server listening on the host and port specified in the PXF configuration";
-		else
-			return curl_error_buffer;
-	}
-
-	/*
-	 * 2. There is a response from the server since the http_ret_code is not
-	 * 0, but there is no response message. This is an abnormal situation that
-	 * could be the result of a bug, libraries incompatibility or versioning
-	 * issue in the Rest server or our curl client. In this case we again
-	 * issue our own message.
-	 */
-	if (!msg || strlen(msg) == 0)
-	{
-		appendStringInfo(&errMsg, "HTTP status code is %ld but HTTP response string is empty", http_ret_code);
-		res = pstrdup(errMsg.data);
-		pfree(errMsg.data);
-		return res;
-	}
-
-	error_text = cstring_to_text(msg);
-
-	/*
-	 * 3. First make sure we have a valid JSON so we can extract the fields we
-	 * need for the error message. If we don't have a valid JSON just return
-	 * the raw error text.
-	 */
-	if (!IsValidJson(error_text))
-		return msg;
-
-	/*
-	 * 4. The "normal" case - There is an HTTP response and we parse the
-	 * json response fields "message" and "trace"
-	 */
-	json_object_field_text_fn = palloc(sizeof(FmgrInfo));
-
-	/* find the json_object_field_text function */
-	fmgr_info(F_JSON_OBJECT_FIELD_TEXT, json_object_field_text_fn);
-
-	if ((DEBUG1 >= log_min_messages) || (DEBUG1 >= client_min_messages))
-	{
-		/* get the "trace" field from the json error */
-		result = FunctionCall2(json_object_field_text_fn,
-			PointerGetDatum(error_text),
-			PointerGetDatum(cstring_to_text(ftracestr)));
-
-		if (DatumGetPointer(result) != NULL)
-			*trace_message = text_to_cstring(DatumGetTextP(result));
-	}
-
-	/* get the "message" field from the json error */
-	result = FunctionCall2(json_object_field_text_fn,
-		PointerGetDatum(error_text),
-		PointerGetDatum(cstring_to_text(fmessagestr)));
-
-	pfree(json_object_field_text_fn);
-
-	if (DatumGetPointer(result) != NULL)
-		return text_to_cstring(DatumGetTextP(result));
-
-	/*
-	 * 5. This is an unexpected situation. We received an error message from
-	 * the server but it does not have a "message" field. In this case we
-	 * return the error message we received as-is.
-	 */
-	return msg;
-}
-
 static bool
 IsValidJson(text *json)
 {
@@ -1213,6 +1011,136 @@ IsValidJson(text *json)
 	PG_END_TRY();
 
 	return is_valid_json;
+}
+
+/*
+ * Extracts the error message from the full HTTP response
+ * We test for several conditions in the http_ret_code and the HTTP response message.
+ * The first condition that matches, defines the final message string and ends the function.
+ * The layout of the HTTP response message is:
+
+ {
+  "timestamp": "the server timestamp",
+  "status": status code int,
+  "error": "error description",
+  "message": "error message",
+  "trace": "the stack trace for the error",
+  "path": "uri for the request",
+  "hint": "hint for the user"
+ }
+ */
+static char*
+GetHttpErrorMsg(long http_ret_code, char *msg, char *curl_error_buffer, char **hint_message, char **trace_message)
+{
+	char	   *end,
+			   *ret,
+			   *fmessagestr = "message",
+			   *ftracestr = "trace",
+			   *fhintstr = "hint";
+
+	text	   *error_text;
+	Datum		result;
+	StringInfoData errMsg;
+	FmgrInfo *json_object_field_text_fn;
+
+	initStringInfo(&errMsg);
+
+	/*
+	 * 1. The server not listening on the port specified in the <create
+	 * external...> statement" In this case there is no Response from the
+	 * server, so we issue our own message
+	 */
+
+	if (http_ret_code == 0)
+	{
+		*hint_message = "Use the 'pxf [cluster] start' command to start the PXF service.";
+		if (curl_error_buffer == NULL)
+			return "There is no PXF service listening on the PXF host and port";
+		else
+		{
+			return curl_error_buffer;
+		}
+	}
+
+	/*
+	 * 2. There is a response from the server since the http_ret_code is not
+	 * 0, but there is no response message. This is an abnormal situation that
+	 * could be the result of a bug, libraries incompatibility or versioning
+	 * issue in the Rest server or our curl client. In this case we again
+	 * issue our own message.
+	 */
+	if (!msg || strlen(msg) == 0)
+	{
+		appendStringInfo(&errMsg, "HTTP status code is %ld but HTTP response string is empty", http_ret_code);
+		ret = pstrdup(errMsg.data);
+		pfree(errMsg.data);
+		return ret;
+	}
+
+	error_text = cstring_to_text(msg);
+
+	/*
+	 * 3. First make sure we have a valid JSON so we can extract the fields we
+	 * need for the error message. If we don't have a valid JSON just return
+	 * the raw error text.
+	 */
+	if (!IsValidJson(error_text))
+		return msg;
+
+	/*
+	 * 4. The "normal" case - There is an HTTP response and we parse the
+	 * json response fields "message" and "trace"
+	 */
+	json_object_field_text_fn = palloc(sizeof(FmgrInfo));
+
+	/* find the json_object_field_text function */
+	fmgr_info(F_JSON_OBJECT_FIELD_TEXT, json_object_field_text_fn);
+
+	if ((LOG >= log_min_messages) || (LOG >= client_min_messages))
+	{
+		/* get the "trace" field from the json error */
+		result = FunctionCall2(json_object_field_text_fn,
+			PointerGetDatum(error_text),
+			PointerGetDatum(cstring_to_text(ftracestr)));
+
+		if (DatumGetPointer(result) != NULL)
+			*trace_message = text_to_cstring(DatumGetTextP(result));
+	}
+
+	/* get the "hint" field from the json error */
+	result = FunctionCall2(json_object_field_text_fn,
+		PointerGetDatum(error_text),
+		PointerGetDatum(cstring_to_text(fhintstr)));
+
+	if (DatumGetPointer(result) != NULL)
+		*hint_message = text_to_cstring(DatumGetTextP(result));
+
+	/* get the "message" field from the json error */
+	result = FunctionCall2(json_object_field_text_fn,
+		PointerGetDatum(error_text),
+		PointerGetDatum(cstring_to_text(fmessagestr)));
+
+	pfree(json_object_field_text_fn);
+
+	if (DatumGetPointer(result) != NULL)
+	{
+		char* parsed_message = text_to_cstring(DatumGetTextP(result));
+
+		end = strstr(parsed_message, "\n");
+		if (end != NULL)
+		{
+			ret = pnstrdup(parsed_message, end - parsed_message);
+			return ret;
+		}
+		return parsed_message;
+	}
+
+	/*
+	 * 5. This is an unexpected situation. We received an error message from
+	 * the server but it does not have a "message" field. In this case we
+	 * return the error message we received as-is.
+	 */
+	return msg;
 }
 
 static void

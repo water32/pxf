@@ -546,7 +546,8 @@ pxfExplainForeignScan(ForeignScanState *node, ExplainState *es)
 			foreach_with_count(lc1, retrieved_attrs, counter)
 			{
 				int attno = lfirst_int(lc1);
-				colname = NameStr(tupdesc->attrs[attno - 1]->attname);
+				Form_pg_attribute attr = TupleDescAttr(tupdesc, attno);
+				colname = NameStr(attr->attname);
 				appendStringInfo(&columnProjection, "%s", colname);
 				if (counter < retrieved_attrs_length - 1) {
 					appendStringInfo(&columnProjection, ", ");

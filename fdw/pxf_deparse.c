@@ -14,7 +14,7 @@
 #include "postgres.h"
 
 #include "pxf_fdw.h"
-#include "optimizer/clauses.h"
+#include "optimizer/optimizer.h"
 
 
 /*
@@ -131,6 +131,7 @@ IsForeignExpr(PlannerInfo *root,
 	 */
 	glob_cxt.root = root;
 	glob_cxt.foreignrel = baserel;
+
 	loc_cxt.collation = InvalidOid;
 	loc_cxt.state = FDW_COLLATE_NONE;
 	if (!ForeignExprWalker((Node *) expr, &glob_cxt, &loc_cxt))
@@ -175,8 +176,6 @@ ForeignExprWalker(Node *node,
 				  foreign_loc_cxt *outer_cxt)
 {
 	foreign_loc_cxt inner_cxt;
-	Oid			collation;
-	FDWCollateState state;
 
 	/* Need do nothing for empty subexpressions */
 	if (node == NULL)
@@ -249,10 +248,10 @@ ForeignExprWalker(Node *node,
 				 * subscripts must yield (noncollatable) integers, they won't
 				 * affect the inner_cxt state.
 				 */
-				if (!foreign_expr_walker((Node *) sbref->refupperindexpr,
+				if (!ForeignExprWalker((Node *) sbref->refupperindexpr,
 										 glob_cxt, &inner_cxt))
 					return false;
-				if (!foreign_expr_walker((Node *) sbref->reflowerindexpr,
+				if (!ForeignExprWalker((Node *) sbref->reflowerindexpr,
 										 glob_cxt, &inner_cxt))
 					return false;
 				if (!ForeignExprWalker((Node *) sbref->refexpr,
