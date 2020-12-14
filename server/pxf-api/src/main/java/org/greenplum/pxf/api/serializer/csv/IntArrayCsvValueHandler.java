@@ -1,12 +1,12 @@
 package org.greenplum.pxf.api.serializer.csv;
 
-import java.io.DataOutputStream;
+import java.io.DataOutput;
 import java.io.IOException;
 
 public class IntArrayCsvValueHandler extends BaseCsvValueHandler<int[]> {
 
     @Override
-    protected void internalHandle(DataOutputStream buffer, int[] value) throws IOException {
+    protected void internalHandle(DataOutput buffer, int[] value) throws IOException {
 
         writeString(buffer, "{");
         for (int i = 0; i < value.length; i++) {

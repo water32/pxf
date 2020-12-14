@@ -18,6 +18,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MultiValueMap;
 
+import java.util.Collection;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -36,13 +37,14 @@ public class QuerySessionManager {
 
     private static final long EXPIRE_AFTER_ACCESS_DURATION_MILLIS = 5;
 
-    private final ApplicationContext applicationContext;
     private final Cache<String, QuerySession> querySessionCache;
     private final ConfigurationFactory configurationFactory;
     private final Logger LOG = LoggerFactory.getLogger(this.getClass());
     private final RequestParser<MultiValueMap<String, String>> parser;
     private final Executor producerTaskExecutor;
     private final Executor tupleTaskExecutor;
+    @SuppressWarnings("rawtypes")
+    private final Collection<Processor> registeredProcessors;
 
     /**
      * Initializes a QuerySessionManager with auto-wired components
@@ -64,11 +66,11 @@ public class QuerySessionManager {
                                 notification.getCause().toString()))
                 .build();
 
-        this.applicationContext = applicationContext;
         this.configurationFactory = configurationFactory;
         this.parser = parser;
         this.producerTaskExecutor = (Executor) beanFactory.getBean(PXF_PRODUCER_TASK_EXECUTOR);
         this.tupleTaskExecutor = (Executor) beanFactory.getBean(PXF_TUPLE_TASK_EXECUTOR);
+        this.registeredProcessors = applicationContext.getBeansOfType(Processor.class).values();
     }
 
     /**
@@ -152,9 +154,8 @@ public class QuerySessionManager {
      * @return the processor that can handle the request
      */
     public Processor<?> getProcessor(RequestContext context) {
-        return (Processor<?>) applicationContext
-                .getBeansOfType(Processor.class)
-                .values().stream()
+        return (Processor<?>) registeredProcessors
+                .stream()
                 .filter(p -> p.canProcessRequest(context))
                 .findFirst()
                 .orElseThrow(() -> {

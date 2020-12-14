@@ -27,6 +27,7 @@ public class BinarySerializer extends BaseSerializer {
 
     @Override
     public void startField() {
+        // DO NOTHING
     }
 
     @Override
@@ -36,10 +37,12 @@ public class BinarySerializer extends BaseSerializer {
 
     @Override
     public void endField() {
+        // DO NOTHING
     }
 
     @Override
     public void endRow() {
+        // DO NOTHING
     }
 
     @Override

@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 
 public class BinaryValueHandlerProvider implements ValueHandlerProvider {
 
+    @SuppressWarnings("rawtypes")
     private final Map<DataType, ValueHandler> valueHandlers;
 
     public BinaryValueHandlerProvider() {

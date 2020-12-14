@@ -1,6 +1,6 @@
 package org.greenplum.pxf.api.serializer.binary;
 
-import java.io.DataOutputStream;
+import java.io.DataOutput;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -20,7 +20,7 @@ public class BigDecimalValueHandler extends BaseBinaryValueHandler<Object> {
     protected static final BigInteger TEN_THOUSAND = new BigInteger("10000");
 
     @Override
-    protected void internalHandle(DataOutputStream buffer, final Object value) throws IOException {
+    protected void internalHandle(DataOutput buffer, final Object value) throws IOException {
 
         BigDecimal tmpValue;
         if (value instanceof Number) {
@@ -29,7 +29,7 @@ public class BigDecimalValueHandler extends BaseBinaryValueHandler<Object> {
             tmpValue = new BigDecimal((String) value);
         } else {
             throw new IllegalArgumentException(
-                String.format("Unable to convert value '%s' of type '%s' to BigDecimal", value, value.getClass().getName()));
+                    String.format("Unable to convert value '%s' of type '%s' to BigDecimal", value, value.getClass().getName()));
         }
 
         BigInteger unscaledValue = tmpValue.unscaledValue();

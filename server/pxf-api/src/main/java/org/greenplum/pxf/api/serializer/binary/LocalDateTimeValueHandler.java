@@ -4,7 +4,7 @@ import org.greenplum.pxf.api.GreenplumDateTime;
 import org.greenplum.pxf.api.serializer.converter.LocalDateTimeConverter;
 import org.greenplum.pxf.api.serializer.converter.ValueConverter;
 
-import java.io.DataOutputStream;
+import java.io.DataOutput;
 import java.io.IOException;
 import java.time.LocalDateTime;
 
@@ -22,7 +22,7 @@ public class LocalDateTimeValueHandler extends BaseBinaryValueHandler<Object> {
     }
 
     @Override
-    protected void internalHandle(DataOutputStream buffer, final Object value) throws IOException {
+    protected void internalHandle(DataOutput buffer, final Object value) throws IOException {
         buffer.writeInt(8);
 
         LocalDateTime localDateTime;

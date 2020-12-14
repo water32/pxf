@@ -129,7 +129,7 @@ public class PxfConfiguration implements WebMvcConfigurer {
         builder = builder.corePoolSize(8);
         builder = builder.allowCoreThreadTimeOut(false);
         builder = builder.keepAlive(Duration.ofSeconds(60));
-        builder = builder.threadNamePrefix("pxf-tuple-");
+        builder = builder.threadNamePrefix("pxf-task-executor-");
         return builder.build();
     }
 }

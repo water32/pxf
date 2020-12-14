@@ -43,8 +43,8 @@ public class ProducerTask implements Runnable {
     @Override
     public void run() {
         try {
-            int segmentCount = 0,
-                    totalSegments = querySession.getContext().getTotalSegments();
+            int segmentCount = 0;
+            int totalSegments = querySession.getContext().getTotalSegments();
             Integer segmentId;
 
             // Materialize the list of splits
@@ -54,7 +54,7 @@ public class ProducerTask implements Runnable {
             BlockingDeque<Integer> registeredSegmentQueue = querySession.getRegisteredSegmentQueue();
 
             while (querySession.isActive()) {
-                segmentId = registeredSegmentQueue.poll(10, TimeUnit.MILLISECONDS);
+                segmentId = registeredSegmentQueue.poll(1, TimeUnit.MILLISECONDS);
                 if (segmentId == null) {
                     if (segmentCount > 0) {
                         break;

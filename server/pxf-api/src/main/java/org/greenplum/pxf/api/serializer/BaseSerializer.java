@@ -1,6 +1,5 @@
 package org.greenplum.pxf.api.serializer;
 
-import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -11,7 +10,7 @@ public abstract class BaseSerializer implements Serializer, AutoCloseable {
 
     @Override
     public void open(final OutputStream out) throws IOException {
-        buffer = new DataOutputStream(new BufferedOutputStream(out));
+        buffer = new DataOutputStream(out);
     }
 
     @Override

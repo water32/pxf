@@ -2,13 +2,13 @@ package org.greenplum.pxf.api.serializer.binary;
 
 import org.greenplum.pxf.api.serializer.ValueHandler;
 
-import java.io.DataOutputStream;
+import java.io.DataOutput;
 import java.io.IOException;
 
 public abstract class BaseBinaryValueHandler<T> implements ValueHandler<T> {
 
     @Override
-    public void handle(DataOutputStream buffer, final T value) throws IOException {
+    public void handle(DataOutput buffer, final T value) throws IOException {
         if (value == null) {
             buffer.writeInt(-1);
         } else {
@@ -16,5 +16,5 @@ public abstract class BaseBinaryValueHandler<T> implements ValueHandler<T> {
         }
     }
 
-    protected abstract void internalHandle(DataOutputStream buffer, final T value) throws IOException;
+    protected abstract void internalHandle(DataOutput buffer, final T value) throws IOException;
 }

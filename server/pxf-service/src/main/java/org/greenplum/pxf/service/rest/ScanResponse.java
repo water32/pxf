@@ -21,7 +21,6 @@ import java.util.concurrent.TimeUnit;
 public class ScanResponse implements StreamingResponseBody {
 
     private static final Logger LOG = LoggerFactory.getLogger(ScanResponse.class);
-    private static final Serializer BINARY_SERIALIZER = new BinarySerializer();
 
     private final QuerySession querySession;
     private final RequestContext context;
@@ -44,14 +43,25 @@ public class ScanResponse implements StreamingResponseBody {
 
         int recordCount = 0;
         BlockingDeque<List<List<Object>>> outputQueue = querySession.getOutputQueue();
+        List<ColumnDescriptor> columnDescriptors = this.columnDescriptors;
         try {
             Serializer serializer = getSerializer();
             serializer.open(output);
 
             while (querySession.isActive()) {
-                List<List<Object>> batch = outputQueue.poll(100, TimeUnit.MILLISECONDS);
+                List<List<Object>> batch = outputQueue.poll(10, TimeUnit.MILLISECONDS);
                 if (batch != null) {
-                    serializeTupleBatch(serializer, batch);
+                    for (List<Object> tuple : batch) {
+                        serializer.startRow(columnDescriptors.size());
+                        for (int i = 0; i < columnDescriptors.size(); i++) {
+                            ColumnDescriptor columnDescriptor = columnDescriptors.get(i);
+                            Object field = tuple.get(i);
+                            serializer.startField();
+                            serializer.writeField(columnDescriptor.getDataType(), field);
+                            serializer.endField();
+                        }
+                        serializer.endRow();
+                    }
                     recordCount += batch.size();
                 } else if (querySession.hasFinishedProducing()
                         && (querySession.getCompletedTaskCount() == querySession.getCreatedTaskCount())
@@ -99,28 +109,6 @@ public class ScanResponse implements StreamingResponseBody {
     }
 
     /**
-     * Serializes the batch of tuples to the output stream
-     *
-     * @param serializer the serializer for this request
-     * @param batch      the batch of tuples
-     * @throws IOException when a serialization error occurs
-     */
-    private void serializeTupleBatch(Serializer serializer, List<List<Object>> batch) throws IOException {
-        List<ColumnDescriptor> columnDescriptors = this.columnDescriptors;
-        for (List<Object> fields : batch) {
-            serializer.startRow(columnDescriptors.size());
-            for (int i = 0; i < columnDescriptors.size(); i++) {
-                ColumnDescriptor columnDescriptor = columnDescriptors.get(i);
-                Object field = fields.get(i);
-                serializer.startField();
-                serializer.writeField(columnDescriptor.getDataType(), field);
-                serializer.endField();
-            }
-            serializer.endRow();
-        }
-    }
-
-    /**
      * Returns the on-the-wire serializer
      *
      * @return the serializer
@@ -130,7 +118,7 @@ public class ScanResponse implements StreamingResponseBody {
             case TEXT:
                 return new CsvSerializer(context.getGreenplumCSV());
             case Binary:
-                return BINARY_SERIALIZER;
+                return new BinarySerializer();
             default:
                 throw new UnsupportedOperationException(
                         String.format("The output format '%s' is not supported", context.getOutputFormat()));
