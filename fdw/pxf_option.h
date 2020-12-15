@@ -20,10 +20,6 @@
 #define PXF_FDW_DEFAULT_PORT     5888
 #define PXF_FDW_SECURE_PROTOCOL  "https"
 
-extern char	   *pxf_host_guc_value;
-extern int		pxf_port_guc_value;
-extern char	   *pxf_protocol_guc_value;
-
 /*
  * Structure to store the PXF options
  */

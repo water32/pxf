@@ -641,14 +641,22 @@ PxfGetOptions(Oid foreigntableid)
 	opt->exec_location = table->exec_location;
 
 	/* Set defaults when not provided */
-	if (!opt->pxf_host)
-		opt->pxf_host = pxf_host_guc_value;
+	if (!opt->pxf_host || !opt->pxf_port || !opt->pxf_protocol)
+	{
+		const char *search_query =
+				"SELECT pxf_host, pxf_port, pxf_protocol "
+				"FROM pxf_config "
+				"WHERE segment_id = $1";
 
-	if (!opt->pxf_port)
-		opt->pxf_port = pxf_port_guc_value;
+		if (!opt->pxf_host)
+			opt->pxf_host = pxf_host_guc_value;
 
-	if (!opt->pxf_protocol)
-		opt->pxf_protocol = pxf_protocol_guc_value;
+		if (!opt->pxf_port)
+			opt->pxf_port = pxf_port_guc_value;
+
+		if (!opt->pxf_protocol)
+			opt->pxf_protocol = pxf_protocol_guc_value;
+	}
 
 	if (pg_strcasecmp(opt->pxf_protocol, PXF_FDW_SECURE_PROTOCOL) == 0)
 	{

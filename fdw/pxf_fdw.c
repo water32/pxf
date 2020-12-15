@@ -118,10 +118,6 @@ PG_FUNCTION_INFO_V1(pxf_fdw_handler);
 PG_FUNCTION_INFO_V1(pxf_fdw_validator);
 PG_FUNCTION_INFO_V1(pxf_fdw_version);
 
-char	*pxf_host_guc_value = PXF_FDW_DEFAULT_HOST;
-int		pxf_port_guc_value = PXF_FDW_DEFAULT_PORT;
-char	*pxf_protocol_guc_value = PXF_FDW_DEFAULT_PROTOCOL;
-
 /*
  * FDW functions declarations
  */
@@ -264,67 +260,6 @@ pxf_fdw_version(PG_FUNCTION_ARGS)
 	heap_close(extRel, NoLock);
 
 	PG_RETURN_TEXT_P(versionName);
-}
-
-/*
- * _PG_init
- * 		Library load-time initialization.
- * 		Defines custom variables for pxf_host, pxf_port and pxf_protocol.
- */
-void
-_PG_init(void)
-{
-	/* pxf_fdw.so must be in shared_preload_libraries for guc integration. */
-	if (!process_shared_preload_libraries_in_progress && Gp_role == GP_ROLE_DISPATCH)
-		ereport(NOTICE,
-			(errcode(ERRCODE_GP_FEATURE_NOT_CONFIGURED),
-			errmsg("It is too late to load pxf_fdw.so. Add pxf_fdw into 'shared_preload_libraries' for additional functionality from pxf_fdw."),
-			errhint("gpconfig -c shared_preload_libraries -v 'pxf_fdw' and reload Greenplum configuration")));
-
-	/*
-	 * Since pxf_fdw brings multiple FDWs (hdfs_pxf_fdw, s3_pxf_fdw,
-	 * jdbc_pxf_fdw, etc.), we define GUCs as an alternative to having to
-	 * ALTER FOREIGN DATA WRAPPER demo_pxf_fdw OPTIONS ( ADD pxf_port '8080')
-	 * for example. Users would need to ALTER all pxf_fdws. GUCs are an
-	 * alternative that will work across all pxf_fdws. Individual pxf_fdws can
-	 * still override these values by issuing ALTER commands.
-	 */
-
-	/* get the configuration */
-	DefineCustomStringVariable("pxf_fdw.pxf_host",
-							"the hostname where the PXF Server process is running",
-							NULL,
-							&pxf_host_guc_value,
-							PXF_FDW_DEFAULT_HOST,
-							PGC_SIGHUP,
-							0,
-							NULL,
-							NULL,
-							NULL);
-
-	DefineCustomIntVariable("pxf_fdw.pxf_port",
-							"the port number where the PXF Server process is running",
-							NULL,
-							&pxf_port_guc_value,
-							PXF_FDW_DEFAULT_PORT,
-							0,
-							65535,
-							PGC_SIGHUP,
-							0,
-							NULL,
-							NULL,
-							NULL);
-
-	DefineCustomStringVariable("pxf_fdw.pxf_protocol",
-							"the transport protocol for the PXF Server (either 'http' or 'https')",
-							NULL,
-							&pxf_protocol_guc_value,
-							PXF_FDW_DEFAULT_PROTOCOL,
-							PGC_SIGHUP,
-							0,
-							IsValidPxfProtocolValue,
-							NULL,
-							NULL);
 }
 
 /*
