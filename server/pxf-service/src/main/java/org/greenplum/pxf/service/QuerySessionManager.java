@@ -28,9 +28,10 @@ import static org.greenplum.pxf.service.PxfConfiguration.PXF_PRODUCER_TASK_EXECU
 import static org.greenplum.pxf.service.PxfConfiguration.PXF_TUPLE_TASK_EXECUTOR;
 
 /**
- * The {@code QuerySessionManager} manages {@code QuerySession} objects.
- * This includes the initialization and caching of {@code QuerySession}
- * objects.
+ * The {@code QuerySessionManager} manages {@link QuerySession} objects.
+ * This includes the initialization and caching of {@link QuerySession}
+ * objects. It is also in charge of scheduling {@link ProducerTask} jobs
+ * for newly created {@link QuerySession} objects.
  */
 @Service
 public class QuerySessionManager {
@@ -83,6 +84,9 @@ public class QuerySessionManager {
     public QuerySession get(final MultiValueMap<String, String> headers)
             throws Throwable {
 
+        // TODO: should we do minimal parsing? we only need server name, xid,
+        //       resource, filter string and segment ID. Minimal parsing can
+        //       improve the query performance marginally
         final RequestContext context = parser.parseRequest(headers, SCAN_CONTROLLER);
         final String cacheKey = String.format("%s:%s:%s:%s",
                 context.getServerName(), context.getTransactionId(),
@@ -90,6 +94,9 @@ public class QuerySessionManager {
         final int segmentId = context.getSegmentId();
 
         try {
+            // Lookup the querySession from the cache, if the querySession
+            // is not in the cache, it will be initialized and a
+            // ProducerTask will be scheduled for the new querySession.
             QuerySession querySession = querySessionCache
                     .get(cacheKey, () -> {
                         LOG.debug("Caching querySession for key={} from segmentId={}",
@@ -159,11 +166,9 @@ public class QuerySessionManager {
                 .filter(p -> p.canProcessRequest(context))
                 .findFirst()
                 .orElseThrow(() -> {
-                    String errorMessage;
-                    if (StringUtils.isBlank(context.getFormat())) {
-                        errorMessage = String.format("There are no registered processors to handle the '%s' protocol", context.getProtocol());
-                    } else {
-                        errorMessage = String.format("There are no registered processors to handle the '%s' protocol and '%s' format", context.getProtocol(), context.getFormat());
+                    String errorMessage = String.format("There are no registered processors to handle the '%s' protocol", context.getProtocol());
+                    if (StringUtils.isNotBlank(context.getFormat())) {
+                        errorMessage += String.format(" and '%s' format", context.getFormat());
                     }
                     return new IllegalArgumentException(errorMessage);
                 });

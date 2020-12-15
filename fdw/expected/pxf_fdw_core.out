@@ -12,9 +12,9 @@ CREATE EXTENSION pxf_fdw;
 -- Checks the PXF version
 --
 SELECT pxf_fdw_version();
-  pxf_fdw_version  
--------------------
- 1.0.0-DEVELOPMENT
+ pxf_fdw_version 
+-----------------
+ 1.0
 (1 row)
 
 -- ===================================================================

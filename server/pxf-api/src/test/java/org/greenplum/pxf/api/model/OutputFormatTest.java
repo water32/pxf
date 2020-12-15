@@ -3,32 +3,40 @@ package org.greenplum.pxf.api.model;
 import org.greenplum.pxf.api.error.UnsupportedTypeException;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class OutputFormatTest {
 
     @Test
-    public void testUnsupportedOutputFormat() {
+    void testUnsupportedOutputFormat() {
         Exception e = assertThrows(UnsupportedTypeException.class,
                 () -> OutputFormat.getOutputFormat("foo"));
-        assertEquals("Unable to find output format by given class name: foo", e.getMessage());
+        assertThat(e.getMessage()).isEqualTo("Unable to find output format by given class name: foo");
     }
 
     @Test
-    public void testGetTextOutputFormat() {
-        OutputFormat format = OutputFormat.getOutputFormat("org.greenplum.pxf.api.io.Text");
-        assertEquals(OutputFormat.TEXT, format);
-        assertEquals("TEXT", format.name());
-        assertEquals("org.greenplum.pxf.api.io.Text", format.getClassName());
+    void testGetTextOutputFormat() {
+        OutputFormat actual = OutputFormat.getOutputFormat("org.greenplum.pxf.api.io.Text");
+        assertThat(actual).isEqualTo(OutputFormat.TEXT);
+        assertThat(actual.name()).isEqualTo("TEXT");
+        assertThat(actual.getClassName()).isEqualTo("org.greenplum.pxf.api.io.Text");
     }
 
     @Test
-    public void testGetGPDBWritableOutputFormat() {
-        OutputFormat format = OutputFormat.getOutputFormat("org.greenplum.pxf.api.io.GPDBWritable");
-        assertEquals(OutputFormat.GPDBWritable, format);
-        assertEquals("GPDBWritable", format.name());
-        assertEquals("org.greenplum.pxf.api.io.GPDBWritable", format.getClassName());
+    void testGetGPDBWritableOutputFormat() {
+        OutputFormat actual = OutputFormat.getOutputFormat("org.greenplum.pxf.api.io.GPDBWritable");
+        assertThat(actual).isEqualTo(OutputFormat.GPDBWritable);
+        assertThat(actual.name()).isEqualTo("GPDBWritable");
+        assertThat(actual.getClassName()).isEqualTo("org.greenplum.pxf.api.io.GPDBWritable");
+    }
+
+    @Test
+    void testGetBinaryOutputFormat() {
+        OutputFormat actual = OutputFormat.getOutputFormat("org.greenplum.pxf.api.io.Binary");
+        assertThat(actual).isEqualTo(OutputFormat.BINARY);
+        assertThat(actual.name()).isEqualTo("BINARY");
+        assertThat(actual.getClassName()).isEqualTo("org.greenplum.pxf.api.io.Binary");
     }
 
 }

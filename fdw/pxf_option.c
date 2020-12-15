@@ -623,7 +623,7 @@ PxfGetOptions(Oid foreigntableid)
 	{
 		/* default wire_format is binary */
 		wireFormat = (Node *) makeString(FDW_OPTION_WIRE_FORMAT_BINARY);
-		opt->wire_format = "Binary";
+		opt->wire_format = "BINARY";
 	}
 
 #if PG_VERSION_NUM >= 90600

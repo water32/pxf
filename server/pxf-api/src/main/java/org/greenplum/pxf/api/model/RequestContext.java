@@ -123,7 +123,7 @@ public class RequestContext {
 
     /**
      * The current output format, either {@link OutputFormat#TEXT},
-     * {@link OutputFormat#Binary}, or {@link OutputFormat#GPDBWritable}.
+     * {@link OutputFormat#BINARY}, or {@link OutputFormat#GPDBWritable}.
      */
     private OutputFormat outputFormat;
 

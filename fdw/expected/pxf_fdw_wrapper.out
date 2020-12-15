@@ -162,7 +162,6 @@ CREATE FOREIGN DATA WRAPPER pxf_fdw_test_pxf_fdw
     OPTIONS ( protocol 'pxf_fdw_test', disable_ppd 'true' );
 ERROR:  the disable_ppd option cannot be defined at the foreign-data wrapper level
 --
--- Foreign-data wrapper succeeds when protocol is provided
 -- Foreign-data wrapper creation fails if negative pxf_port number is provided
 --
 CREATE FOREIGN DATA WRAPPER pxf_fdw_test_pxf_fdw

@@ -26,20 +26,20 @@ import org.greenplum.pxf.api.error.UnsupportedTypeException;
  * PXF supported output formats, enum which contains serializations classes
  */
 public enum OutputFormat {
-    Binary("org.greenplum.pxf.api.io.Binary"),
+    BINARY("org.greenplum.pxf.api.io.Binary"),
     GPDBWritable("org.greenplum.pxf.api.io.GPDBWritable"),
     TEXT("org.greenplum.pxf.api.io.Text");
 
-    private String className;
+    private final String className;
 
     OutputFormat(String className) {
         this.className = className;
     }
 
     /**
-     * Returns a formats's implementation class name
+     * Return the format implementation class name
      *
-     * @return a formats's implementation class name
+     * @return the format implementation class name
      */
     public String getClassName() {
         return className;

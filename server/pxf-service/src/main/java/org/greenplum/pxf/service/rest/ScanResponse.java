@@ -18,6 +18,12 @@ import java.util.List;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Serializes a response for a foreign scan request to the output stream. The
+ * {@link QuerySession} object is used to propagate state of the query, and
+ * it contains the {@code outputQueue} where tuple batches are stored for
+ * consumption and serialization.
+ */
 public class ScanResponse implements StreamingResponseBody {
 
     private static final Logger LOG = LoggerFactory.getLogger(ScanResponse.class);
@@ -26,20 +32,31 @@ public class ScanResponse implements StreamingResponseBody {
     private final RequestContext context;
     private final List<ColumnDescriptor> columnDescriptors;
 
+    /**
+     * Constructs a new {@link ScanResponse} object with the given
+     * {@code querySession}.
+     *
+     * @param querySession the query session object
+     */
     public ScanResponse(QuerySession querySession) {
         this.querySession = querySession;
         this.context = querySession.getContext();
         this.columnDescriptors = context.getTupleDescription();
     }
 
+    /**
+     * Writes the tuples resulting from the foreign scan to the {@code output}
+     * stream. It uses the appropriate serialization format requested from the
+     * request context.
+     *
+     * @param output the output stream
+     */
     @SneakyThrows
     @Override
     public void writeTo(OutputStream output) {
 
-        LOG.debug("{}-{}-- Starting streaming for {}",
-                context.getTransactionId(),
-                context.getSegmentId(),
-                querySession);
+        LOG.debug("{}-{}-- Starting streaming for {}", context.getTransactionId(),
+                context.getSegmentId(), querySession);
 
         int recordCount = 0;
         BlockingDeque<List<List<Object>>> outputQueue = querySession.getOutputQueue();
@@ -76,7 +93,7 @@ public class ScanResponse implements StreamingResponseBody {
                  * query execution, otherwise, we will flush the buffer to the
                  * client and close the connection. When an error occurs we
                  * need to discard the buffer, and replace it with an error
-                 * page and a new error code.
+                 * response and a new error code.
                  */
                 serializer.close();
             }
@@ -95,21 +112,17 @@ public class ScanResponse implements StreamingResponseBody {
             throw e;
         } catch (Exception e) {
             querySession.errorQuery(e);
-            LOG.error(e.getMessage() != null ? e.getMessage() : "ERROR", e);
             throw new IOException(e.getMessage(), e);
         } finally {
             querySession.deregisterSegment(recordCount);
             LOG.debug("{}-{}-- Stopped streaming {} record{} for {}",
-                    context.getTransactionId(),
-                    context.getSegmentId(),
-                    recordCount,
-                    recordCount == 1 ? "" : "s",
-                    querySession);
+                    context.getTransactionId(), context.getSegmentId(),
+                    recordCount, recordCount == 1 ? "" : "s", querySession);
         }
     }
 
     /**
-     * Returns the on-the-wire serializer
+     * Returns the serializer used for the on-the-wire format
      *
      * @return the serializer
      */
@@ -117,7 +130,7 @@ public class ScanResponse implements StreamingResponseBody {
         switch (context.getOutputFormat()) {
             case TEXT:
                 return new CsvSerializer(context.getGreenplumCSV());
-            case Binary:
+            case BINARY:
                 return new BinarySerializer();
             default:
                 throw new UnsupportedOperationException(
