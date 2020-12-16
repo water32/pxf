@@ -36,10 +36,6 @@ typedef struct PxfOptions
 
 	bool		disable_ppd; /* whether to disable predicate push-down */
 
-	/* Defined at options, but it is not visible to FDWs */
-	char		exec_location;	/* execute on MASTER, ANY or ALL SEGMENTS,
-								 * Greenplum MPP specific */
-
 	/* Single Row Error Handling */
 	int			reject_limit;
 	bool		is_reject_limit_rows;

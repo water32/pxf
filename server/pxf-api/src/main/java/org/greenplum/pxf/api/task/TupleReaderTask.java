@@ -63,6 +63,8 @@ public class TupleReaderTask<T> implements Runnable {
                 if (batch.size() == batchSize) {
                     totalRows += batchSize;
                     outputQueue.put(batch);
+                    // TODO: when the outputQueue is full we might want to sleep this
+                    //       thread and reschedule it until later (backpressure)
                     batch = new ArrayList<>(batchSize);
                 }
             }

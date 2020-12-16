@@ -54,6 +54,8 @@ public class ProducerTask implements Runnable {
             BlockingDeque<Integer> registeredSegmentQueue = querySession.getRegisteredSegmentQueue();
 
             while (querySession.isActive()) {
+                // TODO: we need to detect when the stream has completed to 
+                //       exit out of this loop.
                 segmentId = registeredSegmentQueue.poll(1, TimeUnit.MILLISECONDS);
                 if (segmentId == null) {
                     if (segmentCount > 0) {

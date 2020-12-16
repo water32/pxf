@@ -47,5 +47,15 @@ CREATE FOREIGN TABLE pxf_read_demo (a TEXT, b TEXT, c TEXT)
 After the foreign table has been created, you can test the PXF service by running a select query:
 
 ```sql
-SELECT * FROM pxf_read_demo;
+# SELECT * FROM pxf_read_demo;
+       a        |   b    |   c    
+----------------+--------+--------
+ fragment1 row1 | value1 | value2
+ fragment1 row2 | value1 | value2
+ fragment3 row1 | value1 | value2
+ fragment3 row2 | value1 | value2
+ fragment2 row1 | value1 | value2
+ fragment2 row2 | value1 | value2
+(6 rows)
+
 ```

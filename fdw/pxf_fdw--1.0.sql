@@ -18,29 +18,6 @@ RETURNS pg_catalog.text STRICT
 AS 'MODULE_PATHNAME'
 LANGUAGE C;
 
-CREATE TABLE pxf_config
-(
-    segment_id   smallint   NOT NULL,
-    pxf_host     text       NOT NULL,
-    pxf_port     smallint   NOT NULL,
-    pxf_protocol varchar(5) NOT NULL,
-    PRIMARY KEY (segment_id)
-);
-
-COMMENT ON COLUMN pxf_config.segment_id IS 'The identifier of the segment';
-COMMENT ON COLUMN pxf_config.pxf_host IS 'Hostname for the PXF Service that the segment will access';
-COMMENT ON COLUMN pxf_config.pxf_port IS 'Port number for the PXF Service that the segment will access';
-COMMENT ON COLUMN pxf_config.pxf_protocol IS 'Protocol for the PXF Service (i.e HTTP or HTTPS)';
-
-INSERT INTO pxf_config
-SELECT content, 'localhost', 5888, 'http' FROM gp_segment_configuration WHERE role = 'p' AND content > -1;
-
--- Mark the pxf_config table as a configuration table, which will cause
--- pg_dump to include the table's contents (not its definition) in dumps.
--- Only include non-default configurations.
-SELECT pg_catalog.pg_extension_config_dump('pxf_config',
-    'WHERE pxf_host <> ''localhost'' AND pxf_port <> 5888 AND pxf_protocol <> ''http''');
-
 CREATE FOREIGN DATA WRAPPER jdbc_pxf_fdw
     HANDLER pxf_fdw_handler
     VALIDATOR pxf_fdw_validator
