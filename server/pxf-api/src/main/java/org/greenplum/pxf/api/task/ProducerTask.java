@@ -43,6 +43,7 @@ public class ProducerTask implements Runnable {
     @Override
     public void run() {
         try {
+            int taskIndex = 0; // keeps track of the number of tasks this producer created
             int totalSegments = querySession.getContext().getTotalSegments();
             Integer segmentId;
 
@@ -54,10 +55,11 @@ public class ProducerTask implements Runnable {
             BlockingDeque<List<List<Object>>> outputQueue = querySession.getOutputQueue();
 
             while (querySession.isActive()) {
-                segmentId = registeredSegmentQueue.poll(30, TimeUnit.MILLISECONDS);
+                segmentId = registeredSegmentQueue.poll(25, TimeUnit.MILLISECONDS);
 
                 if (segmentId == null) {
-                    if (querySession.getCompletedTaskCount() == querySession.getCreatedTaskCount() && outputQueue.isEmpty()) {
+                    if (querySession.getCompletedTupleReaderTaskCount() == querySession.getCreatedTupleReaderTaskCount()
+                            && outputQueue.isEmpty()) {
                         // try to mark the session as inactive. If another
                         // thread is able to register itself before we mark it
                         // as inactive, this operation will be a no-op
@@ -69,11 +71,12 @@ public class ProducerTask implements Runnable {
                         DataSplit split = iterator.next();
                         LOG.debug("Submitting {} to the pool for query {}", split, querySession);
 
-                        TupleReaderTask<?> task = new TupleReaderTask<>(split, querySession);
-                        
-                        // Registers Increase the number of jobs submitted to the executor
-                        querySession.addTupleReaderTask(task);
+                        TupleReaderTask<?> task = new TupleReaderTask<>(taskIndex, split, querySession);
+
+                        // Registers the task and increases the number of jobs submitted to the executor
+                        querySession.addTupleReaderTask(taskIndex, task);
                         boundedExecutor.execute(task);
+                        taskIndex++;
                     }
                 }
             }
@@ -81,16 +84,22 @@ public class ProducerTask implements Runnable {
             querySession.errorQuery(ex);
             throw new RuntimeException(ex);
         } finally {
-            
-            while (querySession.)
-            
-            if (querySession.isQueryErrored() || querySession.isQueryCancelled()) {
-                // TODO: wait until everybody is de-registered
-                //       interrupt the executor
-                //       - clean up queues
-                //       - remove cache
-                //       - print stats
+
+            // Allow segments to deregister to the query session
+            while (querySession.getActiveSegmentCount() > 0) {
+                // wait or until timeout
+                try {
+                    Thread.sleep(10L, 0);
+                } catch (InterruptedException e) {
+                }
             }
+
+            if (querySession.isQueryErrored() || querySession.isQueryCancelled()) {
+                // When an error occurs or the query is cancelled, we need
+                // to interrupt all the running TupleReaderTasks.
+                querySession.cancelAllTasks();
+            }
+
             querySession.close();
         }
     }

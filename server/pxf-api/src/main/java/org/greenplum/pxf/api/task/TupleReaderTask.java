@@ -28,6 +28,7 @@ public class TupleReaderTask<T> implements Runnable {
 
     private final Logger LOG = LoggerFactory.getLogger(TupleReaderTask.class);
 
+    private final int taskIndex;
     private final DataSplit split;
     private final BlockingDeque<List<List<Object>>> outputQueue;
     private final QuerySession querySession;
@@ -36,7 +37,8 @@ public class TupleReaderTask<T> implements Runnable {
     private Thread runningThread;
 
     @SuppressWarnings("unchecked")
-    public TupleReaderTask(int counter, DataSplit split, QuerySession querySession) {
+    public TupleReaderTask(int taskIndex, DataSplit split, QuerySession querySession) {
+        this.taskIndex = taskIndex;
         this.split = split;
         this.querySession = querySession;
         this.outputQueue = querySession.getOutputQueue();
@@ -85,7 +87,7 @@ public class TupleReaderTask<T> implements Runnable {
         } catch (Exception e) {
             querySession.errorQuery(e);
         } finally {
-            querySession.removeTupleReaderTask(this);
+            querySession.removeTupleReaderTask(taskIndex, this);
             if (iterator != null) {
                 try {
                     iterator.cleanup();
@@ -102,7 +104,7 @@ public class TupleReaderTask<T> implements Runnable {
 
     /**
      * Fully consumes the iterator and materializes it into a list of objects
-     * 
+     *
      * @param fields the field iterator
      * @return the list of fields
      */
@@ -112,6 +114,9 @@ public class TupleReaderTask<T> implements Runnable {
         return list;
     }
 
+    /**
+     * Interrupts this {@link TupleReaderTask}
+     */
     public void interrupt() {
         if (runningThread != null) {
             runningThread.interrupt();

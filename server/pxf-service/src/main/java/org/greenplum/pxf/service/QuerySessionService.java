@@ -34,7 +34,7 @@ import static org.greenplum.pxf.service.PxfConfiguration.PXF_TUPLE_TASK_EXECUTOR
  * for newly created {@link QuerySession} objects.
  */
 @Service
-public class QuerySessionManager {
+public class QuerySessionService {
 
     private static final long EXPIRE_AFTER_ACCESS_DURATION_MINUTES = 5;
 
@@ -55,7 +55,7 @@ public class QuerySessionManager {
      * @param beanFactory          the bean factory
      * @param parser               the request parser
      */
-    QuerySessionManager(ApplicationContext applicationContext,
+    QuerySessionService(ApplicationContext applicationContext,
                         ConfigurationFactory configurationFactory,
                         ListableBeanFactory beanFactory,
                         RequestParser<MultiValueMap<String, String>> parser) {

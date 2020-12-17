@@ -5,10 +5,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Queue;
-import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -30,7 +28,7 @@ import static java.util.Objects.requireNonNull;
  * </ul>
  */
 public class BoundedExecutor
-        extends AbstractExecutorService {
+        implements Executor {
     private static final Logger LOG = LoggerFactory.getLogger(BoundedExecutor.class);
 
     private final Queue<Runnable> queue = new ConcurrentLinkedQueue<>();

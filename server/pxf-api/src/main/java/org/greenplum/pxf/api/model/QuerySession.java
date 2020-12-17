@@ -11,6 +11,8 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.BlockingDeque;
@@ -52,11 +54,6 @@ public class QuerySession {
     @Getter
     @Setter
     private Processor<?> processor;
-
-    /**
-     * True if the producers have finished producing, false otherwise
-     */
-    private final AtomicBoolean finishedProducing;
 
     /**
      * True if the query is active, false otherwise
@@ -117,12 +114,12 @@ public class QuerySession {
     /**
      * Tracks number of active tasks
      */
-    private final AtomicInteger createdTaskCount;
+    private final AtomicInteger createdTupleReaderTaskCount;
 
     /**
      * Tracks number of completed tasks
      */
-    private final AtomicInteger completedTaskCount;
+    private final AtomicInteger completedTupleReaderTaskCount;
 
     /**
      * The total number of tuples that were streamed out to the client
@@ -134,6 +131,8 @@ public class QuerySession {
      */
     private final Cache<String, QuerySession> querySessionCache;
 
+    private final List<TupleReaderTask<?>> tupleReaderTaskList;
+
     public QuerySession(RequestContext context, Cache<String, QuerySession> querySessionCache) {
         this.context = context;
         this.querySessionCache = querySessionCache;
@@ -141,7 +140,6 @@ public class QuerySession {
         this.queryId = String.format("%s:%s:%s:%s", context.getServerName(),
                 context.getTransactionId(), context.getDataSource(), context.getFilterString());
         this.startTime = Instant.now();
-        this.finishedProducing = new AtomicBoolean(false);
         this.queryActive = new AtomicBoolean(true);
         this.queryCancelled = new AtomicBoolean(false);
         this.queryErrored = new AtomicBoolean(false);
@@ -149,9 +147,10 @@ public class QuerySession {
         this.outputQueue = new LinkedBlockingDeque<>(400);
         this.errors = new ConcurrentLinkedDeque<>();
         this.activeSegmentCount = new AtomicInteger(0);
-        this.createdTaskCount = new AtomicInteger(0);
-        this.completedTaskCount = new AtomicInteger(0);
+        this.createdTupleReaderTaskCount = new AtomicInteger(0);
+        this.completedTupleReaderTaskCount = new AtomicInteger(0);
         this.totalTupleCount = new AtomicLong(0);
+        this.tupleReaderTaskList = Collections.synchronizedList(new ArrayList<>());
     }
 
     /**
@@ -182,6 +181,12 @@ public class QuerySession {
         }
     }
 
+    /**
+     * Attempt to mark this {@link QuerySession} as inactive. The operation
+     * will succeed only if there are no registered segments in the queue.
+     * Otherwise, a new segment was able to register to the query session
+     * right before we were about to mark this session as inactive.
+     */
     public void tryMarkInactive() {
         synchronized (registrationLock) {
             if (registeredSegmentQueue.isEmpty()) {
@@ -202,13 +207,11 @@ public class QuerySession {
 
 
     /**
-     * De-registers a segment, and the last segment to deregister the endTime
-     * is recorded.
+     * De-registers a segment.
      *
      * @param recordCount the recordCount from the segment
      */
     public void deregisterSegment(long recordCount) {
-
         totalTupleCount.addAndGet(recordCount);
         activeSegmentCount.decrementAndGet();
     }
@@ -226,12 +229,21 @@ public class QuerySession {
     }
 
     /**
+     * Returns the number of active segments for this {@link QuerySession}
+     *
+     * @return the number of active segments for this {@link QuerySession}
+     */
+    public int getActiveSegmentCount() {
+        return activeSegmentCount.get();
+    }
+
+    /**
      * Returns the number of tasks that have completed
      *
      * @return the number of tasks that have completed
      */
-    public int getCompletedTaskCount() {
-        return completedTaskCount.get();
+    public int getCompletedTupleReaderTaskCount() {
+        return completedTupleReaderTaskCount.get();
     }
 
     /**
@@ -239,17 +251,8 @@ public class QuerySession {
      *
      * @return the number of tasks that have been created
      */
-    public int getCreatedTaskCount() {
-        return createdTaskCount.get();
-    }
-
-    /**
-     * Whether this query session has finished producing tuples or not
-     *
-     * @return true if this query session has finished producing tuples, false otherwise
-     */
-    public boolean hasFinishedProducing() {
-        return finishedProducing.get();
+    public int getCreatedTupleReaderTaskCount() {
+        return createdTupleReaderTaskCount.get();
     }
 
     /**
@@ -282,38 +285,56 @@ public class QuerySession {
     }
 
     /**
-     * Signal that this query session has finished producing splits
+     * Registers the {@link TupleReaderTask} to the querySession and keeps
+     * track of the number of tasks that have been created.
+     *
+     * @param taskIndex the creation index of the task
+     * @param task      the {@link TupleReaderTask}
      */
-    public void markAsFinishedProducing() {
-        finishedProducing.set(true);
+    public <T> void addTupleReaderTask(int taskIndex, TupleReaderTask<T> task) {
+        createdTupleReaderTaskCount.incrementAndGet();
+        tupleReaderTaskList.add(taskIndex, task);
     }
 
     /**
-     * Keeps track of tasks that have been created
+     * De-registers the {@link TupleReaderTask} with the given
+     * {@code taskIndex} and keeps track of the number of tasks that have
+     * completed. The completion count is regardless the task completed
+     * successfully or with failures.
+     *
+     * @param taskIndex the creation index of the task
+     * @param task      the {@link TupleReaderTask}
      */
-    public <T> void addTupleReaderTask(TupleReaderTask<T> task) {
-        createdTaskCount.incrementAndGet();
+    public <T> void removeTupleReaderTask(int taskIndex, TupleReaderTask<T> task) {
+        completedTupleReaderTaskCount.incrementAndGet();
+        tupleReaderTaskList.remove(taskIndex);
     }
 
     /**
-     * Keeps track of tasks that have completed
+     * Cancels all the {@link TupleReaderTask}s that are still active for this
+     * {@link QuerySession}
      */
-    public <T> void removeTupleReaderTask(TupleReaderTask<T> task) {
-        completedTaskCount.incrementAndGet();
-        // TODO: remove task from the list
+    public void cancelAllTasks() {
+        for (TupleReaderTask<?> task : tupleReaderTaskList) {
+            try {
+                task.interrupt();
+            } catch (Throwable e) {
+                LOG.warn(String.format("Unable to interrupt task %s", task), e);
+            }
+        }
+        tupleReaderTaskList.clear();
     }
 
+    /**
+     * Cleans up queues, and reports statistics on this {@link QuerySession}
+     */
     public void close() {
 
+        // Clear the output queue in case of error or cancellation
+        outputQueue.clear();
 
-
-//        if (errorTime != null || cancelTime != null) {
-//            // TODO: we don't need to do this , it is the job of the producer task
-//            
-//        }
-
-        outputQueue.clear(); // unblock producers in the case of error
-
+        // Clear the queue of registered segments
+        registeredSegmentQueue.clear();
 
         Instant endTime = Instant.now();
         long totalRecords = totalTupleCount.get();
@@ -341,10 +362,6 @@ public class QuerySession {
                     String.format("%.2f", rate));
 
         }
-    }
-
-    public void registerTupleReaderTask(Thread tupleReaderTask) {
-        
     }
 
     /**
