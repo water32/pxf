@@ -65,7 +65,7 @@ public class DemoProcessor implements Processor<String> {
         private final StringBuilder columnValue;
 
         DemoTupleIterator(RequestContext context, DemoFragmentMetadata metadata) {
-            numRows = 2;
+            numRows = 2000000000;
             columnValue = new StringBuilder();
             columnCount = context.getColumns();
             path = metadata.getPath();

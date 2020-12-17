@@ -66,7 +66,7 @@ public class ScanResponse implements StreamingResponseBody {
             serializer.open(output);
 
             while (querySession.isActive()) {
-                List<List<Object>> batch = outputQueue.poll(10, TimeUnit.MILLISECONDS);
+                List<List<Object>> batch = outputQueue.poll(1, TimeUnit.MILLISECONDS);
                 if (batch != null) {
                     for (List<Object> tuple : batch) {
                         serializer.startRow(columnDescriptors.size());

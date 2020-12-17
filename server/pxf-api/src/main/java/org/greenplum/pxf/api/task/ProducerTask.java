@@ -54,7 +54,7 @@ public class ProducerTask implements Runnable {
             BlockingDeque<List<List<Object>>> outputQueue = querySession.getOutputQueue();
 
             while (querySession.isActive()) {
-                segmentId = registeredSegmentQueue.poll(2, TimeUnit.MILLISECONDS);
+                segmentId = registeredSegmentQueue.poll(30, TimeUnit.MILLISECONDS);
 
                 if (segmentId == null) {
                     if (querySession.getCompletedTaskCount() == querySession.getCreatedTaskCount() && outputQueue.isEmpty()) {
@@ -68,9 +68,12 @@ public class ProducerTask implements Runnable {
                     while (iterator.hasNext() && querySession.isActive()) {
                         DataSplit split = iterator.next();
                         LOG.debug("Submitting {} to the pool for query {}", split, querySession);
-                        boundedExecutor.execute(new TupleReaderTask<>(split, querySession));
-                        // Increase the number of jobs submitted to the executor
-                        querySession.registerTask();
+
+                        TupleReaderTask<?> task = new TupleReaderTask<>(split, querySession);
+                        
+                        // Registers Increase the number of jobs submitted to the executor
+                        querySession.addTupleReaderTask(task);
+                        boundedExecutor.execute(task);
                     }
                 }
             }
@@ -79,14 +82,16 @@ public class ProducerTask implements Runnable {
             throw new RuntimeException(ex);
         } finally {
             
-            if (querySession.isQueryErrored()) {
+            while (querySession.)
+            
+            if (querySession.isQueryErrored() || querySession.isQueryCancelled()) {
                 // TODO: wait until everybody is de-registered
                 //       interrupt the executor
                 //       - clean up queues
                 //       - remove cache
                 //       - print stats
             }
-//            querySession.markAsFinishedProducing();
+            querySession.close();
         }
     }
 }

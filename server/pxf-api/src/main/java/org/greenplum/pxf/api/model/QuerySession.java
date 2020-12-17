@@ -5,6 +5,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.catalina.connector.ClientAbortException;
+import org.greenplum.pxf.api.task.TupleReaderTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -145,7 +146,7 @@ public class QuerySession {
         this.queryCancelled = new AtomicBoolean(false);
         this.queryErrored = new AtomicBoolean(false);
         this.registeredSegmentQueue = new LinkedBlockingDeque<>();
-        this.outputQueue = new LinkedBlockingDeque<>(200);
+        this.outputQueue = new LinkedBlockingDeque<>(400);
         this.errors = new ConcurrentLinkedDeque<>();
         this.activeSegmentCount = new AtomicInteger(0);
         this.createdTaskCount = new AtomicInteger(0);
@@ -209,41 +210,7 @@ public class QuerySession {
     public void deregisterSegment(long recordCount) {
 
         totalTupleCount.addAndGet(recordCount);
-
-        if (activeSegmentCount.decrementAndGet() == 0) {
-            Instant endTime = Instant.now();
-            
-            if (errorTime != null || cancelTime != null) {
-                // TODO: we don't need to do this , it is the job of the producer task
-                outputQueue.clear(); // unblock producers in the case of error
-            }
-
-            long totalRecords = totalTupleCount.get();
-
-            if (errorTime != null) {
-
-                long durationMs = Duration.between(startTime, errorTime).toMillis();
-                LOG.info("{} errored after {}ms", this, durationMs);
-
-            } else if (cancelTime != null) {
-
-                long durationMs = Duration.between(startTime, cancelTime).toMillis();
-                LOG.info("{} canceled after {}ms", this, durationMs);
-
-            } else {
-
-                long durationMs = Duration.between(startTime, endTime).toMillis();
-                double rate = durationMs == 0 ? 0 : (1000.0 * totalRecords / durationMs);
-
-                LOG.info("{} completed streaming {} tuple{} in {}ms. {} tuples/sec",
-                        this,
-                        totalRecords,
-                        totalRecords == 1 ? "" : "s",
-                        durationMs,
-                        String.format("%.2f", rate));
-
-            }
-        }
+        activeSegmentCount.decrementAndGet();
     }
 
     /**
@@ -324,15 +291,60 @@ public class QuerySession {
     /**
      * Keeps track of tasks that have been created
      */
-    public void registerTask() {
+    public <T> void addTupleReaderTask(TupleReaderTask<T> task) {
         createdTaskCount.incrementAndGet();
     }
 
     /**
      * Keeps track of tasks that have completed
      */
-    public void registerCompletedTask() {
+    public <T> void removeTupleReaderTask(TupleReaderTask<T> task) {
         completedTaskCount.incrementAndGet();
+        // TODO: remove task from the list
+    }
+
+    public void close() {
+
+
+
+//        if (errorTime != null || cancelTime != null) {
+//            // TODO: we don't need to do this , it is the job of the producer task
+//            
+//        }
+
+        outputQueue.clear(); // unblock producers in the case of error
+
+
+        Instant endTime = Instant.now();
+        long totalRecords = totalTupleCount.get();
+
+        if (errorTime != null) {
+
+            long durationMs = Duration.between(startTime, errorTime).toMillis();
+            LOG.info("{} errored after {}ms", this, durationMs);
+
+        } else if (cancelTime != null) {
+
+            long durationMs = Duration.between(startTime, cancelTime).toMillis();
+            LOG.info("{} canceled after {}ms", this, durationMs);
+
+        } else {
+
+            long durationMs = Duration.between(startTime, endTime).toMillis();
+            double rate = durationMs == 0 ? 0 : (1000.0 * totalRecords / durationMs);
+
+            LOG.info("{} completed streaming {} tuple{} in {}ms. {} tuples/sec",
+                    this,
+                    totalRecords,
+                    totalRecords == 1 ? "" : "s",
+                    durationMs,
+                    String.format("%.2f", rate));
+
+        }
+    }
+
+    public void registerTupleReaderTask(Thread tupleReaderTask) {
+        
     }
 
     /**
