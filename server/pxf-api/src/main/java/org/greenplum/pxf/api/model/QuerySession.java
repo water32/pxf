@@ -1,5 +1,6 @@
 package org.greenplum.pxf.api.model;
 
+import com.google.common.cache.Cache;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
@@ -28,6 +29,11 @@ public class QuerySession {
     private static final Logger LOG = LoggerFactory.getLogger(QuerySession.class);
 
     /**
+     * Synchronization lock for registration/deregistration access.
+     */
+    private final Object registrationLock;
+
+    /**
      * A unique identifier for the query
      */
     @Getter
@@ -43,12 +49,18 @@ public class QuerySession {
      * The processor used for this query session
      */
     @Getter
-    private final Processor<?> processor;
+    @Setter
+    private Processor<?> processor;
 
     /**
      * True if the producers have finished producing, false otherwise
      */
     private final AtomicBoolean finishedProducing;
+
+    /**
+     * True if the query is active, false otherwise
+     */
+    private final AtomicBoolean queryActive;
 
     /**
      * True if the query has been cancelled, false otherwise
@@ -85,14 +97,6 @@ public class QuerySession {
     private final Deque<Exception> errors;
 
     /**
-     * The list of splits for the query. The list of splits is only set when
-     * the "Metadata" cache is enabled
-     */
-    @Getter
-    @Setter
-    private volatile List<DataSplit> dataSplitList;
-
-    /**
      * A queue of segments that have registered to this query session
      */
     @Getter
@@ -124,13 +128,20 @@ public class QuerySession {
      */
     private final AtomicLong totalTupleCount;
 
-    public QuerySession(RequestContext context, Processor<?> processor) {
+    /**
+     * Holds a reference to the querySessionCache
+     */
+    private final Cache<String, QuerySession> querySessionCache;
+
+    public QuerySession(RequestContext context, Cache<String, QuerySession> querySessionCache) {
         this.context = context;
-        this.processor = processor;
+        this.querySessionCache = querySessionCache;
+        this.registrationLock = new Object();
         this.queryId = String.format("%s:%s:%s:%s", context.getServerName(),
                 context.getTransactionId(), context.getDataSource(), context.getFilterString());
         this.startTime = Instant.now();
         this.finishedProducing = new AtomicBoolean(false);
+        this.queryActive = new AtomicBoolean(true);
         this.queryCancelled = new AtomicBoolean(false);
         this.queryErrored = new AtomicBoolean(false);
         this.registeredSegmentQueue = new LinkedBlockingDeque<>();
@@ -147,6 +158,7 @@ public class QuerySession {
      * time
      */
     public void cancelQuery(ClientAbortException e) {
+        queryActive.set(false);
         if (!queryCancelled.getAndSet(true)) {
             cancelTime = Instant.now();
         }
@@ -159,14 +171,34 @@ public class QuerySession {
      * @param segmentId the segment identifier
      */
     public void registerSegment(int segmentId) throws InterruptedException {
-        if (!isActive()) {
-            LOG.debug("Skip registering processor because the query session is no longer active");
-            return;
-        }
+        synchronized (registrationLock) {
+            if (!isActive()) {
+                throw new IllegalStateException("This querySession is no longer active.");
+            }
 
-        activeSegmentCount.incrementAndGet();
-        registeredSegmentQueue.put(segmentId);
+            activeSegmentCount.incrementAndGet();
+            registeredSegmentQueue.put(segmentId);
+        }
     }
+
+    public void tryMarkInactive() {
+        synchronized (registrationLock) {
+            if (registeredSegmentQueue.isEmpty()) {
+                String cacheKey = String.format("%s:%s:%s:%s",
+                        context.getServerName(), context.getTransactionId(),
+                        context.getDataSource(), context.getFilterString());
+
+                // Remove from cache
+                querySessionCache.invalidate(cacheKey);
+
+                // This query session is no longer active when all the segments
+                // have de-registered, this means all the segments have completed
+                // streaming data to the output stream
+                queryActive.set(false);
+            }
+        }
+    }
+
 
     /**
      * De-registers a segment, and the last segment to deregister the endTime
@@ -180,8 +212,11 @@ public class QuerySession {
 
         if (activeSegmentCount.decrementAndGet() == 0) {
             Instant endTime = Instant.now();
-            outputQueue.clear(); // unblock producers in the case of error
-            dataSplitList = null; // release references
+            
+            if (errorTime != null || cancelTime != null) {
+                // TODO: we don't need to do this , it is the job of the producer task
+                outputQueue.clear(); // unblock producers in the case of error
+            }
 
             long totalRecords = totalTupleCount.get();
 
@@ -216,6 +251,7 @@ public class QuerySession {
      * the error time
      */
     public void errorQuery(Exception e) {
+        queryActive.set(false);
         if (!queryErrored.getAndSet(true)) {
             errorTime = Instant.now();
         }
@@ -251,12 +287,13 @@ public class QuerySession {
 
     /**
      * Determines whether the query session is active. The query session
-     * becomes inactive if the query is errored or the query is cancelled.
+     * becomes inactive if the query is errored, the query is cancelled,
+     * or all the segments have completed streaming data to the output stream.
      *
-     * @return true if the query is active, false when the query has errors or is cancelled
+     * @return true if the query is active, false when the query has errors, is cancelled, or all segments completed streaming data to the output stream
      */
     public boolean isActive() {
-        return !isQueryErrored() && !isQueryCancelled();
+        return queryActive.get();
     }
 
     /**

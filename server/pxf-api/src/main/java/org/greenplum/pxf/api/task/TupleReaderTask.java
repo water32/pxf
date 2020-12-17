@@ -58,7 +58,7 @@ public class TupleReaderTask<T> implements Runnable {
             iterator = processor.getTupleIterator(querySession, split);
             List<List<Object>> batch = new ArrayList<>(batchSize);
             while (querySession.isActive() && iterator.hasNext()) {
-                List<Object> fields = Lists.newArrayList(processor.getFields(iterator.next()));
+                List<Object> fields = Lists.newArrayList(processor.getFields(querySession, iterator.next()));
                 batch.add(fields);
                 if (batch.size() == batchSize) {
                     totalRows += batchSize;

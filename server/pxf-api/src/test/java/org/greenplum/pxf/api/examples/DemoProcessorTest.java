@@ -1,5 +1,6 @@
 package org.greenplum.pxf.api.examples;
 
+import com.google.common.cache.Cache;
 import org.greenplum.pxf.api.io.DataType;
 import org.greenplum.pxf.api.model.DataSplit;
 import org.greenplum.pxf.api.model.Processor;
@@ -21,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
 class DemoProcessorTest {
 
@@ -41,8 +43,12 @@ class DemoProcessorTest {
         context.setTotalSegments(1);
         context.setTupleDescription(columnDescriptors);
 
+        @SuppressWarnings("unchecked")
+        Cache<String, QuerySession> mockCache = mock(Cache.class);
+
         processor = new DemoProcessor();
-        querySession = new QuerySession(context, processor);
+        querySession = new QuerySession(context, mockCache);
+        querySession.setProcessor(processor);
     }
 
     @Test
@@ -60,15 +66,13 @@ class DemoProcessorTest {
         assertEquals("fragment5 row1|value1|value2", tupleIterator.next());
         assertTrue(tupleIterator.hasNext());
         assertEquals("fragment5 row2|value1|value2", tupleIterator.next());
-        assertTrue(tupleIterator.hasNext());
-        assertEquals("fragment5 row3|value1|value2", tupleIterator.next());
         assertFalse(tupleIterator.hasNext());
         assertThrows(NoSuchElementException.class, tupleIterator::next);
     }
 
     @Test
     void testFieldIterator() throws IOException {
-        Iterator<Object> iterator = processor.getFields("fragment5 row3|value1|value2|value3|value4");
+        Iterator<Object> iterator = processor.getFields(null, "fragment5 row3|value1|value2|value3|value4");
 
         assertNotNull(iterator);
         assertTrue(iterator.hasNext());

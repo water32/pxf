@@ -36,7 +36,7 @@ import static org.greenplum.pxf.service.PxfConfiguration.PXF_TUPLE_TASK_EXECUTOR
 @Service
 public class QuerySessionManager {
 
-    private static final long EXPIRE_AFTER_ACCESS_DURATION_MILLIS = 5;
+    private static final long EXPIRE_AFTER_ACCESS_DURATION_MINUTES = 5;
 
     private final Cache<String, QuerySession> querySessionCache;
     private final ConfigurationFactory configurationFactory;
@@ -60,7 +60,7 @@ public class QuerySessionManager {
                         ListableBeanFactory beanFactory,
                         RequestParser<MultiValueMap<String, String>> parser) {
         this.querySessionCache = CacheBuilder.newBuilder()
-                .expireAfterAccess(EXPIRE_AFTER_ACCESS_DURATION_MILLIS, TimeUnit.MILLISECONDS)
+                .expireAfterAccess(EXPIRE_AFTER_ACCESS_DURATION_MINUTES, TimeUnit.MINUTES)
                 .removalListener((RemovalListener<String, QuerySession>) notification ->
                         LOG.debug("Removed querySessionCache entry for key {} with cause {}",
                                 notification.getKey(),
@@ -88,26 +88,27 @@ public class QuerySessionManager {
         //       resource, filter string and segment ID. Minimal parsing can
         //       improve the query performance marginally
         final RequestContext context = parser.parseRequest(headers, SCAN_CONTROLLER);
-        final String cacheKey = String.format("%s:%s:%s:%s",
-                context.getServerName(), context.getTransactionId(),
-                context.getDataSource(), context.getFilterString());
-        final int segmentId = context.getSegmentId();
 
         try {
             // Lookup the querySession from the cache, if the querySession
             // is not in the cache, it will be initialized and a
             // ProducerTask will be scheduled for the new querySession.
-            QuerySession querySession = querySessionCache
-                    .get(cacheKey, () -> {
-                        LOG.debug("Caching querySession for key={} from segmentId={}",
-                                cacheKey, segmentId);
-                        QuerySession session = initializeQuerySession(context);
-                        initializeAndExecuteProducerTask(session);
-                        return session;
-                    });
+            QuerySession querySession = getQuerySessionFromCache(context);
+            try {
+                // Register the segment to the session
+                querySession.registerSegment(context.getSegmentId());
+            } catch (IllegalStateException ex) {
+                LOG.debug("QuerySession {} is no longer active", querySession);
 
-            // Register the segment to the session
-            querySession.registerSegment(segmentId);
+                // Retrieve a new querySession from cache, the new querySession
+                // should not be expired
+                if (!querySession.isQueryCancelled() && !querySession.isQueryErrored()) {
+                    querySession = getQuerySessionFromCache(context);
+                    querySession.registerSegment(context.getSegmentId());
+                } else {
+                    return null;
+                }
+            }
 
             return querySession;
         } catch (UncheckedExecutionException | ExecutionException e) {
@@ -116,6 +117,30 @@ public class QuerySessionManager {
                 throw e.getCause();
             throw e;
         }
+    }
+
+    /**
+     * Returns the {@link QuerySession} for the given {@link RequestContext}
+     *
+     * @param context the context for the request
+     * @return the QuerySession for the current request
+     * @throws ExecutionException when an execution error occurs when retrieving the cache entry
+     */
+    private QuerySession getQuerySessionFromCache(final RequestContext context)
+            throws ExecutionException {
+
+        final String cacheKey = String.format("%s:%s:%s:%s",
+                context.getServerName(), context.getTransactionId(),
+                context.getDataSource(), context.getFilterString());
+
+        return querySessionCache
+                .get(cacheKey, () -> {
+                    LOG.debug("Caching querySession for key={} from segmentId={}",
+                            cacheKey, context.getSegmentId());
+                    QuerySession session = initializeQuerySession(context);
+                    initializeAndExecuteProducerTask(session);
+                    return session;
+                });
     }
 
     /**
@@ -139,7 +164,9 @@ public class QuerySessionManager {
 
         context.setConfiguration(configuration);
 
-        return new QuerySession(context, getProcessor(context));
+        QuerySession session = new QuerySession(context, querySessionCache);
+        session.setProcessor(getProcessor(session));
+        return session;
     }
 
     /**
@@ -157,15 +184,16 @@ public class QuerySessionManager {
     /**
      * Returns the processor that can handle the request
      *
-     * @param context the request context
+     * @param querySession the session for the query
      * @return the processor that can handle the request
      */
-    public Processor<?> getProcessor(RequestContext context) {
+    public Processor<?> getProcessor(QuerySession querySession) {
         return (Processor<?>) registeredProcessors
                 .stream()
-                .filter(p -> p.canProcessRequest(context))
+                .filter(p -> p.canProcessRequest(querySession))
                 .findFirst()
                 .orElseThrow(() -> {
+                    RequestContext context = querySession.getContext();
                     String errorMessage = String.format("There are no registered processors to handle the '%s' protocol", context.getProtocol());
                     if (StringUtils.isNotBlank(context.getFormat())) {
                         errorMessage += String.format(" and '%s' format", context.getFormat());

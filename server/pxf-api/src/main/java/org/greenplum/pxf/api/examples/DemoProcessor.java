@@ -38,7 +38,7 @@ public class DemoProcessor implements Processor<String> {
      * {@inheritDoc}
      */
     @Override
-    public Iterator<Object> getFields(String tuple) {
+    public Iterator<Object> getFields(QuerySession session, String tuple) {
         return new TupleItr(tuple);
     }
 
@@ -46,7 +46,8 @@ public class DemoProcessor implements Processor<String> {
      * {@inheritDoc}
      */
     @Override
-    public boolean canProcessRequest(RequestContext context) {
+    public boolean canProcessRequest(QuerySession session) {
+        RequestContext context = session.getContext();
         return StringUtils.isEmpty(context.getFormat()) &&
                 StringUtils.equalsIgnoreCase("demo", context.getProtocol());
     }

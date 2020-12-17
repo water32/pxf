@@ -43,7 +43,6 @@ public class ProducerTask implements Runnable {
     @Override
     public void run() {
         try {
-            int segmentCount = 0;
             int totalSegments = querySession.getContext().getTotalSegments();
             Integer segmentId;
 
@@ -52,37 +51,42 @@ public class ProducerTask implements Runnable {
             List<DataSplit> splitList = Lists.newArrayList(splitter);
             // get the queue of segments IDs that have registered to this QuerySession
             BlockingDeque<Integer> registeredSegmentQueue = querySession.getRegisteredSegmentQueue();
+            BlockingDeque<List<List<Object>>> outputQueue = querySession.getOutputQueue();
 
             while (querySession.isActive()) {
-                // TODO: we need to detect when the stream has completed to 
-                //       exit out of this loop.
-                segmentId = registeredSegmentQueue.poll(1, TimeUnit.MILLISECONDS);
-                if (segmentId == null) {
-                    if (segmentCount > 0) {
-                        break;
-                    } else {
-                        // We expect at least one processor, since the query
-                        // session creation is tied to the creation of a
-                        // producer task
-                        continue;
-                    }
-                }
+                segmentId = registeredSegmentQueue.poll(2, TimeUnit.MILLISECONDS);
 
-                segmentCount++;
-                Iterator<DataSplit> iterator = new DataSplitSegmentIterator<>(segmentId, totalSegments, splitList.iterator());
-                while (iterator.hasNext() && querySession.isActive()) {
-                    DataSplit split = iterator.next();
-                    LOG.debug("Submitting {} to the pool for query {}", split, querySession);
-                    boundedExecutor.execute(new TupleReaderTask<>(split, querySession));
-                    // Increase the number of jobs submitted to the executor
-                    querySession.registerTask();
+                if (segmentId == null) {
+                    if (querySession.getCompletedTaskCount() == querySession.getCreatedTaskCount() && outputQueue.isEmpty()) {
+                        // try to mark the session as inactive. If another
+                        // thread is able to register itself before we mark it
+                        // as inactive, this operation will be a no-op
+                        querySession.tryMarkInactive();
+                    }
+                } else {
+                    Iterator<DataSplit> iterator = new DataSplitSegmentIterator<>(segmentId, totalSegments, splitList.iterator());
+                    while (iterator.hasNext() && querySession.isActive()) {
+                        DataSplit split = iterator.next();
+                        LOG.debug("Submitting {} to the pool for query {}", split, querySession);
+                        boundedExecutor.execute(new TupleReaderTask<>(split, querySession));
+                        // Increase the number of jobs submitted to the executor
+                        querySession.registerTask();
+                    }
                 }
             }
         } catch (Exception ex) {
             querySession.errorQuery(ex);
             throw new RuntimeException(ex);
         } finally {
-            querySession.markAsFinishedProducing();
+            
+            if (querySession.isQueryErrored()) {
+                // TODO: wait until everybody is de-registered
+                //       interrupt the executor
+                //       - clean up queues
+                //       - remove cache
+                //       - print stats
+            }
+//            querySession.markAsFinishedProducing();
         }
     }
 }

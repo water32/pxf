@@ -80,14 +80,10 @@ public class ScanResponse implements StreamingResponseBody {
                         serializer.endRow();
                     }
                     recordCount += batch.size();
-                } else if (querySession.hasFinishedProducing()
-                        && (querySession.getCompletedTaskCount() == querySession.getCreatedTaskCount())
-                        && outputQueue.isEmpty()) {
-                    break;
                 }
             }
 
-            if (querySession.isActive()) {
+            if (!querySession.isQueryErrored() && !querySession.isQueryCancelled()) {
                 /*
                  * We only close the serializer when there are no errors in the
                  * query execution, otherwise, we will flush the buffer to the

@@ -35,6 +35,10 @@ public class ScanController {
         // QuerySession has the processor, the RequestContext, state of the
         // query, among other information
         QuerySession querySession = querySessionManager.get(headers);
+        
+        if (querySession == null) {
+            return new ResponseEntity<>(HttpStatus.OK);
+        }
 
         // Create a streaming class which will consume tuples from the
         // querySession object and serialize them to the output stream

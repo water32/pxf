@@ -32,16 +32,17 @@ public interface Processor<T> {
     /**
      * Return a list of fields for the the tuple
      *
-     * @param tuple the tuple
+     * @param querySession the session for the query
+     * @param tuple        the tuple
      * @return the list of fields for the given tuple
      */
-    Iterator<Object> getFields(T tuple) throws IOException;
+    Iterator<Object> getFields(QuerySession querySession, T tuple) throws IOException;
 
     /**
      * Returns true if this processor can handle the request, false otherwise
      *
-     * @param context the context for the request
+     * @param querySession the session for the query
      * @return true if this processor can handle the request, false otherwise
      */
-    boolean canProcessRequest(RequestContext context);
+    boolean canProcessRequest(QuerySession querySession);
 }
