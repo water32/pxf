@@ -150,7 +150,7 @@ public class QuerySession {
         this.createdTupleReaderTaskCount = new AtomicInteger(0);
         this.completedTupleReaderTaskCount = new AtomicInteger(0);
         this.totalTupleCount = new AtomicLong(0);
-        this.tupleReaderTaskList = Collections.synchronizedList(new ArrayList<>());
+        this.tupleReaderTaskList = new ArrayList<>();
     }
 
     /**
@@ -293,7 +293,9 @@ public class QuerySession {
      */
     public <T> void addTupleReaderTask(int taskIndex, TupleReaderTask<T> task) {
         createdTupleReaderTaskCount.incrementAndGet();
-        tupleReaderTaskList.add(taskIndex, task);
+        synchronized (tupleReaderTaskList) {
+            tupleReaderTaskList.add(taskIndex, task);
+        }
     }
 
     /**
@@ -307,7 +309,9 @@ public class QuerySession {
      */
     public <T> void removeTupleReaderTask(int taskIndex, TupleReaderTask<T> task) {
         completedTupleReaderTaskCount.incrementAndGet();
-        tupleReaderTaskList.remove(taskIndex);
+        synchronized (tupleReaderTaskList) {
+            tupleReaderTaskList.remove(taskIndex);
+        }
     }
 
     /**
@@ -315,14 +319,16 @@ public class QuerySession {
      * {@link QuerySession}
      */
     public void cancelAllTasks() {
-        for (TupleReaderTask<?> task : tupleReaderTaskList) {
-            try {
-                task.interrupt();
-            } catch (Throwable e) {
-                LOG.warn(String.format("Unable to interrupt task %s", task), e);
+        synchronized (tupleReaderTaskList) {
+            for (TupleReaderTask<?> task : tupleReaderTaskList) {
+                try {
+                    task.interrupt();
+                } catch (Throwable e) {
+                    LOG.warn(String.format("Unable to interrupt task %s", task), e);
+                }
             }
+            tupleReaderTaskList.clear();
         }
-        tupleReaderTaskList.clear();
     }
 
     /**
