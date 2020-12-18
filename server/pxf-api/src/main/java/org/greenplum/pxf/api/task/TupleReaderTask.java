@@ -1,6 +1,5 @@
 package org.greenplum.pxf.api.task;
 
-import com.google.common.collect.Iterators;
 import org.apache.catalina.connector.ClientAbortException;
 import org.greenplum.pxf.api.model.DataSplit;
 import org.greenplum.pxf.api.model.Processor;
@@ -105,12 +104,14 @@ public class TupleReaderTask<T> implements Runnable {
     /**
      * Fully consumes the iterator and materializes it into a list of objects
      *
-     * @param fields the field iterator
-     * @return the list of fields
+     * @param iterator the field iterator
+     * @return the list of iterator
      */
-    private List<Object> materializeIterator(Iterator<Object> fields) {
+    private List<Object> materializeIterator(Iterator<Object> iterator) {
         List<Object> list = new ArrayList<>(querySession.getContext().getTupleDescription().size());
-        Iterators.addAll(list, fields);
+        while (iterator.hasNext()) {
+            list.add(iterator.next());
+        }
         return list;
     }
 
