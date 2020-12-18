@@ -42,10 +42,9 @@ public class ProducerTask implements Runnable {
      */
     @Override
     public void run() {
+        int totalSegments = querySession.getContext().getTotalSegments();
+        Integer segmentId;
         try {
-            int taskIndex = 0; // keeps track of the number of tasks this producer created
-            int totalSegments = querySession.getContext().getTotalSegments();
-            Integer segmentId;
 
             // Materialize the list of splits
             DataSplitter splitter = querySession.getProcessor().getDataSplitter(querySession);
@@ -58,8 +57,9 @@ public class ProducerTask implements Runnable {
                 segmentId = registeredSegmentQueue.poll(25, TimeUnit.MILLISECONDS);
 
                 if (segmentId == null) {
-                    if (querySession.getCompletedTupleReaderTaskCount() == querySession.getCreatedTupleReaderTaskCount()
-                            && outputQueue.isEmpty()) {
+                    int completed = querySession.getCompletedTupleReaderTaskCount();
+                    int created = querySession.getCreatedTupleReaderTaskCount();
+                    if (completed == created && outputQueue.isEmpty()) {
                         // try to mark the session as inactive. If another
                         // thread is able to register itself before we mark it
                         // as inactive, this operation will be a no-op
@@ -71,12 +71,11 @@ public class ProducerTask implements Runnable {
                         DataSplit split = iterator.next();
                         LOG.debug("Submitting {} to the pool for query {}", split, querySession);
 
-                        TupleReaderTask<?> task = new TupleReaderTask<>(taskIndex, split, querySession);
+                        TupleReaderTask<?> task = new TupleReaderTask<>(split, querySession);
 
                         // Registers the task and increases the number of jobs submitted to the executor
-                        querySession.addTupleReaderTask(taskIndex, task);
+                        querySession.addTupleReaderTask(task);
                         boundedExecutor.execute(task);
-                        taskIndex++;
                     }
                 }
             }

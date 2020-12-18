@@ -12,7 +12,6 @@ import org.slf4j.LoggerFactory;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.BlockingDeque;
@@ -288,13 +287,12 @@ public class QuerySession {
      * Registers the {@link TupleReaderTask} to the querySession and keeps
      * track of the number of tasks that have been created.
      *
-     * @param taskIndex the creation index of the task
-     * @param task      the {@link TupleReaderTask}
+     * @param task the {@link TupleReaderTask}
      */
-    public <T> void addTupleReaderTask(int taskIndex, TupleReaderTask<T> task) {
+    public <T> void addTupleReaderTask(TupleReaderTask<T> task) {
         createdTupleReaderTaskCount.incrementAndGet();
         synchronized (tupleReaderTaskList) {
-            tupleReaderTaskList.add(taskIndex, task);
+            tupleReaderTaskList.add(task);
         }
     }
 
@@ -304,14 +302,10 @@ public class QuerySession {
      * completed. The completion count is regardless the task completed
      * successfully or with failures.
      *
-     * @param taskIndex the creation index of the task
-     * @param task      the {@link TupleReaderTask}
+     * @param task the {@link TupleReaderTask}
      */
-    public <T> void removeTupleReaderTask(int taskIndex, TupleReaderTask<T> task) {
+    public <T> void removeTupleReaderTask(TupleReaderTask<T> task) {
         completedTupleReaderTaskCount.incrementAndGet();
-        synchronized (tupleReaderTaskList) {
-            tupleReaderTaskList.remove(taskIndex);
-        }
     }
 
     /**
@@ -341,6 +335,9 @@ public class QuerySession {
 
         // Clear the queue of registered segments
         registeredSegmentQueue.clear();
+
+        // Clear tasks in the list
+        tupleReaderTaskList.clear();
 
         Instant endTime = Instant.now();
         long totalRecords = totalTupleCount.get();

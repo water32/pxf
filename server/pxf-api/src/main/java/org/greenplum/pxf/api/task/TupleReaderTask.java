@@ -27,7 +27,6 @@ public class TupleReaderTask<T> implements Runnable {
 
     private final Logger LOG = LoggerFactory.getLogger(TupleReaderTask.class);
 
-    private final int taskIndex;
     private final DataSplit split;
     private final BlockingDeque<List<List<Object>>> outputQueue;
     private final QuerySession querySession;
@@ -36,8 +35,7 @@ public class TupleReaderTask<T> implements Runnable {
     private Thread runningThread;
 
     @SuppressWarnings("unchecked")
-    public TupleReaderTask(int taskIndex, DataSplit split, QuerySession querySession) {
-        this.taskIndex = taskIndex;
+    public TupleReaderTask(DataSplit split, QuerySession querySession) {
         this.split = split;
         this.querySession = querySession;
         this.outputQueue = querySession.getOutputQueue();
@@ -86,7 +84,7 @@ public class TupleReaderTask<T> implements Runnable {
         } catch (Exception e) {
             querySession.errorQuery(e);
         } finally {
-            querySession.removeTupleReaderTask(taskIndex, this);
+            querySession.removeTupleReaderTask(this);
             if (iterator != null) {
                 try {
                     iterator.cleanup();
