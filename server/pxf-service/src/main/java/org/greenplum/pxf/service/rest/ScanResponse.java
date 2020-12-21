@@ -2,6 +2,7 @@ package org.greenplum.pxf.service.rest;
 
 import lombok.SneakyThrows;
 import org.apache.catalina.connector.ClientAbortException;
+import org.greenplum.pxf.api.function.TriFunction;
 import org.greenplum.pxf.api.model.QuerySession;
 import org.greenplum.pxf.api.model.RequestContext;
 import org.greenplum.pxf.api.serializer.BinarySerializer;
@@ -24,11 +25,11 @@ import java.util.concurrent.TimeUnit;
  * it contains the {@code outputQueue} where tuple batches are stored for
  * consumption and serialization.
  */
-public class ScanResponse implements StreamingResponseBody {
+public class ScanResponse<T> implements StreamingResponseBody {
 
     private static final Logger LOG = LoggerFactory.getLogger(ScanResponse.class);
 
-    private final QuerySession querySession;
+    private final QuerySession<T> querySession;
     private final RequestContext context;
     private final List<ColumnDescriptor> columnDescriptors;
 
@@ -38,7 +39,7 @@ public class ScanResponse implements StreamingResponseBody {
      *
      * @param querySession the query session object
      */
-    public ScanResponse(QuerySession querySession) {
+    public ScanResponse(QuerySession<T> querySession) {
         this.querySession = querySession;
         this.context = querySession.getContext();
         this.columnDescriptors = context.getTupleDescription();
@@ -59,22 +60,28 @@ public class ScanResponse implements StreamingResponseBody {
                 context.getSegmentId(), querySession);
 
         int recordCount = 0;
-        BlockingDeque<List<List<Object>>> outputQueue = querySession.getOutputQueue();
+        TriFunction<QuerySession<T>, T, Integer, Object>[] functions = null;
+        BlockingDeque<List<T>> outputQueue = querySession.getOutputQueue();
         List<ColumnDescriptor> columnDescriptors = this.columnDescriptors;
         try {
             Serializer serializer = getSerializer();
             serializer.open(output);
 
             while (querySession.isActive()) {
-                List<List<Object>> batch = outputQueue.poll(1, TimeUnit.MILLISECONDS);
+                List<T> batch = outputQueue.poll(1, TimeUnit.MILLISECONDS);
                 if (batch != null) {
-                    for (List<Object> tuple : batch) {
+
+                    if (functions == null) {
+                        functions = querySession.getProcessor().getMappingFunctions(querySession);
+                    }
+
+                    for (T tuple : batch) {
                         serializer.startRow(columnDescriptors.size());
                         for (int i = 0; i < columnDescriptors.size(); i++) {
                             ColumnDescriptor columnDescriptor = columnDescriptors.get(i);
-                            Object field = tuple.get(i);
+
                             serializer.startField();
-                            serializer.writeField(columnDescriptor.getDataType(), field);
+                            serializer.writeField(columnDescriptor.getDataType(), functions[i], querySession, tuple, i);
                             serializer.endField();
                         }
                         serializer.endRow();

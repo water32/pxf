@@ -34,11 +34,11 @@ import static org.greenplum.pxf.service.PxfConfiguration.PXF_TUPLE_TASK_EXECUTOR
  * for newly created {@link QuerySession} objects.
  */
 @Service
-public class QuerySessionService {
+public class QuerySessionService<T> {
 
     private static final long EXPIRE_AFTER_ACCESS_DURATION_MINUTES = 5;
 
-    private final Cache<String, QuerySession> querySessionCache;
+    private final Cache<String, QuerySession<T>> querySessionCache;
     private final ConfigurationFactory configurationFactory;
     private final Logger LOG = LoggerFactory.getLogger(this.getClass());
     private final RequestParser<MultiValueMap<String, String>> parser;
@@ -61,7 +61,7 @@ public class QuerySessionService {
                         RequestParser<MultiValueMap<String, String>> parser) {
         this.querySessionCache = CacheBuilder.newBuilder()
                 .expireAfterAccess(EXPIRE_AFTER_ACCESS_DURATION_MINUTES, TimeUnit.MINUTES)
-                .removalListener((RemovalListener<String, QuerySession>) notification ->
+                .removalListener((RemovalListener<String, QuerySession<T>>) notification ->
                         LOG.debug("Removed querySessionCache entry for key {} with cause {}",
                                 notification.getKey(),
                                 notification.getCause().toString()))
@@ -81,7 +81,7 @@ public class QuerySessionService {
      * @return the {@link QuerySession} for the given request headers
      * @throws Throwable when an error occurs
      */
-    public QuerySession get(final MultiValueMap<String, String> headers)
+    public QuerySession<T> get(final MultiValueMap<String, String> headers)
             throws Throwable {
 
         // TODO: should we do minimal parsing? we only need server name, xid,
@@ -93,7 +93,7 @@ public class QuerySessionService {
             // Lookup the querySession from the cache, if the querySession
             // is not in the cache, it will be initialized and a
             // ProducerTask will be scheduled for the new querySession.
-            QuerySession querySession = getQuerySessionFromCache(context);
+            QuerySession<T> querySession = getQuerySessionFromCache(context);
             try {
                 // Register the segment to the session
                 querySession.registerSegment(context.getSegmentId());
@@ -126,7 +126,7 @@ public class QuerySessionService {
      * @return the QuerySession for the current request
      * @throws ExecutionException when an execution error occurs when retrieving the cache entry
      */
-    private QuerySession getQuerySessionFromCache(final RequestContext context)
+    private QuerySession<T> getQuerySessionFromCache(final RequestContext context)
             throws ExecutionException {
 
         final String cacheKey = String.format("%s:%s:%s:%s",
@@ -137,7 +137,7 @@ public class QuerySessionService {
                 .get(cacheKey, () -> {
                     LOG.debug("Caching querySession for key={} from segmentId={}",
                             cacheKey, context.getSegmentId());
-                    QuerySession session = initializeQuerySession(context);
+                    QuerySession<T> session = initializeQuerySession(context);
                     initializeAndExecuteProducerTask(session);
                     return session;
                 });
@@ -150,7 +150,7 @@ public class QuerySessionService {
      * @param context the request headers
      * @return the initialized querySession
      */
-    private QuerySession initializeQuerySession(RequestContext context) {
+    private QuerySession<T> initializeQuerySession(RequestContext context) {
 
         // Initialize the configuration for this request
         // Configuration initialization is expensive, so we only
@@ -164,8 +164,11 @@ public class QuerySessionService {
 
         context.setConfiguration(configuration);
 
-        QuerySession session = new QuerySession(context, querySessionCache);
+        QuerySession<T> session = new QuerySession<>(context, querySessionCache);
         session.setProcessor(getProcessor(session));
+
+        LOG.info("Initialized querySession {}", session);
+
         return session;
     }
 
@@ -175,9 +178,9 @@ public class QuerySessionService {
      *
      * @param querySession the query session to use for the producer
      */
-    private void initializeAndExecuteProducerTask(QuerySession querySession) {
+    private void initializeAndExecuteProducerTask(QuerySession<T> querySession) {
         // Execute the ProducerTask
-        ProducerTask producer = new ProducerTask(querySession, tupleTaskExecutor);
+        ProducerTask<T> producer = new ProducerTask<>(querySession, tupleTaskExecutor);
         producerTaskExecutor.execute(producer);
     }
 
@@ -187,8 +190,9 @@ public class QuerySessionService {
      * @param querySession the session for the query
      * @return the processor that can handle the request
      */
-    public Processor<?> getProcessor(QuerySession querySession) {
-        return (Processor<?>) registeredProcessors
+    @SuppressWarnings("unchecked")
+    public Processor<T> getProcessor(QuerySession<T> querySession) {
+        return (Processor<T>) registeredProcessors
                 .stream()
                 .filter(p -> p.canProcessRequest(querySession))
                 .findFirst()

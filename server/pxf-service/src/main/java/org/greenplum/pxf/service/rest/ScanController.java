@@ -20,9 +20,9 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 @RequestMapping("/pxf/" + Version.PXF_PROTOCOL_VERSION)
 public class ScanController {
 
-    private final QuerySessionService querySessionService;
+    private final QuerySessionService<?> querySessionService;
 
-    public ScanController(QuerySessionService querySessionService) {
+    public ScanController(QuerySessionService<?> querySessionService) {
         this.querySessionService = querySessionService;
     }
 
@@ -34,15 +34,15 @@ public class ScanController {
         // Get the query session
         // QuerySession has the processor, the RequestContext, state of the
         // query, among other information
-        QuerySession querySession = querySessionService.get(headers);
-        
+        QuerySession<?> querySession = querySessionService.get(headers);
+
         if (querySession == null) {
             return new ResponseEntity<>(HttpStatus.OK);
         }
 
         // Create a streaming class which will consume tuples from the
         // querySession object and serialize them to the output stream
-        StreamingResponseBody response = new ScanResponse(querySession);
+        StreamingResponseBody response = new ScanResponse<>(querySession);
 
         // returns the response to the client
         return new ResponseEntity<>(response, HttpStatus.OK);

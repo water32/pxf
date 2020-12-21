@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.BlockingDeque;
 
@@ -27,19 +26,20 @@ public class TupleReaderTask<T> implements Runnable {
 
     private final Logger LOG = LoggerFactory.getLogger(TupleReaderTask.class);
 
+    private final int taskNumber;
     private final DataSplit split;
-    private final BlockingDeque<List<List<Object>>> outputQueue;
-    private final QuerySession querySession;
+    private final BlockingDeque<List<T>> outputQueue;
+    private final QuerySession<T> querySession;
     private final String uniqueResourceName;
     private final Processor<T> processor;
     private Thread runningThread;
 
-    @SuppressWarnings("unchecked")
-    public TupleReaderTask(DataSplit split, QuerySession querySession) {
+    public TupleReaderTask(int taskNumber, DataSplit split, QuerySession<T> querySession) {
+        this.taskNumber = taskNumber;
         this.split = split;
         this.querySession = querySession;
         this.outputQueue = querySession.getOutputQueue();
-        this.processor = (Processor<T>) querySession.getProcessor();
+        this.processor = querySession.getProcessor();
         this.uniqueResourceName = split.toString();
     }
 
@@ -59,10 +59,9 @@ public class TupleReaderTask<T> implements Runnable {
         TupleIterator<T> iterator = null;
         try {
             iterator = processor.getTupleIterator(querySession, split);
-            List<List<Object>> batch = new ArrayList<>(batchSize);
+            List<T> batch = new ArrayList<>(batchSize);
             while (querySession.isActive() && iterator.hasNext()) {
-                List<Object> fields = materializeIterator(processor.getFields(querySession, iterator.next()));
-                batch.add(fields);
+                batch.add(iterator.next());
                 if (batch.size() == batchSize) {
                     totalRows += batchSize;
                     outputQueue.put(batch);
@@ -84,7 +83,7 @@ public class TupleReaderTask<T> implements Runnable {
         } catch (Exception e) {
             querySession.errorQuery(e);
         } finally {
-            querySession.removeTupleReaderTask(this);
+            querySession.removeTupleReaderTask(taskNumber, this);
             if (iterator != null) {
                 try {
                     iterator.cleanup();
@@ -97,20 +96,6 @@ public class TupleReaderTask<T> implements Runnable {
         // Keep track of the number of records processed by this task
         LOG.debug("completed processing {} row{} {} for query {}",
                 totalRows, totalRows == 1 ? "" : "s", uniqueResourceName, querySession);
-    }
-
-    /**
-     * Fully consumes the iterator and materializes it into a list of objects
-     *
-     * @param iterator the field iterator
-     * @return the list of iterator
-     */
-    private List<Object> materializeIterator(Iterator<Object> iterator) {
-        List<Object> list = new ArrayList<>(querySession.getContext().getTupleDescription().size());
-        while (iterator.hasNext()) {
-            list.add(iterator.next());
-        }
-        return list;
     }
 
     /**

@@ -1,7 +1,9 @@
 package org.greenplum.pxf.api.serializer;
 
+import org.greenplum.pxf.api.function.TriFunction;
 import org.greenplum.pxf.api.io.DataType;
 import org.greenplum.pxf.api.model.GreenplumCSV;
+import org.greenplum.pxf.api.model.QuerySession;
 import org.greenplum.pxf.api.serializer.csv.CsvValueHandlerProvider;
 
 import java.io.IOException;
@@ -36,19 +38,19 @@ public class CsvSerializer extends BaseSerializer {
     }
 
     @Override
-    public <T> void writeField(DataType dataType, T field) throws IOException {
+    public <T> void writeField(DataType dataType, TriFunction<QuerySession<T>, T, Integer, Object> function, QuerySession<T> session, T tuple, int columnIndex) throws IOException {
         currentField++;
-        if (field == null) {
-            stringValueHandler.handle(buffer, greenplumCSV.getValueOfNull());
-        } else {
-            // TODO: best effort to resolve the field to the greenplum datatype
-            if (DataType.isTextForm(dataType.getOID()) && !DataType.isArrayType(dataType.getOID()) && field instanceof String) {
-                stringValueHandler.handle(buffer,
-                        greenplumCSV.toCsvField((String) field, true, true, true));
-            } else {
-                valueHandlerProvider.resolve(dataType).handle(buffer, field);
-            }
-        }
+//        if (field == null) {
+//            stringValueHandler.handle(buffer, greenplumCSV.getValueOfNull());
+//        } else {
+//            // TODO: best effort to resolve the field to the greenplum datatype
+//            if (DataType.isTextForm(dataType.getOID()) && !DataType.isArrayType(dataType.getOID()) && field instanceof String) {
+//                stringValueHandler.handle(buffer,
+//                        greenplumCSV.toCsvField((String) field, true, true, true));
+//            } else {
+//                valueHandlerProvider.resolve(dataType).handle(buffer, field);
+//            }
+//        }
     }
 
     @Override

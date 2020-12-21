@@ -20,6 +20,7 @@ import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.time.Duration;
+import java.util.concurrent.Executors;
 
 /**
  * Configures the {@link AsyncTaskExecutor} for tasks that will stream data to
@@ -116,7 +117,9 @@ public class PxfConfiguration implements WebMvcConfigurer {
     @Bean(name = PXF_PRODUCER_TASK_EXECUTOR)
     public ThreadPoolTaskExecutor pxfProducerTaskExecutor() {
         TaskExecutorBuilder builder = new TaskExecutorBuilder();
+        builder = builder.queueCapacity(0);
         builder = builder.corePoolSize(8);
+        builder = builder.maxPoolSize(Integer.MAX_VALUE);
         builder = builder.allowCoreThreadTimeOut(false);
         builder = builder.keepAlive(Duration.ofSeconds(60));
         builder = builder.threadNamePrefix("pxf-producer-");
@@ -126,10 +129,12 @@ public class PxfConfiguration implements WebMvcConfigurer {
     @Bean(name = PXF_TUPLE_TASK_EXECUTOR)
     public ThreadPoolTaskExecutor pxfTupleTaskExecutor() {
         TaskExecutorBuilder builder = new TaskExecutorBuilder();
+        builder = builder.queueCapacity(0);
         builder = builder.corePoolSize(8);
+        builder = builder.maxPoolSize(Integer.MAX_VALUE);
         builder = builder.allowCoreThreadTimeOut(false);
         builder = builder.keepAlive(Duration.ofSeconds(60));
-        builder = builder.threadNamePrefix("pxf-task-executor-");
+        builder = builder.threadNamePrefix("pxf-tuple-executor-");
         return builder.build();
     }
 }

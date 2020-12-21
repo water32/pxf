@@ -1,5 +1,7 @@
 package org.greenplum.pxf.api.model;
 
+import org.greenplum.pxf.api.function.TriFunction;
+
 import java.io.IOException;
 import java.util.Iterator;
 
@@ -17,7 +19,7 @@ public interface Processor<T> {
      * @param querySession the session for the query
      * @return the query splitter
      */
-    DataSplitter getDataSplitter(QuerySession querySession);
+    DataSplitter getDataSplitter(QuerySession<T> querySession);
 
     /**
      * Process the current split and return an iterator to retrieve tuples
@@ -27,16 +29,25 @@ public interface Processor<T> {
      * @param split        the split
      * @return an iterator of tuples of type {@code T}
      */
-    TupleIterator<T> getTupleIterator(QuerySession querySession, DataSplit split) throws IOException;
+    TupleIterator<T> getTupleIterator(QuerySession<T> querySession, DataSplit split) throws IOException;
+
+//    /**
+//     * Return a list of fields for the the tuple
+//     *
+//     * @param querySession the session for the query
+//     * @param tuple        the tuple
+//     * @return the list of fields for the given tuple
+//     */
+//    Iterator<Object> getFields(QuerySession<T> querySession, T tuple) throws IOException;
 
     /**
-     * Return a list of fields for the the tuple
+     * Returns an array of mapping functions that map a tuple at a given index
+     * to the resolved type to be serialized.
      *
      * @param querySession the session for the query
-     * @param tuple        the tuple
-     * @return the list of fields for the given tuple
+     * @return the array of mapping functions
      */
-    Iterator<Object> getFields(QuerySession querySession, T tuple) throws IOException;
+    TriFunction<QuerySession<T>, T, Integer, Object>[] getMappingFunctions(QuerySession<T> querySession);
 
     /**
      * Returns true if this processor can handle the request, false otherwise
@@ -44,5 +55,5 @@ public interface Processor<T> {
      * @param querySession the session for the query
      * @return true if this processor can handle the request, false otherwise
      */
-    boolean canProcessRequest(QuerySession querySession);
+    boolean canProcessRequest(QuerySession<T> querySession);
 }

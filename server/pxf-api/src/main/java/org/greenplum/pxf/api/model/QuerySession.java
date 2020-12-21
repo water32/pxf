@@ -11,9 +11,10 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -26,7 +27,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * for the same query slice.
  */
 @EqualsAndHashCode(of = {"queryId"})
-public class QuerySession {
+public class QuerySession<T> {
 
     private static final Logger LOG = LoggerFactory.getLogger(QuerySession.class);
 
@@ -52,7 +53,7 @@ public class QuerySession {
      */
     @Getter
     @Setter
-    private Processor<?> processor;
+    private Processor<T> processor;
 
     /**
      * True if the query is active, false otherwise
@@ -103,7 +104,7 @@ public class QuerySession {
      * The queue used to process tuples.
      */
     @Getter
-    private final BlockingDeque<List<List<Object>>> outputQueue;
+    private final BlockingDeque<List<T>> outputQueue;
 
     /**
      * Number of active segments that have registered to this QuerySession
@@ -128,11 +129,11 @@ public class QuerySession {
     /**
      * Holds a reference to the querySessionCache
      */
-    private final Cache<String, QuerySession> querySessionCache;
+    private final Cache<String, QuerySession<T>> querySessionCache;
 
-    private final List<TupleReaderTask<?>> tupleReaderTaskList;
+    private final Map<Integer, TupleReaderTask<T>> tupleReaderTaskMap;
 
-    public QuerySession(RequestContext context, Cache<String, QuerySession> querySessionCache) {
+    public QuerySession(RequestContext context, Cache<String, QuerySession<T>> querySessionCache) {
         this.context = context;
         this.querySessionCache = querySessionCache;
         this.registrationLock = new Object();
@@ -149,7 +150,7 @@ public class QuerySession {
         this.createdTupleReaderTaskCount = new AtomicInteger(0);
         this.completedTupleReaderTaskCount = new AtomicInteger(0);
         this.totalTupleCount = new AtomicLong(0);
-        this.tupleReaderTaskList = new ArrayList<>();
+        this.tupleReaderTaskMap = new HashMap<>();
     }
 
     /**
@@ -287,12 +288,13 @@ public class QuerySession {
      * Registers the {@link TupleReaderTask} to the querySession and keeps
      * track of the number of tasks that have been created.
      *
-     * @param task the {@link TupleReaderTask}
+     * @param taskNumber a unique number for the task
+     * @param task       the {@link TupleReaderTask}
      */
-    public <T> void addTupleReaderTask(TupleReaderTask<T> task) {
+    public void addTupleReaderTask(int taskNumber, TupleReaderTask<T> task) {
         createdTupleReaderTaskCount.incrementAndGet();
-        synchronized (tupleReaderTaskList) {
-            tupleReaderTaskList.add(task);
+        synchronized (tupleReaderTaskMap) {
+            tupleReaderTaskMap.put(taskNumber, task);
         }
     }
 
@@ -302,10 +304,14 @@ public class QuerySession {
      * completed. The completion count is regardless the task completed
      * successfully or with failures.
      *
-     * @param task the {@link TupleReaderTask}
+     * @param taskNumber a unique number for the task
+     * @param task       the {@link TupleReaderTask}
      */
-    public <T> void removeTupleReaderTask(TupleReaderTask<T> task) {
+    public void removeTupleReaderTask(int taskNumber, TupleReaderTask<T> task) {
         completedTupleReaderTaskCount.incrementAndGet();
+        synchronized (tupleReaderTaskMap) {
+            tupleReaderTaskMap.remove(taskNumber);
+        }
     }
 
     /**
@@ -313,15 +319,15 @@ public class QuerySession {
      * {@link QuerySession}
      */
     public void cancelAllTasks() {
-        synchronized (tupleReaderTaskList) {
-            for (TupleReaderTask<?> task : tupleReaderTaskList) {
+        synchronized (tupleReaderTaskMap) {
+            for (Map.Entry<Integer, TupleReaderTask<T>> entry : tupleReaderTaskMap.entrySet()) {
                 try {
-                    task.interrupt();
+                    entry.getValue().interrupt();
                 } catch (Throwable e) {
-                    LOG.warn(String.format("Unable to interrupt task %s", task), e);
+                    LOG.warn(String.format("Unable to interrupt task number %d (%s)", entry.getKey(), entry.getValue()), e);
                 }
             }
-            tupleReaderTaskList.clear();
+            tupleReaderTaskMap.clear();
         }
     }
 
@@ -337,7 +343,7 @@ public class QuerySession {
         registeredSegmentQueue.clear();
 
         // Clear tasks in the list
-        tupleReaderTaskList.clear();
+        tupleReaderTaskMap.clear();
 
         Instant endTime = Instant.now();
         long totalRecords = totalTupleCount.get();

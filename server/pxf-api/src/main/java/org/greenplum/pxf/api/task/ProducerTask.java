@@ -17,23 +17,22 @@ import java.util.concurrent.TimeUnit;
 
 import static java.util.Objects.requireNonNull;
 
-public class ProducerTask implements Runnable {
+public class ProducerTask<T> implements Runnable {
 
-    private static final int DEFAULT_MAX_THREADS = 10;
+    private static final int DEFAULT_MAX_THREADS = 32;
     // TODO: decide a property name for the maxThreads
     private static final String PXF_PRODUCER_MAX_THREADS_PROPERTY = "pxf.producer.max-threads";
 
     protected Logger LOG = LoggerFactory.getLogger(this.getClass());
 
-    private final QuerySession querySession;
+    private final QuerySession<T> querySession;
     private final BoundedExecutor boundedExecutor;
 
-    public ProducerTask(QuerySession querySession, Executor executor) {
+    public ProducerTask(QuerySession<T> querySession, Executor executor) {
         this.querySession = requireNonNull(querySession, "querySession cannot be null");
         // Defaults to the minimum between DEFAULT_MAX_THREADS and the number of available processors
         int maxThreads = querySession.getContext().getConfiguration()
-                .getInt(PXF_PRODUCER_MAX_THREADS_PROPERTY,
-                        Math.min(DEFAULT_MAX_THREADS, Runtime.getRuntime().availableProcessors()));
+                .getInt(PXF_PRODUCER_MAX_THREADS_PROPERTY, DEFAULT_MAX_THREADS);
         this.boundedExecutor = new BoundedExecutor(executor, maxThreads);
     }
 
@@ -42,6 +41,7 @@ public class ProducerTask implements Runnable {
      */
     @Override
     public void run() {
+        int taskCount = 0;
         int totalSegments = querySession.getContext().getTotalSegments();
         Integer segmentId;
         try {
@@ -51,15 +51,14 @@ public class ProducerTask implements Runnable {
             List<DataSplit> splitList = Lists.newArrayList(splitter);
             // get the queue of segments IDs that have registered to this QuerySession
             BlockingDeque<Integer> registeredSegmentQueue = querySession.getRegisteredSegmentQueue();
-            BlockingDeque<List<List<Object>>> outputQueue = querySession.getOutputQueue();
 
             while (querySession.isActive()) {
-                segmentId = registeredSegmentQueue.poll(25, TimeUnit.MILLISECONDS);
+                segmentId = registeredSegmentQueue.poll(50, TimeUnit.MILLISECONDS);
 
                 if (segmentId == null) {
                     int completed = querySession.getCompletedTupleReaderTaskCount();
                     int created = querySession.getCreatedTupleReaderTaskCount();
-                    if (completed == created && outputQueue.isEmpty()) {
+                    if (completed == created) {
                         // try to mark the session as inactive. If another
                         // thread is able to register itself before we mark it
                         // as inactive, this operation will be a no-op
@@ -71,11 +70,12 @@ public class ProducerTask implements Runnable {
                         DataSplit split = iterator.next();
                         LOG.debug("Submitting {} to the pool for query {}", split, querySession);
 
-                        TupleReaderTask<?> task = new TupleReaderTask<>(split, querySession);
+                        TupleReaderTask<T> task = new TupleReaderTask<>(taskCount, split, querySession);
 
                         // Registers the task and increases the number of jobs submitted to the executor
-                        querySession.addTupleReaderTask(task);
+                        querySession.addTupleReaderTask(taskCount, task);
                         boundedExecutor.execute(task);
+                        taskCount++;
                     }
                 }
             }
@@ -84,6 +84,7 @@ public class ProducerTask implements Runnable {
             throw new RuntimeException(ex);
         } finally {
 
+            // TODO: find a better way to wait for this
             // Allow segments to deregister to the query session
             while (querySession.getActiveSegmentCount() > 0) {
                 // wait or until timeout
