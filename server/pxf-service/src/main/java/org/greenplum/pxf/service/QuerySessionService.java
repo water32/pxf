@@ -16,14 +16,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
-import org.springframework.util.MultiValueMap;
 
 import java.util.Collection;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
-import static org.greenplum.pxf.api.model.RequestContext.RequestType.SCAN_CONTROLLER;
 import static org.greenplum.pxf.service.PxfConfiguration.PXF_PRODUCER_TASK_EXECUTOR;
 import static org.greenplum.pxf.service.PxfConfiguration.PXF_TUPLE_TASK_EXECUTOR;
 
@@ -41,7 +39,7 @@ public class QuerySessionService<T> {
     private final Cache<String, QuerySession<T>> querySessionCache;
     private final ConfigurationFactory configurationFactory;
     private final Logger LOG = LoggerFactory.getLogger(this.getClass());
-    private final RequestParser<MultiValueMap<String, String>> parser;
+
     private final Executor producerTaskExecutor;
     private final Executor tupleTaskExecutor;
     @SuppressWarnings("rawtypes")
@@ -53,12 +51,10 @@ public class QuerySessionService<T> {
      * @param applicationContext   the application context
      * @param configurationFactory the configuration factory
      * @param beanFactory          the bean factory
-     * @param parser               the request parser
      */
     QuerySessionService(ApplicationContext applicationContext,
                         ConfigurationFactory configurationFactory,
-                        ListableBeanFactory beanFactory,
-                        RequestParser<MultiValueMap<String, String>> parser) {
+                        ListableBeanFactory beanFactory) {
         this.querySessionCache = CacheBuilder.newBuilder()
                 .expireAfterAccess(EXPIRE_AFTER_ACCESS_DURATION_MINUTES, TimeUnit.MINUTES)
                 .removalListener((RemovalListener<String, QuerySession<T>>) notification ->
@@ -68,7 +64,6 @@ public class QuerySessionService<T> {
                 .build();
 
         this.configurationFactory = configurationFactory;
-        this.parser = parser;
         this.producerTaskExecutor = (Executor) beanFactory.getBean(PXF_PRODUCER_TASK_EXECUTOR);
         this.tupleTaskExecutor = (Executor) beanFactory.getBean(PXF_TUPLE_TASK_EXECUTOR);
         this.registeredProcessors = applicationContext.getBeansOfType(Processor.class).values();
@@ -77,17 +72,12 @@ public class QuerySessionService<T> {
     /**
      * Returns the {@link QuerySession} for the given request headers
      *
-     * @param headers the request headers
+     * @param context the request context
      * @return the {@link QuerySession} for the given request headers
      * @throws Throwable when an error occurs
      */
-    public QuerySession<T> get(final MultiValueMap<String, String> headers)
+    public QuerySession<T> get(final RequestContext context)
             throws Throwable {
-
-        // TODO: should we do minimal parsing? we only need server name, xid,
-        //       resource, filter string and segment ID. Minimal parsing can
-        //       improve the query performance marginally
-        final RequestContext context = parser.parseRequest(headers, SCAN_CONTROLLER);
 
         try {
             // Lookup the querySession from the cache, if the querySession
@@ -147,7 +137,7 @@ public class QuerySessionService<T> {
      * Parses the request headers and initializes the {@link QuerySession} with
      * the context and the processor for the request.
      *
-     * @param context the request headers
+     * @param context the request context
      * @return the initialized querySession
      */
     private QuerySession<T> initializeQuerySession(RequestContext context) {

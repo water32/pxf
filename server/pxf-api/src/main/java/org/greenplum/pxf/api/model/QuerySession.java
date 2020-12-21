@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
@@ -103,8 +104,9 @@ public class QuerySession<T> {
     /**
      * The queue used to process tuples.
      */
-    @Getter
-    private final BlockingDeque<List<T>> outputQueue;
+    private final Map<Integer, BlockingDeque<List<T>>> outputQueueMap;
+
+    private final List<BlockingDeque<List<T>>> outputQueueList;
 
     /**
      * Number of active segments that have registered to this QuerySession
@@ -133,6 +135,7 @@ public class QuerySession<T> {
 
     private final Map<Integer, TupleReaderTask<T>> tupleReaderTaskMap;
 
+    @SuppressWarnings("unchecked")
     public QuerySession(RequestContext context, Cache<String, QuerySession<T>> querySessionCache) {
         this.context = context;
         this.querySessionCache = querySessionCache;
@@ -144,7 +147,8 @@ public class QuerySession<T> {
         this.queryCancelled = new AtomicBoolean(false);
         this.queryErrored = new AtomicBoolean(false);
         this.registeredSegmentQueue = new LinkedBlockingDeque<>();
-        this.outputQueue = new LinkedBlockingDeque<>(400);
+        this.outputQueueMap = new HashMap<>();
+        this.outputQueueList = new ArrayList<>();
         this.errors = new ConcurrentLinkedDeque<>();
         this.activeSegmentCount = new AtomicInteger(0);
         this.createdTupleReaderTaskCount = new AtomicInteger(0);
@@ -178,6 +182,10 @@ public class QuerySession<T> {
 
             activeSegmentCount.incrementAndGet();
             registeredSegmentQueue.put(segmentId);
+
+            BlockingDeque<List<T>> outputQueue = new LinkedBlockingDeque<>(400);
+            outputQueueMap.put(segmentId, outputQueue);
+            outputQueueList.add(outputQueue);
         }
     }
 
@@ -190,6 +198,13 @@ public class QuerySession<T> {
     public void tryMarkInactive() {
         synchronized (registrationLock) {
             if (registeredSegmentQueue.isEmpty()) {
+
+                // TODO: someone can be adding something to one of the output queues
+                for (BlockingDeque<List<T>> outputQueue : outputQueueList) {
+                    if (!outputQueue.isEmpty())
+                        return;
+                }
+
                 String cacheKey = String.format("%s:%s:%s:%s",
                         context.getServerName(), context.getTransactionId(),
                         context.getDataSource(), context.getFilterString());
@@ -203,6 +218,7 @@ public class QuerySession<T> {
                 queryActive.set(false);
             }
         }
+
     }
 
 
@@ -337,7 +353,7 @@ public class QuerySession<T> {
     public void close() {
 
         // Clear the output queue in case of error or cancellation
-        outputQueue.clear();
+//        outputQueue.clear();
 
         // Clear the queue of registered segments
         registeredSegmentQueue.clear();
@@ -382,5 +398,14 @@ public class QuerySession<T> {
                 Integer.toHexString(System.identityHashCode(this)) +
                 "{queryId='" + queryId + '\'' +
                 '}';
+    }
+
+    public BlockingDeque<List<T>> getOutputQueueForSegmentId(int segmentId) {
+        return outputQueueMap.get(segmentId);
+    }
+
+    public BlockingDeque<List<T>> getOutputQueueForTaskId(int taskId) {
+        int index = taskId % outputQueueList.size();
+        return outputQueueList.get(index);
     }
 }

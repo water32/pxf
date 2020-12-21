@@ -29,6 +29,7 @@ public class ScanResponse<T> implements StreamingResponseBody {
 
     private static final Logger LOG = LoggerFactory.getLogger(ScanResponse.class);
 
+    private final int segmentId;
     private final QuerySession<T> querySession;
     private final RequestContext context;
     private final List<ColumnDescriptor> columnDescriptors;
@@ -39,7 +40,8 @@ public class ScanResponse<T> implements StreamingResponseBody {
      *
      * @param querySession the query session object
      */
-    public ScanResponse(QuerySession<T> querySession) {
+    public ScanResponse(int segmentId, QuerySession<T> querySession) {
+        this.segmentId = segmentId;
         this.querySession = querySession;
         this.context = querySession.getContext();
         this.columnDescriptors = context.getTupleDescription();
@@ -57,11 +59,11 @@ public class ScanResponse<T> implements StreamingResponseBody {
     public void writeTo(OutputStream output) {
 
         LOG.debug("{}-{}-- Starting streaming for {}", context.getTransactionId(),
-                context.getSegmentId(), querySession);
+                segmentId, querySession);
 
         int recordCount = 0;
         TriFunction<QuerySession<T>, T, Integer, Object>[] functions = null;
-        BlockingDeque<List<T>> outputQueue = querySession.getOutputQueue();
+        BlockingDeque<List<T>> outputQueue = querySession.getOutputQueueForSegmentId(segmentId);
         List<ColumnDescriptor> columnDescriptors = this.columnDescriptors;
         try {
             Serializer serializer = getSerializer();
@@ -105,9 +107,9 @@ public class ScanResponse<T> implements StreamingResponseBody {
             // Occurs whenever client (Greenplum) decides to end the connection
             if (LOG.isDebugEnabled()) {
                 // Stacktrace in debug
-                LOG.warn(String.format("Remote connection closed by Greenplum (segment %s)", context.getSegmentId()), e);
+                LOG.warn(String.format("Remote connection closed by Greenplum (segment %s)", segmentId), e);
             } else {
-                LOG.warn("Remote connection closed by Greenplum (segment {}) (Enable debug for stacktrace)", context.getSegmentId());
+                LOG.warn("Remote connection closed by Greenplum (segment {}) (Enable debug for stacktrace)", segmentId);
             }
             // Re-throw the exception so Spring MVC is aware that an IO error has occurred
             throw e;
@@ -119,7 +121,7 @@ public class ScanResponse<T> implements StreamingResponseBody {
         } finally {
             querySession.deregisterSegment(recordCount);
             LOG.debug("{}-{}-- Stopped streaming {} record{} for {}",
-                    context.getTransactionId(), context.getSegmentId(),
+                    context.getTransactionId(), segmentId,
                     recordCount, recordCount == 1 ? "" : "s", querySession);
         }
     }

@@ -38,7 +38,7 @@ public class TupleReaderTask<T> implements Runnable {
         this.taskNumber = taskNumber;
         this.split = split;
         this.querySession = querySession;
-        this.outputQueue = querySession.getOutputQueue();
+        this.outputQueue = querySession.getOutputQueueForTaskId(taskNumber);
         this.processor = querySession.getProcessor();
         this.uniqueResourceName = split.toString();
     }
