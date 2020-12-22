@@ -4,6 +4,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.RemovalListener;
 import com.google.common.util.concurrent.UncheckedExecutionException;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.greenplum.pxf.api.factory.ConfigurationFactory;
@@ -44,6 +45,7 @@ public class QuerySessionService<T> {
     private final Executor tupleTaskExecutor;
     @SuppressWarnings("rawtypes")
     private final Collection<Processor> registeredProcessors;
+    private final MeterRegistry meterRegistry;
 
     /**
      * Initializes a QuerySessionManager with auto-wired components
@@ -54,7 +56,8 @@ public class QuerySessionService<T> {
      */
     QuerySessionService(ApplicationContext applicationContext,
                         ConfigurationFactory configurationFactory,
-                        ListableBeanFactory beanFactory) {
+                        ListableBeanFactory beanFactory,
+                        MeterRegistry meterRegistry) {
         this.querySessionCache = CacheBuilder.newBuilder()
                 .expireAfterAccess(EXPIRE_AFTER_ACCESS_DURATION_MINUTES, TimeUnit.MINUTES)
                 .removalListener((RemovalListener<String, QuerySession<T>>) notification ->
@@ -67,6 +70,7 @@ public class QuerySessionService<T> {
         this.producerTaskExecutor = (Executor) beanFactory.getBean(PXF_PRODUCER_TASK_EXECUTOR);
         this.tupleTaskExecutor = (Executor) beanFactory.getBean(PXF_TUPLE_TASK_EXECUTOR);
         this.registeredProcessors = applicationContext.getBeansOfType(Processor.class).values();
+        this.meterRegistry = meterRegistry;
     }
 
     /**
@@ -154,7 +158,7 @@ public class QuerySessionService<T> {
 
         context.setConfiguration(configuration);
 
-        QuerySession<T> session = new QuerySession<>(context, querySessionCache);
+        QuerySession<T> session = new QuerySession<>(context, querySessionCache, meterRegistry);
         session.setProcessor(getProcessor(session));
 
         LOG.info("Initialized querySession {}", session);

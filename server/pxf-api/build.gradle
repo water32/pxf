@@ -20,6 +20,7 @@ dependencies {
     api("org.apache.hadoop:hadoop-common:${hadoopVersion}") { transitive = false }
     api("org.springframework.boot:spring-boot-starter")
     api('org.springframework.boot:spring-boot-starter-web')
+    api('io.micrometer:micrometer-core')
 
     /*******************************
      * Compile Only Dependencies

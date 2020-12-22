@@ -20,6 +20,8 @@ import java.util.NoSuchElementException;
 @Component
 public class DemoProcessor implements Processor<String[]> {
 
+    static final int TOTAL_ROWS = 2000000;
+
     /**
      * {@inheritDoc}
      */
@@ -76,14 +78,15 @@ public class DemoProcessor implements Processor<String[]> {
      */
     private static class DemoTupleIterator implements TupleIterator<String[]> {
 
-        private int rowNumber;
-        private final int numRows;
+        private final int numRows = TOTAL_ROWS;
+
         private final int columnCount;
         private final String path;
         private final String[] tuple;
 
+        private int rowNumber;
+
         DemoTupleIterator(RequestContext context, DemoFragmentMetadata metadata) {
-            numRows = 2000000;
             columnCount = context.getColumns();
             path = metadata.getPath();
             tuple = new String[columnCount];
@@ -105,7 +108,7 @@ public class DemoProcessor implements Processor<String[]> {
             if (rowNumber >= numRows)
                 throw new NoSuchElementException();
 
-            tuple[0] = path + " row" + rowNumber + 1;
+            tuple[0] = path + " row" + (rowNumber + 1);
 
             for (int colIndex = 1; colIndex < columnCount; colIndex++) {
                 tuple[colIndex] = "value" + colIndex;

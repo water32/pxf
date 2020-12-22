@@ -14,7 +14,8 @@ import java.util.NoSuchElementException;
  * <p>Demo implementation
  */
 public class DemoDataSplitter extends BaseDataSplitter {
-    private static final int TOTAL_FRAGMENTS = 300;
+    static final int TOTAL_FRAGMENTS = 300;
+
     private int currentFragment = 1;
 
     /**

@@ -21,21 +21,13 @@ class DemoDataSplitterTest {
 
         DemoDataSplitter splitter = new DemoDataSplitter(context);
 
-        assertTrue(splitter.hasNext());
-        DataSplit split = splitter.next();
-        assertNotNull(split);
-        assertEquals(split.getResource(), "demo-datasource.1");
-
-        assertTrue(splitter.hasNext());
-        assertTrue(splitter.hasNext()); // should not skip any splits
-        split = splitter.next();
-        assertNotNull(split);
-        assertEquals(split.getResource(), "demo-datasource.2");
-
-        assertTrue(splitter.hasNext());
-        split = splitter.next();
-        assertNotNull(split);
-        assertEquals(split.getResource(), "demo-datasource.3");
+        for (int i=1; i <= DemoDataSplitter.TOTAL_FRAGMENTS; i++) {
+            assertTrue(splitter.hasNext());
+            assertTrue(splitter.hasNext()); // should not skip any splits
+            DataSplit split = splitter.next();
+            assertNotNull(split);
+            assertEquals(split.getResource(), "demo-datasource." + i);
+        }
 
         assertFalse(splitter.hasNext());
         assertThrows(NoSuchElementException.class, splitter::next);
