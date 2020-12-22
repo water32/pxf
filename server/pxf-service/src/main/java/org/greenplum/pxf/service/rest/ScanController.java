@@ -38,9 +38,8 @@ public class ScanController {
             @RequestHeader MultiValueMap<String, String> headers)
             throws Throwable {
 
-        // TODO: should we do minimal parsing? we only need server name, xid,
-        //       resource, filter string and segment ID. Minimal parsing can
-        //       improve the query performance marginally
+        // TODO: Optimization: should we do minimal parsing? we only need
+        //       server name, xid, resource, filter string and segment ID.
         final RequestContext context = parser.parseRequest(headers, SCAN_CONTROLLER);
 
         // Get the query session

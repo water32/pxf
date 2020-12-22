@@ -7,11 +7,12 @@ import org.greenplum.pxf.api.model.QuerySession;
 import org.greenplum.pxf.api.model.TupleIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.BlockingDeque;
+import java.util.Queue;
 
 /**
  * Processes a {@link DataSplit} and generates 0 or more tuples. Stores
@@ -20,7 +21,7 @@ import java.util.concurrent.BlockingDeque;
  */
 public class TupleReaderTask<T> implements Runnable {
 
-    private static final int DEFAULT_BATCH_SIZE = 1024;
+    private static final int DEFAULT_BATCH_SIZE = 10240;
     // TODO: decide a property name for the batch size
     private static final String PXF_TUPLE_READER_BATCH_SIZE_PROPERTY = "pxf.tuple-reader.batch-size";
 
@@ -28,7 +29,7 @@ public class TupleReaderTask<T> implements Runnable {
 
     private final int taskNumber;
     private final DataSplit split;
-    private final BlockingDeque<List<T>> outputQueue;
+    private final Queue<List<T>> outputQueue;
     private final QuerySession<T> querySession;
     private final String uniqueResourceName;
     private final Processor<T> processor;
@@ -64,15 +65,18 @@ public class TupleReaderTask<T> implements Runnable {
                 batch.add(iterator.next());
                 if (batch.size() == batchSize) {
                     totalRows += batchSize;
-                    outputQueue.put(batch);
+                    outputQueue.offer(batch);
                     // TODO: when the outputQueue is full we might want to sleep this
                     //       thread and reschedule it until later (backpressure)
                     batch = new ArrayList<>(batchSize);
+                    String url = "http://localhost:8080/sleep/200";
+//                    HttpClient.newHttpClient().send(HttpRequest.newBuilder().uri(new URI(url)).GET().build(), HttpResponse.BodyHandlers.ofString());
+                    new RestTemplate().getForObject(url, Boolean.TYPE);
                 }
             }
             if (!batch.isEmpty() && querySession.isActive()) {
                 totalRows += batch.size();
-                outputQueue.put(batch);
+                outputQueue.offer(batch);
             }
         } catch (ClientAbortException e) {
             querySession.cancelQuery(e);

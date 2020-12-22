@@ -1,7 +1,6 @@
 package org.greenplum.pxf.api.model;
 
 import com.google.common.cache.Cache;
-import io.micrometer.core.instrument.MeterRegistry;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
@@ -17,9 +16,11 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -50,11 +51,11 @@ public class QuerySession<T> {
     @Getter
     private final RequestContext context;
 
-    /**
-     * Meter registry for reporting custom metrics
-     */
-    @Getter
-    private final MeterRegistry meterRegistry;
+//    /**
+//     * Meter registry for reporting custom metrics
+//     */
+//    @Getter
+//    private final MeterRegistry meterRegistry;
 
     /**
      * The processor used for this query session
@@ -111,9 +112,9 @@ public class QuerySession<T> {
     /**
      * The queue used to process tuples.
      */
-    private final Map<Integer, BlockingDeque<List<T>>> outputQueueMap;
+    private final Map<Integer, Queue<List<T>>> outputQueueMap;
 
-    private final List<BlockingDeque<List<T>>> outputQueueList;
+    private final List<Queue<List<T>>> outputQueueList;
 
     /**
      * Number of active segments that have registered to this QuerySession
@@ -142,11 +143,10 @@ public class QuerySession<T> {
 
     private final Map<Integer, TupleReaderTask<T>> tupleReaderTaskMap;
 
-    @SuppressWarnings("unchecked")
-    public QuerySession(RequestContext context, Cache<String, QuerySession<T>> querySessionCache, MeterRegistry meterRegistry) {
+    public QuerySession(RequestContext context, Cache<String, QuerySession<T>> querySessionCache) {
         this.context = context;
         this.querySessionCache = querySessionCache;
-        this.meterRegistry = meterRegistry;
+//        this.meterRegistry = meterRegistry;
 
         this.registrationLock = new Object();
         this.queryId = String.format("%s:%s:%s:%s", context.getServerName(),
@@ -192,7 +192,7 @@ public class QuerySession<T> {
             activeSegmentCount.incrementAndGet();
             registeredSegmentQueue.put(segmentId);
 
-            BlockingDeque<List<T>> outputQueue = new LinkedBlockingDeque<>(400);
+            Queue<List<T>> outputQueue = new LinkedBlockingQueue<>(400);//new ConcurrentLinkedBlockingDeque<>(200);
             outputQueueMap.put(segmentId, outputQueue);
             outputQueueList.add(outputQueue);
         }
@@ -209,7 +209,7 @@ public class QuerySession<T> {
             if (registeredSegmentQueue.isEmpty()) {
 
                 // TODO: someone can be adding something to one of the output queues
-                for (BlockingDeque<List<T>> outputQueue : outputQueueList) {
+                for (Queue<List<T>> outputQueue : outputQueueList) {
                     if (!outputQueue.isEmpty())
                         return;
                 }
@@ -409,11 +409,11 @@ public class QuerySession<T> {
                 '}';
     }
 
-    public BlockingDeque<List<T>> getOutputQueueForSegmentId(int segmentId) {
+    public Queue<List<T>> getOutputQueueForSegmentId(int segmentId) {
         return outputQueueMap.get(segmentId);
     }
 
-    public BlockingDeque<List<T>> getOutputQueueForTaskId(int taskId) {
+    public Queue<List<T>> getOutputQueueForTaskId(int taskId) {
         int index = taskId % outputQueueList.size();
         return outputQueueList.get(index);
     }

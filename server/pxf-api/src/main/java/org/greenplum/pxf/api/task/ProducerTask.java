@@ -19,7 +19,7 @@ import static java.util.Objects.requireNonNull;
 
 public class ProducerTask<T> implements Runnable {
 
-    private static final int DEFAULT_MAX_THREADS = 32;
+    private static final int DEFAULT_MAX_THREADS = 12;
     // TODO: decide a property name for the maxThreads
     private static final String PXF_PRODUCER_MAX_THREADS_PROPERTY = "pxf.producer.max-threads";
 
@@ -33,6 +33,7 @@ public class ProducerTask<T> implements Runnable {
         // Defaults to the minimum between DEFAULT_MAX_THREADS and the number of available processors
         int maxThreads = querySession.getContext().getConfiguration()
                 .getInt(PXF_PRODUCER_MAX_THREADS_PROPERTY, DEFAULT_MAX_THREADS);
+//                        Math.min(DEFAULT_MAX_THREADS, Runtime.getRuntime().availableProcessors()));
         this.boundedExecutor = new BoundedExecutor(executor, maxThreads);
     }
 

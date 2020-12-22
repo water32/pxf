@@ -33,7 +33,7 @@ public class DemoAccessor extends BasePlugin implements Accessor {
 
     private int rowNumber;
     private int fragmentNumber;
-    private static final int NUM_ROWS = 2;
+    private static final int NUM_ROWS = 2000000;
 
     @Override
     public boolean openForRead() {

@@ -15,9 +15,9 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Deque;
 import java.util.List;
-import java.util.concurrent.BlockingDeque;
-import java.util.concurrent.TimeUnit;
+import java.util.Queue;
 
 /**
  * Serializes a response for a foreign scan request to the output stream. The
@@ -63,14 +63,15 @@ public class ScanResponse<T> implements StreamingResponseBody {
 
         int recordCount = 0;
         TriFunction<QuerySession<T>, T, Integer, Object>[] functions = null;
-        BlockingDeque<List<T>> outputQueue = querySession.getOutputQueueForSegmentId(segmentId);
+        Queue<List<T>> outputQueue = querySession.getOutputQueueForSegmentId(segmentId);
         List<ColumnDescriptor> columnDescriptors = this.columnDescriptors;
         try {
             Serializer serializer = getSerializer();
             serializer.open(output);
 
             while (querySession.isActive()) {
-                List<T> batch = outputQueue.poll(1, TimeUnit.MILLISECONDS);
+                // TODO: implement poll with timeout??
+                List<T> batch = outputQueue.poll();//1, TimeUnit.MILLISECONDS);
                 if (batch != null) {
 
                     if (functions == null) {
@@ -89,6 +90,8 @@ public class ScanResponse<T> implements StreamingResponseBody {
                         serializer.endRow();
                     }
                     recordCount += batch.size();
+                } else {
+                    Thread.sleep(1);
                 }
             }
 

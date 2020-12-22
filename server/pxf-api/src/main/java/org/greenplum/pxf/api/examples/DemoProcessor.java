@@ -20,8 +20,8 @@ import java.util.NoSuchElementException;
 @Component
 public class DemoProcessor implements Processor<String[]> {
 
-    static final int TOTAL_ROWS = 2000000;
-
+    static final int TOTAL_ROWS = 200_000;
+    
     /**
      * {@inheritDoc}
      */
