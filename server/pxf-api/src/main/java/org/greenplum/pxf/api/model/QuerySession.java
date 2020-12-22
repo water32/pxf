@@ -350,7 +350,7 @@ public class QuerySession<T> {
     public void close() {
 
         // Clear the output queue in case of error or cancellation
-//        outputQueue.clear();
+        outputQueue.clear();
 
         // Clear the queue of registered segments
         registeredSegmentQueue.clear();
