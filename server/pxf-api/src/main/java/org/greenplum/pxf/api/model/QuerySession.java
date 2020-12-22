@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
@@ -112,9 +111,8 @@ public class QuerySession<T> {
     /**
      * The queue used to process tuples.
      */
-    private final Map<Integer, Queue<List<T>>> outputQueueMap;
-
-    private final List<Queue<List<T>>> outputQueueList;
+    @Getter
+    private final Queue<List<T>> outputQueue;
 
     /**
      * Number of active segments that have registered to this QuerySession
@@ -156,8 +154,7 @@ public class QuerySession<T> {
         this.queryCancelled = new AtomicBoolean(false);
         this.queryErrored = new AtomicBoolean(false);
         this.registeredSegmentQueue = new LinkedBlockingDeque<>();
-        this.outputQueueMap = new HashMap<>();
-        this.outputQueueList = new ArrayList<>();
+        this.outputQueue = new LinkedBlockingQueue<>(400);
         this.errors = new ConcurrentLinkedDeque<>();
         this.activeSegmentCount = new AtomicInteger(0);
         this.createdTupleReaderTaskCount = new AtomicInteger(0);
@@ -191,10 +188,6 @@ public class QuerySession<T> {
 
             activeSegmentCount.incrementAndGet();
             registeredSegmentQueue.put(segmentId);
-
-            Queue<List<T>> outputQueue = new LinkedBlockingQueue<>(400);//new ConcurrentLinkedBlockingDeque<>(200);
-            outputQueueMap.put(segmentId, outputQueue);
-            outputQueueList.add(outputQueue);
         }
     }
 
@@ -206,13 +199,7 @@ public class QuerySession<T> {
      */
     public void tryMarkInactive() {
         synchronized (registrationLock) {
-            if (registeredSegmentQueue.isEmpty()) {
-
-                // TODO: someone can be adding something to one of the output queues
-                for (Queue<List<T>> outputQueue : outputQueueList) {
-                    if (!outputQueue.isEmpty())
-                        return;
-                }
+            if (registeredSegmentQueue.isEmpty() && outputQueue.isEmpty()) {
 
                 String cacheKey = String.format("%s:%s:%s:%s",
                         context.getServerName(), context.getTransactionId(),
@@ -407,14 +394,5 @@ public class QuerySession<T> {
                 Integer.toHexString(System.identityHashCode(this)) +
                 "{queryId='" + queryId + '\'' +
                 '}';
-    }
-
-    public Queue<List<T>> getOutputQueueForSegmentId(int segmentId) {
-        return outputQueueMap.get(segmentId);
-    }
-
-    public Queue<List<T>> getOutputQueueForTaskId(int taskId) {
-        int index = taskId % outputQueueList.size();
-        return outputQueueList.get(index);
     }
 }

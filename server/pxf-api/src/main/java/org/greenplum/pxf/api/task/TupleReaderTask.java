@@ -7,7 +7,6 @@ import org.greenplum.pxf.api.model.QuerySession;
 import org.greenplum.pxf.api.model.TupleIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -39,7 +38,7 @@ public class TupleReaderTask<T> implements Runnable {
         this.taskNumber = taskNumber;
         this.split = split;
         this.querySession = querySession;
-        this.outputQueue = querySession.getOutputQueueForTaskId(taskNumber);
+        this.outputQueue = querySession.getOutputQueue();
         this.processor = querySession.getProcessor();
         this.uniqueResourceName = split.toString();
     }

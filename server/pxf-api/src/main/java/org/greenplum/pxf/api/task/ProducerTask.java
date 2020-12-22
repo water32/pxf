@@ -32,8 +32,8 @@ public class ProducerTask<T> implements Runnable {
         this.querySession = requireNonNull(querySession, "querySession cannot be null");
         // Defaults to the minimum between DEFAULT_MAX_THREADS and the number of available processors
         int maxThreads = querySession.getContext().getConfiguration()
-                .getInt(PXF_PRODUCER_MAX_THREADS_PROPERTY, DEFAULT_MAX_THREADS);
-//                        Math.min(DEFAULT_MAX_THREADS, Runtime.getRuntime().availableProcessors()));
+                .getInt(PXF_PRODUCER_MAX_THREADS_PROPERTY,// DEFAULT_MAX_THREADS);
+                        Math.min(DEFAULT_MAX_THREADS, Runtime.getRuntime().availableProcessors()));
         this.boundedExecutor = new BoundedExecutor(executor, maxThreads);
     }
 

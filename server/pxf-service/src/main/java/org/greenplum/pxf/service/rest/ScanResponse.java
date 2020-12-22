@@ -15,7 +15,6 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.Deque;
 import java.util.List;
 import java.util.Queue;
 
@@ -63,7 +62,7 @@ public class ScanResponse<T> implements StreamingResponseBody {
 
         int recordCount = 0;
         TriFunction<QuerySession<T>, T, Integer, Object>[] functions = null;
-        Queue<List<T>> outputQueue = querySession.getOutputQueueForSegmentId(segmentId);
+        Queue<List<T>> outputQueue = querySession.getOutputQueue();
         List<ColumnDescriptor> columnDescriptors = this.columnDescriptors;
         try {
             Serializer serializer = getSerializer();
