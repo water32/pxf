@@ -68,9 +68,10 @@ public class TupleReaderTask<T> implements Runnable {
                     // TODO: when the outputQueue is full we might want to sleep this
                     //       thread and reschedule it until later (backpressure)
                     batch = new ArrayList<>(batchSize);
-                    String url = "http://localhost:8080/sleep/200";
+//                    String url = "http://localhost:8080/sleep/200";
 //                    HttpClient.newHttpClient().send(HttpRequest.newBuilder().uri(new URI(url)).GET().build(), HttpResponse.BodyHandlers.ofString());
-                    new RestTemplate().getForObject(url, Boolean.TYPE);
+//                    new RestTemplate().getForObject(url, Boolean.TYPE);
+                    Thread.sleep(200);
                 }
             }
             if (!batch.isEmpty() && querySession.isActive()) {

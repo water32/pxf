@@ -1,6 +1,7 @@
 package org.greenplum.pxf.api.model;
 
 import com.google.common.cache.Cache;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
@@ -50,11 +51,11 @@ public class QuerySession<T> {
     @Getter
     private final RequestContext context;
 
-//    /**
-//     * Meter registry for reporting custom metrics
-//     */
-//    @Getter
-//    private final MeterRegistry meterRegistry;
+    /**
+     * Meter registry for reporting custom metrics
+     */
+    @Getter
+    private final MeterRegistry meterRegistry;
 
     /**
      * The processor used for this query session
@@ -141,10 +142,10 @@ public class QuerySession<T> {
 
     private final Map<Integer, TupleReaderTask<T>> tupleReaderTaskMap;
 
-    public QuerySession(RequestContext context, Cache<String, QuerySession<T>> querySessionCache) {
+    public QuerySession(RequestContext context, Cache<String, QuerySession<T>> querySessionCache, MeterRegistry meterRegistry) {
         this.context = context;
         this.querySessionCache = querySessionCache;
-//        this.meterRegistry = meterRegistry;
+        this.meterRegistry = meterRegistry;
 
         this.registrationLock = new Object();
         this.queryId = String.format("%s:%s:%s:%s", context.getServerName(),
