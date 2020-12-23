@@ -54,7 +54,7 @@ public class ProducerTask<T> implements Runnable {
             BlockingDeque<Integer> registeredSegmentQueue = querySession.getRegisteredSegmentQueue();
 
             while (querySession.isActive()) {
-                segmentId = registeredSegmentQueue.poll(50, TimeUnit.MILLISECONDS);
+                segmentId = registeredSegmentQueue.poll(30, TimeUnit.MILLISECONDS);
 
                 if (segmentId == null) {
                     int completed = querySession.getCompletedTupleReaderTaskCount();
@@ -62,7 +62,9 @@ public class ProducerTask<T> implements Runnable {
                     if (completed == created) {
                         // try to mark the session as inactive. If another
                         // thread is able to register itself before we mark it
-                        // as inactive, this operation will be a no-op
+                        // as inactive, or the output queue has elements
+                        // still remaining to process, this operation will be
+                        // a no-op
                         querySession.tryMarkInactive();
                     }
                 } else {
@@ -90,8 +92,8 @@ public class ProducerTask<T> implements Runnable {
             while (querySession.getActiveSegmentCount() > 0) {
                 // wait or until timeout
                 try {
-                    Thread.sleep(10L, 0);
-                } catch (InterruptedException e) {
+                    querySession.wait(50);
+                } catch (InterruptedException ignored) {
                 }
             }
 

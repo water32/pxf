@@ -16,8 +16,8 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -35,7 +35,7 @@ public class QuerySession<T> {
     private static final Logger LOG = LoggerFactory.getLogger(QuerySession.class);
 
     /**
-     * Synchronization lock for registration/deregistration access.
+     * Synchronization lock for registration/de-registration access.
      */
     private final Object registrationLock;
 
@@ -113,7 +113,7 @@ public class QuerySession<T> {
      * The queue used to process tuples.
      */
     @Getter
-    private final Queue<List<T>> outputQueue;
+    private final BlockingQueue<List<T>> outputQueue;
 
     /**
      * Number of active segments that have registered to this QuerySession
@@ -140,6 +140,9 @@ public class QuerySession<T> {
      */
     private final Cache<String, QuerySession<T>> querySessionCache;
 
+    /**
+     * A map of taskNumber to TupleReaderTasks
+     */
     private final Map<Integer, TupleReaderTask<T>> tupleReaderTaskMap;
 
     public QuerySession(RequestContext context, Cache<String, QuerySession<T>> querySessionCache, MeterRegistry meterRegistry) {
@@ -226,7 +229,9 @@ public class QuerySession<T> {
      */
     public void deregisterSegment(long recordCount) {
         totalTupleCount.addAndGet(recordCount);
-        activeSegmentCount.decrementAndGet();
+        if (activeSegmentCount.decrementAndGet() < 1) {
+            notifyAll();
+        }
     }
 
     /**
@@ -361,15 +366,15 @@ public class QuerySession<T> {
         Instant endTime = Instant.now();
         long totalRecords = totalTupleCount.get();
 
-        if (errorTime != null) {
-
-            long durationMs = Duration.between(startTime, errorTime).toMillis();
-            LOG.info("{} errored after {}ms", this, durationMs);
-
-        } else if (cancelTime != null) {
+        if (cancelTime != null) {
 
             long durationMs = Duration.between(startTime, cancelTime).toMillis();
             LOG.info("{} canceled after {}ms", this, durationMs);
+
+        } else if (errorTime != null) {
+
+            long durationMs = Duration.between(startTime, errorTime).toMillis();
+            LOG.info("{} errored after {}ms", this, durationMs);
 
         } else {
 
