@@ -26,7 +26,7 @@ public class FilterVerifyFragmenter extends BaseFragmenter {
 
         String filter = "No filter";
 
-        // Validate the filterstring by parsing using a dummy filterBuilder
+        // Validate the filter string by parsing using a dummy filterBuilder
         if (context.hasFilter()) {
             filter = context.getFilterString();
             new FilterParser().parse(filter);

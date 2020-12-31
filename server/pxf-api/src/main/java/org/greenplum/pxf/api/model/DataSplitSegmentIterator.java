@@ -3,18 +3,28 @@ package org.greenplum.pxf.api.model;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
+import org.greenplum.pxf.api.utilities.FragmentMetadata;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 /**
  * Iterates over the {@link DataSplit}s for a given segment. It uses a
  * consistent hashing algorithm to determine which segment will process a
- * given split.
+ * given split. The {@link FragmentMetadata} object in the {@link DataSplit}
+ * needs to implement the {@code hashCode()} method to allow the consistent
+ * hashing algorithm to always produce the same hash value for a given
+ * {@link DataSplit}.
  */
 public class DataSplitSegmentIterator<S extends DataSplit> implements Iterator<S> {
 
+    /**
+     * The hash function to use to determine whether the segment will process
+     * a given split. {@link Hashing#crc32()} is the hashing function that
+     * was more fairly distributing the workload among segments.
+     */
     private static final HashFunction HASH_FUNCTION = Hashing.crc32();
 
     private final Iterator<S> iterator;
@@ -22,28 +32,54 @@ public class DataSplitSegmentIterator<S extends DataSplit> implements Iterator<S
     private final int segmentId;
     private S next = null;
 
+    /**
+     * Constructs a new {@link DataSplitSegmentIterator} for a given
+     * {@code segmentId}, with {@code totalSegments}, and a {@code collection}
+     * of elements.
+     *
+     * @param segmentId     the segment identifier for the iterator
+     * @param totalSegments the total number of segments
+     * @param collection    a collection of elements
+     */
+    public DataSplitSegmentIterator(int segmentId, int totalSegments, Collection<S> collection) {
+        this(segmentId, totalSegments, collection.iterator());
+    }
+
+    /**
+     * Constructs a new {@link DataSplitSegmentIterator} for a given
+     * {@code segmentId}, with {@code totalSegments}, and the {@code iterator}.
+     *
+     * @param segmentId     the segment identifier for the iterator
+     * @param totalSegments the total number of segments
+     * @param iterator      the original iterator
+     */
     public DataSplitSegmentIterator(int segmentId, int totalSegments, Iterator<S> iterator) {
         this.segmentId = segmentId;
         this.totalSegments = totalSegments;
         this.iterator = iterator;
     }
 
+    /**
+     * Returns {@code true} if the iteration has more elements for a given
+     * {@code segmentId}.
+     *
+     * @return {@code true} if the iteration has more elements for the given {@code segmentId}
+     */
     @Override
     public boolean hasNext() {
-        if (next == null && iterator.hasNext()) {
-            S n = iterator.next();
-            while (!doesSegmentProcessThisSplit(n) && iterator.hasNext()) {
-                n = iterator.next();
-            }
-            if (doesSegmentProcessThisSplit(n)) {
-                next = n;
-            }
-        }
+        ensureNextItemIsReady();
         return next != null;
     }
 
+    /**
+     * Returns the next element for the given {@code segmentId} in the iteration.
+     *
+     * @return the next element for the given {@code segmentId} in the iteration
+     * @throws NoSuchElementException if the iteration has no more elements
+     */
     @Override
     public S next() {
+        ensureNextItemIsReady();
         if (next == null)
             throw new NoSuchElementException();
         S value = next;
@@ -73,5 +109,20 @@ public class DataSplitSegmentIterator<S extends DataSplit> implements Iterator<S
             hasher = hasher.putInt(split.hashCode());
         }
         return segmentId == Hashing.consistentHash(hasher.hash(), totalSegments);
+    }
+
+    /**
+     * Makes sure the {@code next} element is populated if any is available
+     */
+    private void ensureNextItemIsReady() {
+        if (next == null && iterator.hasNext()) {
+            S n = iterator.next();
+            while (!doesSegmentProcessThisSplit(n) && iterator.hasNext()) {
+                n = iterator.next();
+            }
+            if (doesSegmentProcessThisSplit(n)) {
+                next = n;
+            }
+        }
     }
 }

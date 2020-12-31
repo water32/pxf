@@ -68,7 +68,7 @@ public class ProducerTask<T> implements Runnable {
                         querySession.tryMarkInactive();
                     }
                 } else {
-                    Iterator<DataSplit> iterator = new DataSplitSegmentIterator<>(segmentId, totalSegments, splitList.iterator());
+                    Iterator<DataSplit> iterator = new DataSplitSegmentIterator<>(segmentId, totalSegments, splitList);
                     while (iterator.hasNext() && querySession.isActive()) {
                         DataSplit split = iterator.next();
                         LOG.debug("Submitting {} to the pool for query {}", split, querySession);

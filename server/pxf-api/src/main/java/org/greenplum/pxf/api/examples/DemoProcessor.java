@@ -11,7 +11,6 @@ import org.greenplum.pxf.api.model.TupleIterator;
 import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 /**
@@ -37,14 +36,6 @@ public class DemoProcessor implements Processor<String[]> {
     public TupleIterator<String[]> getTupleIterator(QuerySession<String[]> session, DataSplit split) {
         return new DemoTupleIterator(session.getContext(), (DemoFragmentMetadata) split.getMetadata());
     }
-
-//    /**
-//     * {@inheritDoc}
-//     */
-//    @Override
-//    public Iterator<Object> getFields(QuerySession<String[]> querySession, String[] tuple) throws IOException {
-//        return new TupleItr(tuple);
-//    }
 
     /**
      * {@inheritDoc}
@@ -121,40 +112,7 @@ public class DemoProcessor implements Processor<String[]> {
          * {@inheritDoc}
          */
         @Override
-        public void cleanup() {
-            // DO NOTHING
-        }
-    }
-
-    /**
-     * An iterator that splits the String tuple and returns an iterator over
-     * the String splits
-     */
-    private static class TupleItr implements Iterator<Object> {
-        private int currentField;
-        private final String[] fields;
-
-        public TupleItr(String tuple) {
-            currentField = 0;
-            fields = tuple.split("\\|");
-        }
-
-        /**
-         * {@inheritDoc}
-         */
-        @Override
-        public boolean hasNext() {
-            return currentField < fields.length;
-        }
-
-        /**
-         * {@inheritDoc}
-         */
-        @Override
-        public String next() {
-            if (currentField >= fields.length)
-                throw new NoSuchElementException();
-            return fields[currentField++];
+        public void cleanup() { // DO NOTHING
         }
     }
 }

@@ -1,11 +1,13 @@
 package org.greenplum.pxf.api.examples;
 
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.greenplum.pxf.api.utilities.FragmentMetadata;
 
 @NoArgsConstructor
+@EqualsAndHashCode
 public class DemoFragmentMetadata implements FragmentMetadata {
 
     @Getter
