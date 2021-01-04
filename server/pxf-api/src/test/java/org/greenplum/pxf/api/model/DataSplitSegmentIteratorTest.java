@@ -1,5 +1,6 @@
 package org.greenplum.pxf.api.model;
 
+import com.google.common.collect.ImmutableSet;
 import org.greenplum.pxf.api.examples.DemoFragmentMetadata;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -9,6 +10,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -83,6 +85,21 @@ class DataSplitSegmentIteratorTest {
     }
 
     @Test
+    void setOfTwoSegments() {
+        Set<Integer> segmentIds = ImmutableSet.of(0, 1);
+        Iterator<DataSplit> iterator = new DataSplitSegmentIterator<>(segmentIds, 2, splitList);
+
+        assertThat(iterator.hasNext()).isEqualTo(true);
+        assertThat(iterator.next()).isEqualTo(splitList.get(0));
+        assertThat(iterator.hasNext()).isEqualTo(true);
+        assertThat(iterator.next()).isEqualTo(splitList.get(1));
+        assertThat(iterator.hasNext()).isEqualTo(true);
+        assertThat(iterator.next()).isEqualTo(splitList.get(2));
+        assertThat(iterator.hasNext()).isEqualTo(false);
+        assertThrows(NoSuchElementException.class, iterator::next);
+    }
+
+    @Test
     void threeSegments() {
         int totalSegments = 3;
         Iterator<DataSplit> iterator = new DataSplitSegmentIterator<>(0, totalSegments, splitList.iterator());
@@ -103,6 +120,28 @@ class DataSplitSegmentIteratorTest {
 
         assertThat(iterator.hasNext()).isEqualTo(true);
         assertThat(iterator.next()).isEqualTo(splitList.get(0));
+        assertThat(iterator.hasNext()).isEqualTo(false);
+        assertThrows(NoSuchElementException.class, iterator::next);
+    }
+
+    @Test
+    void setOfTwoSegmentsWithTotalOfThreeSegments() {
+        int totalSegments = 3;
+        Set<Integer> segmentIds = ImmutableSet.of(1, 2);
+        Iterator<DataSplit> iterator = new DataSplitSegmentIterator<>(segmentIds, totalSegments, splitList);
+
+        assertThat(iterator.hasNext()).isEqualTo(true);
+        assertThat(iterator.next()).isEqualTo(splitList.get(0));
+        assertThat(iterator.hasNext()).isEqualTo(true);
+        assertThat(iterator.next()).isEqualTo(splitList.get(2));
+        assertThat(iterator.hasNext()).isEqualTo(false);
+        assertThrows(NoSuchElementException.class, iterator::next);
+
+        segmentIds = ImmutableSet.of(0);
+        iterator = new DataSplitSegmentIterator<>(segmentIds, totalSegments, splitList.iterator());
+
+        assertThat(iterator.hasNext()).isEqualTo(true);
+        assertThat(iterator.next()).isEqualTo(splitList.get(1));
         assertThat(iterator.hasNext()).isEqualTo(false);
         assertThrows(NoSuchElementException.class, iterator::next);
     }

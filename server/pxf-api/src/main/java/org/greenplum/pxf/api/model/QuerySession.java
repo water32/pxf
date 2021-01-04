@@ -229,9 +229,7 @@ public class QuerySession<T> {
      */
     public void deregisterSegment(long recordCount) {
         totalTupleCount.addAndGet(recordCount);
-        if (activeSegmentCount.decrementAndGet() < 1) {
-            notifyAll();
-        }
+        activeSegmentCount.decrementAndGet();
     }
 
     /**

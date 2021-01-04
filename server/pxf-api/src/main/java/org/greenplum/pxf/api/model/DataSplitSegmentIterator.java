@@ -7,8 +7,10 @@ import org.greenplum.pxf.api.utilities.FragmentMetadata;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.Set;
 
 /**
  * Iterates over the {@link DataSplit}s for a given segment. It uses a
@@ -29,7 +31,7 @@ public class DataSplitSegmentIterator<S extends DataSplit> implements Iterator<S
 
     private final Iterator<S> iterator;
     private final int totalSegments;
-    private final int segmentId;
+    private final Set<Integer> segmentIds;
     private S next = null;
 
     /**
@@ -54,7 +56,34 @@ public class DataSplitSegmentIterator<S extends DataSplit> implements Iterator<S
      * @param iterator      the original iterator
      */
     public DataSplitSegmentIterator(int segmentId, int totalSegments, Iterator<S> iterator) {
-        this.segmentId = segmentId;
+        this.segmentIds = Collections.singleton(segmentId);
+        this.totalSegments = totalSegments;
+        this.iterator = iterator;
+    }
+
+    /**
+     * Constructs a new {@link DataSplitSegmentIterator} for a set of
+     * {@code segmentIds}, with {@code totalSegments}, and a {@code collection}
+     * of elements.
+     *
+     * @param segmentIds    a non-empty set of segmentIds
+     * @param totalSegments the total number of segments
+     * @param collection    a collection of elements
+     */
+    public DataSplitSegmentIterator(Set<Integer> segmentIds, int totalSegments, Collection<S> collection) {
+        this(segmentIds, totalSegments, collection.iterator());
+    }
+
+    /**
+     * Constructs a new {@link DataSplitSegmentIterator} for a set of
+     * {@code segmentIds}, with {@code totalSegments}, and the {@code iterator}.
+     *
+     * @param segmentIds    a non-empty set of segmentIds
+     * @param totalSegments the total number of segments
+     * @param iterator      the original iterator
+     */
+    public DataSplitSegmentIterator(Set<Integer> segmentIds, int totalSegments, Iterator<S> iterator) {
+        this.segmentIds = segmentIds;
         this.totalSegments = totalSegments;
         this.iterator = iterator;
     }
@@ -94,9 +123,9 @@ public class DataSplitSegmentIterator<S extends DataSplit> implements Iterator<S
      * <p>
      * S = CONSISTENT_HASH(hash(SOURCE_NAME[:META_DATA][:USER_DATA]), N)
      *
-     * <p>This hash function is deterministic for a given SOURCE_NAME, and allows
-     * the same thread processing for segment S to always process the same
-     * source. This allows for caching the Fragment at the segment S, as
+     * <p>This hash function is deterministic for a given SOURCE_NAME, and
+     * allows the same thread processing for segment S to always process the
+     * same source. This allows for caching the Fragment at the segment S, as
      * segment S is guaranteed to always process the same split.
      *
      * @param split the split
@@ -108,7 +137,14 @@ public class DataSplitSegmentIterator<S extends DataSplit> implements Iterator<S
         if (split.getMetadata() != null) {
             hasher = hasher.putInt(split.hashCode());
         }
-        return segmentId == Hashing.consistentHash(hasher.hash(), totalSegments);
+        int hashValue = Hashing.consistentHash(hasher.hash(), totalSegments);
+
+        for (int segmentId : segmentIds) {
+            if (segmentId == hashValue) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

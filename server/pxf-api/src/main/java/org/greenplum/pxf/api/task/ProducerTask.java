@@ -9,8 +9,10 @@ import org.greenplum.pxf.api.model.QuerySession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -45,6 +47,8 @@ public class ProducerTask<T> implements Runnable {
         int taskCount = 0;
         int totalSegments = querySession.getContext().getTotalSegments();
         Integer segmentId;
+        Set<Integer> segmentIds;
+
         try {
 
             // Materialize the list of splits
@@ -54,7 +58,7 @@ public class ProducerTask<T> implements Runnable {
             BlockingDeque<Integer> registeredSegmentQueue = querySession.getRegisteredSegmentQueue();
 
             while (querySession.isActive()) {
-                segmentId = registeredSegmentQueue.poll(30, TimeUnit.MILLISECONDS);
+                segmentId = registeredSegmentQueue.poll(20, TimeUnit.MILLISECONDS);
 
                 if (segmentId == null) {
                     int completed = querySession.getCompletedTupleReaderTaskCount();
@@ -68,7 +72,16 @@ public class ProducerTask<T> implements Runnable {
                         querySession.tryMarkInactive();
                     }
                 } else {
-                    Iterator<DataSplit> iterator = new DataSplitSegmentIterator<>(segmentId, totalSegments, splitList);
+                    // Add all the segment ids that are available
+                    segmentIds = new HashSet<>();
+                    segmentIds.add(segmentId);
+                    while ((segmentId = registeredSegmentQueue.poll(5, TimeUnit.MILLISECONDS)) != null) {
+                        segmentIds.add(segmentId);
+                    }
+
+                    LOG.debug("ProducerTask with a set of {} segmentId(s)", segmentIds.size());
+
+                    Iterator<DataSplit> iterator = new DataSplitSegmentIterator<>(segmentIds, totalSegments, splitList);
                     while (iterator.hasNext() && querySession.isActive()) {
                         DataSplit split = iterator.next();
                         LOG.debug("Submitting {} to the pool for query {}", split, querySession);
@@ -92,7 +105,7 @@ public class ProducerTask<T> implements Runnable {
             while (querySession.getActiveSegmentCount() > 0) {
                 // wait or until timeout
                 try {
-                    querySession.wait(50);
+                    querySession.wait(1);
                 } catch (InterruptedException ignored) {
                 }
             }
