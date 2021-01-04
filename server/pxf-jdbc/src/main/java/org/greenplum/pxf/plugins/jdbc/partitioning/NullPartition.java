@@ -19,6 +19,7 @@ package org.greenplum.pxf.plugins.jdbc.partitioning;
  * under the License.
  */
 
+import com.google.common.base.Objects;
 import lombok.NoArgsConstructor;
 import org.greenplum.pxf.plugins.jdbc.utils.DbProduct;
 
@@ -70,5 +71,24 @@ class NullPartition extends BasePartition implements JdbcFragmentMetadata {
      */
     public boolean isNull() {
         return isNull;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        NullPartition that = (NullPartition) o;
+        return super.equals(o) && isNull == that.isNull;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(super.hashCode(), isNull);
     }
 }

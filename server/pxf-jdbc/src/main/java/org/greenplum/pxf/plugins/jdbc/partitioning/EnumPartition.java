@@ -19,6 +19,7 @@ package org.greenplum.pxf.plugins.jdbc.partitioning;
  * under the License.
  */
 
+import com.google.common.base.Objects;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.greenplum.pxf.plugins.jdbc.utils.DbProduct;
@@ -92,5 +93,24 @@ public class EnumPartition extends BasePartition implements JdbcFragmentMetadata
         }
 
         return sb.toString();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        EnumPartition that = (EnumPartition) o;
+        return super.equals(o) && Objects.equal(value, that.value) && Objects.equal(excluded, that.excluded);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(super.hashCode(), value, excluded);
     }
 }

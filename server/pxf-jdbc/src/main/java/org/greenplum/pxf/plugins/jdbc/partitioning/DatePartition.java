@@ -19,6 +19,7 @@ package org.greenplum.pxf.plugins.jdbc.partitioning;
  * under the License.
  */
 
+import com.google.common.base.Objects;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.greenplum.pxf.plugins.jdbc.utils.DbProduct;
@@ -60,6 +61,9 @@ class DatePartition extends BasePartition implements JdbcFragmentMetadata {
         this.boundaries = boundaries;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String toSqlConstraint(String quoteString, DbProduct dbProduct) {
         if (quoteString == null) {
@@ -75,5 +79,24 @@ class DatePartition extends BasePartition implements JdbcFragmentMetadata {
                 quoteString + column + quoteString,
                 Stream.of(boundaries).map(b -> b == null ? null : dbProduct.wrapDate(b)).toArray(String[]::new)
         );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        DatePartition that = (DatePartition) o;
+        return super.equals(o) && Objects.equal(boundaries, that.boundaries);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(super.hashCode(), boundaries);
     }
 }

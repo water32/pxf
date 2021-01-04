@@ -19,6 +19,7 @@ package org.greenplum.pxf.plugins.jdbc.partitioning;
  * under the License.
  */
 
+import com.google.common.base.Objects;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.greenplum.pxf.plugins.jdbc.utils.DbProduct;
@@ -58,5 +59,24 @@ public class IntPartition extends BasePartition implements JdbcFragmentMetadata 
                 quoteString + column + quoteString,
                 Stream.of(boundaries).map(b -> b == null ? null : b.toString()).toArray(String[]::new)
         );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        IntPartition that = (IntPartition) o;
+        return super.equals(o) && Objects.equal(boundaries, that.boundaries);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(super.hashCode(), boundaries);
     }
 }

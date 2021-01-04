@@ -1,5 +1,6 @@
 package org.greenplum.pxf.plugins.jdbc.partitioning;
 
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
  */
 @NoArgsConstructor
 @RequiredArgsConstructor
+@EqualsAndHashCode
 public abstract class BasePartition implements JdbcFragmentMetadata {
 
     /**

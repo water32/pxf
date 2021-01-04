@@ -1,11 +1,13 @@
 package org.greenplum.pxf.plugins.hdfs;
 
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.apache.hadoop.mapred.FileSplit;
 import org.greenplum.pxf.api.utilities.FragmentMetadata;
 
 @NoArgsConstructor
+@EqualsAndHashCode
 public class HcfsFragmentMetadata implements FragmentMetadata {
 
     @Getter
