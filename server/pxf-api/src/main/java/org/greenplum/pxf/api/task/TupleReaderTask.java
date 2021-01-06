@@ -21,8 +21,11 @@ import java.util.concurrent.BlockingQueue;
 public class TupleReaderTask<T> implements Runnable {
 
     private static final int DEFAULT_BATCH_SIZE = 10240;
-    // TODO: decide a property name for the batch size
-    private static final String PXF_TUPLE_READER_BATCH_SIZE_PROPERTY = "pxf.tuple-reader.batch-size";
+
+    /**
+     * Name of the property that allows overriding the default batch size
+     */
+    private static final String PXF_TUPLE_READER_BATCH_SIZE_PROPERTY = "pxf.processor.batch-size";
 
     private final Logger LOG = LoggerFactory.getLogger(TupleReaderTask.class);
 
@@ -34,6 +37,8 @@ public class TupleReaderTask<T> implements Runnable {
     private final Processor<T> processor;
     private Thread runningThread;
 
+    private volatile boolean isCancelled;
+
     public TupleReaderTask(int taskNumber, DataSplit split, QuerySession<T> querySession) {
         this.taskNumber = taskNumber;
         this.split = split;
@@ -41,6 +46,7 @@ public class TupleReaderTask<T> implements Runnable {
         this.outputQueue = querySession.getOutputQueue();
         this.processor = querySession.getProcessor();
         this.uniqueResourceName = split.toString();
+        this.isCancelled = false;
     }
 
     /**
@@ -48,12 +54,10 @@ public class TupleReaderTask<T> implements Runnable {
      */
     @Override
     public void run() {
-        if (!querySession.isActive())
+        this.runningThread = Thread.currentThread();
+        if (isCancelled)
             return; // Query is no longer active because of an error or cancellation
 
-        this.runningThread = Thread.currentThread();
-
-        boolean interrupted = Thread.interrupted();
         int totalRows = 0;
         int batchSize = querySession.getContext().getConfiguration()
                 .getInt(PXF_TUPLE_READER_BATCH_SIZE_PROPERTY, DEFAULT_BATCH_SIZE);
@@ -61,24 +65,20 @@ public class TupleReaderTask<T> implements Runnable {
         try {
             iterator = processor.getTupleIterator(querySession, split);
             List<T> batch = new ArrayList<>(batchSize);
-            while (!runningThread.isInterrupted() && iterator.hasNext() && querySession.isActive()) {
+            while (!isCancelled && iterator.hasNext()) {
                 batch.add(iterator.next());
                 if (batch.size() == batchSize) {
                     totalRows += batchSize;
                     outputQueue.put(batch);
-                    // TODO: when the outputQueue is full we might want to sleep this
-                    //       thread and reschedule it until later (backpressure)
                     batch = new ArrayList<>(batchSize);
-//                    Thread.sleep(200);
                 }
             }
-            if (!batch.isEmpty() && querySession.isActive()) {
+            if (!isCancelled && !batch.isEmpty()) {
                 totalRows += batch.size();
                 outputQueue.put(batch);
             }
         } catch (InterruptedException e) {
-            LOG.debug("Thread " + runningThread.getId() + " has been interrupted");
-            interrupted = true;
+            LOG.debug("TupleReaderTask with thread ID " + runningThread.getId() + " has been interrupted");
         } catch (ClientAbortException e) {
             querySession.cancelQuery(e);
         } catch (IOException e) {
@@ -88,6 +88,10 @@ public class TupleReaderTask<T> implements Runnable {
         } catch (Exception e) {
             querySession.errorQuery(e);
         } finally {
+
+            // Clear the interrupted status of this thread by calling Thread.interrupted()
+            Thread.interrupted();
+
             querySession.removeTupleReaderTask(taskNumber, this);
             if (iterator != null) {
                 try {
@@ -101,16 +105,13 @@ public class TupleReaderTask<T> implements Runnable {
         // Keep track of the number of records processed by this task
         LOG.debug("completed processing {} row{} {} for query {}",
                 totalRows, totalRows == 1 ? "" : "s", uniqueResourceName, querySession);
-
-        if (interrupted) {
-            runningThread.interrupt();
-        }
     }
 
     /**
-     * Interrupts this {@link TupleReaderTask}
+     * Cancel this {@link TupleReaderTask}
      */
-    public void interrupt() {
+    public void cancel() {
+        isCancelled = true;
         if (runningThread != null) {
             runningThread.interrupt();
         }

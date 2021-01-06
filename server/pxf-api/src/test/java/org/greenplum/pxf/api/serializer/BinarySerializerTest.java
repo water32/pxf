@@ -10,6 +10,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
@@ -107,6 +108,58 @@ class BinarySerializerTest {
         verifyClose(result, offset);
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void testCastExceptionOnWrite_BIGINT() throws IOException {
+        int numberOfFields = 1;
+        QuerySession<String> session = mock(QuerySession.class);
+        try (BinarySerializer serializer = new BinarySerializer()) {
+            serializer.open(out);
+            serializer.startRow(numberOfFields);
+            serializer.startField();
+            // Return a string for a BIGINT type
+            assertThatThrownBy(() -> serializer.writeField(DataType.BIGINT, (s, o, c) -> "foobar", session, "5L", 0))
+                    .isInstanceOf(ClassCastException.class);
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testWrite_BOOLEAN() throws IOException {
+        int numberOfFields = 1;
+        QuerySession<String> session = mock(QuerySession.class);
+        try (BinarySerializer serializer = new BinarySerializer()) {
+            serializer.open(out);
+            serializer.startRow(numberOfFields);
+            serializer.startField();
+            serializer.writeField(DataType.BOOLEAN, (s, o, c) -> true, session, "5L", 0);
+            serializer.endField();
+            serializer.endRow();
+        }
+        int offset = 0;
+        byte[] result = out.toByteArray();
+        offset = verifyHeader(result, offset);
+        offset = verifyStartRow(result, offset, numberOfFields);
+
+        // verify that we write the length of bigint (8 bytes)
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 1);
+
+        // verify that we write the actual value of the long
+        assertThat(result[offset++]).isEqualTo((byte) (5L >>> 56));
+        assertThat(result[offset++]).isEqualTo((byte) (5L >>> 48));
+        assertThat(result[offset++]).isEqualTo((byte) (5L >>> 40));
+        assertThat(result[offset++]).isEqualTo((byte) (5L >>> 32));
+        assertThat(result[offset++]).isEqualTo((byte) (5L >>> 24));
+        assertThat(result[offset++]).isEqualTo((byte) (5L >>> 16));
+        assertThat(result[offset++]).isEqualTo((byte) (5L >>> 8));
+        assertThat(result[offset++]).isEqualTo((byte) (5L));
+
+        verifyClose(result, offset);
+    }
+
     int verifyHeader(byte[] result, int offset) {
         // 11 bytes required header
         assertThat(result[offset++]).isEqualTo((byte) 'P');
@@ -146,5 +199,4 @@ class BinarySerializerTest {
         assertThat(result[offset++]).isEqualTo((byte) 255);
         assertThat(result[offset]).isEqualTo((byte) 255);
     }
-
 }

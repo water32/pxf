@@ -29,6 +29,8 @@ import static java.util.Objects.requireNonNull;
  * <li>Will not encounter starvation</li>
  * </ul>
  */
+// TODO: do we want to make BoundedExecutor implement ExecutorService, otherwise
+//       we should just add the airlift library as a dependency and use BoundedExecutor from there
 public class BoundedExecutor
         implements Executor {
     private static final Logger LOG = LoggerFactory.getLogger(BoundedExecutor.class);

@@ -23,7 +23,8 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Maintains state of the query. The state is shared across multiple threads
@@ -37,7 +38,12 @@ public class QuerySession<T> {
     /**
      * Synchronization lock for registration/de-registration access.
      */
-    private final Object registrationLock;
+    private final ReentrantLock registrationLock;
+
+    /**
+     * Wait until there are no active segments
+     */
+    private final Condition noActiveSegments;
 
     /**
      * A unique identifier for the query
@@ -118,7 +124,7 @@ public class QuerySession<T> {
     /**
      * Number of active segments that have registered to this QuerySession
      */
-    private final AtomicInteger activeSegmentCount;
+    private int activeSegmentCount;
 
     /**
      * Tracks number of created tasks
@@ -133,7 +139,7 @@ public class QuerySession<T> {
     /**
      * The total number of tuples that were streamed out to the client
      */
-    private final AtomicLong totalTupleCount;
+    private long totalTupleCount;
 
     /**
      * Holds a reference to the querySessionCache
@@ -150,7 +156,8 @@ public class QuerySession<T> {
         this.querySessionCache = querySessionCache;
         this.meterRegistry = meterRegistry;
 
-        this.registrationLock = new Object();
+        this.registrationLock = new ReentrantLock();
+        this.noActiveSegments = registrationLock.newCondition();
         this.queryId = String.format("%s:%s:%s:%s", context.getServerName(),
                 context.getTransactionId(), context.getDataSource(), context.getFilterString());
         this.startTime = Instant.now();
@@ -160,10 +167,10 @@ public class QuerySession<T> {
         this.registeredSegmentQueue = new LinkedBlockingDeque<>();
         this.outputQueue = new LinkedBlockingQueue<>(400);
         this.errors = new ConcurrentLinkedDeque<>();
-        this.activeSegmentCount = new AtomicInteger(0);
+        this.activeSegmentCount = 0;
         this.createdTupleReaderTaskCount = new AtomicInteger(0);
         this.completedTupleReaderTaskCount = new AtomicInteger(0);
-        this.totalTupleCount = new AtomicLong(0);
+        this.totalTupleCount = 0;
         this.tupleReaderTaskMap = new HashMap<>();
     }
 
@@ -176,7 +183,8 @@ public class QuerySession<T> {
         if (!queryCancelled.getAndSet(true)) {
             cancelTime = Instant.now();
         }
-        errors.offer(e);
+        // TODO:
+//        errors.offer(e); <- I don't think we need this
     }
 
     /**
@@ -185,13 +193,17 @@ public class QuerySession<T> {
      * @param segmentId the segment identifier
      */
     public void registerSegment(int segmentId) throws InterruptedException {
-        synchronized (registrationLock) {
+        final ReentrantLock registrationLock = this.registrationLock;
+        registrationLock.lock();
+        try {
             if (!isActive()) {
                 throw new IllegalStateException("This querySession is no longer active.");
             }
 
-            activeSegmentCount.incrementAndGet();
+            activeSegmentCount++;
             registeredSegmentQueue.put(segmentId);
+        } finally {
+            registrationLock.unlock();
         }
     }
 
@@ -202,7 +214,9 @@ public class QuerySession<T> {
      * right before we were about to mark this session as inactive.
      */
     public void tryMarkInactive() {
-        synchronized (registrationLock) {
+        final ReentrantLock registrationLock = this.registrationLock;
+        registrationLock.lock();
+        try {
             if (registeredSegmentQueue.isEmpty() && outputQueue.isEmpty()) {
 
                 String cacheKey = String.format("%s:%s:%s:%s",
@@ -217,10 +231,10 @@ public class QuerySession<T> {
                 // streaming data to the output stream
                 queryActive.set(false);
             }
+        } finally {
+            registrationLock.unlock();
         }
-
     }
-
 
     /**
      * De-registers a segment.
@@ -228,8 +242,30 @@ public class QuerySession<T> {
      * @param recordCount the recordCount from the segment
      */
     public void deregisterSegment(long recordCount) {
-        totalTupleCount.addAndGet(recordCount);
-        activeSegmentCount.decrementAndGet();
+        final ReentrantLock registrationLock = this.registrationLock;
+        registrationLock.lock();
+        try {
+            totalTupleCount += recordCount;
+            activeSegmentCount--;
+
+            if (activeSegmentCount == 0) {
+                noActiveSegments.signal();
+            }
+        } finally {
+            registrationLock.unlock();
+        }
+    }
+
+    public void waitForAllSegmentsToDeregister() throws InterruptedException {
+        final ReentrantLock registrationLock = this.registrationLock;
+        registrationLock.lock();
+        try {
+            if (activeSegmentCount > 0) {
+                noActiveSegments.await();
+            }
+        } finally {
+            registrationLock.unlock();
+        }
     }
 
     /**
@@ -242,15 +278,6 @@ public class QuerySession<T> {
             errorTime = Instant.now();
         }
         errors.offer(e);
-    }
-
-    /**
-     * Returns the number of active segments for this {@link QuerySession}
-     *
-     * @return the number of active segments for this {@link QuerySession}
-     */
-    public int getActiveSegmentCount() {
-        return activeSegmentCount.get();
     }
 
     /**
@@ -338,7 +365,7 @@ public class QuerySession<T> {
         synchronized (tupleReaderTaskMap) {
             for (Map.Entry<Integer, TupleReaderTask<T>> entry : tupleReaderTaskMap.entrySet()) {
                 try {
-                    entry.getValue().interrupt();
+                    entry.getValue().cancel();
                 } catch (Throwable e) {
                     LOG.warn(String.format("Unable to interrupt task number %d (%s)", entry.getKey(), entry.getValue()), e);
                 }
@@ -361,8 +388,9 @@ public class QuerySession<T> {
         // Clear tasks in the list
         tupleReaderTaskMap.clear();
 
+        // TODO: Close UGI
+
         Instant endTime = Instant.now();
-        long totalRecords = totalTupleCount.get();
 
         if (cancelTime != null) {
 
@@ -377,12 +405,12 @@ public class QuerySession<T> {
         } else {
 
             long durationMs = Duration.between(startTime, endTime).toMillis();
-            double rate = durationMs == 0 ? 0 : (1000.0 * totalRecords / durationMs);
+            double rate = durationMs == 0 ? 0 : (1000.0 * totalTupleCount / durationMs);
 
             LOG.info("{} completed streaming {} tuple{} in {}ms. {} tuples/sec",
                     this,
-                    totalRecords,
-                    totalRecords == 1 ? "" : "s",
+                    totalTupleCount,
+                    totalTupleCount == 1 ? "" : "s",
                     durationMs,
                     String.format("%.2f", rate));
 

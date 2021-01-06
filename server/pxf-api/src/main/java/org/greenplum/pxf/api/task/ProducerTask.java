@@ -21,9 +21,15 @@ import static java.util.Objects.requireNonNull;
 
 public class ProducerTask<T> implements Runnable {
 
-    private static final int DEFAULT_MAX_THREADS = 12;
-    // TODO: decide a property name for the maxThreads
-    private static final String PXF_PRODUCER_MAX_THREADS_PROPERTY = "pxf.producer.max-threads";
+    // TODO: Come up with a DEFAULT_MAX_THREADS value and make sure we add a comment
+    //       explaining how we came up with that number
+    private static final int DEFAULT_MAX_THREADS = 10;
+
+    /**
+     * Name of the property that allows overriding the number of maximum
+     * concurrent threads that process tuples
+     */
+    private static final String PXF_PROCESSOR_MAX_THREADS_PROPERTY = "pxf.processor.max-threads";
 
     protected Logger LOG = LoggerFactory.getLogger(this.getClass());
 
@@ -34,7 +40,7 @@ public class ProducerTask<T> implements Runnable {
         this.querySession = requireNonNull(querySession, "querySession cannot be null");
         // Defaults to the minimum between DEFAULT_MAX_THREADS and the number of available processors
         int maxThreads = querySession.getContext().getConfiguration()
-                .getInt(PXF_PRODUCER_MAX_THREADS_PROPERTY,// DEFAULT_MAX_THREADS);
+                .getInt(PXF_PROCESSOR_MAX_THREADS_PROPERTY,// DEFAULT_MAX_THREADS);
                         Math.min(DEFAULT_MAX_THREADS, Runtime.getRuntime().availableProcessors()));
         this.boundedExecutor = new BoundedExecutor(executor, maxThreads);
     }
@@ -100,25 +106,35 @@ public class ProducerTask<T> implements Runnable {
             throw new RuntimeException(ex);
         } finally {
 
-            // TODO: find a better way to wait for this
-            //       Allow segments to deregister to the query session
-            //       We need to have a timeout here in case the segments take
-            //       too long to deregister
-            while (querySession.getActiveSegmentCount() > 0) {
-                // wait or until timeout
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException ignored) {
-                }
-            }
+            // At this point the query session is inactive for one of the
+            // following reasons:
+            //   1. There is no more work or tuples available to be processed
+            //   2. The query was cancelled
+            //   3. The query errored out
 
             if (querySession.isQueryErrored() || querySession.isQueryCancelled()) {
                 // When an error occurs or the query is cancelled, we need
-                // to interrupt all the running TupleReaderTasks.
+                // to cancel all the running TupleReaderTasks.
                 querySession.cancelAllTasks();
             }
 
-            querySession.close();
+            try {
+                // We need to allow all of the ScanResponses to fully consume
+                // the batches from the outputQueue
+                // Wait with timeout in case we miss the signal. If we
+                // miss the signal we don't want to wait forever.
+                querySession.waitForAllSegmentsToDeregister();
+            } catch (InterruptedException ignored) {
+            }
+
+            try {
+                querySession.close();
+            } catch (Exception ex) {
+                LOG.warn(String.format("Error while closing the QuerySession %s", querySession), ex);
+            }
+
+            // Clean the interrupted flag
+            Thread.interrupted();
         }
     }
 }
