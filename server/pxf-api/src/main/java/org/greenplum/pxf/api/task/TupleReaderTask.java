@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Queue;
+import java.util.concurrent.BlockingQueue;
 
 /**
  * Processes a {@link DataSplit} and generates 0 or more tuples. Stores
@@ -28,7 +28,7 @@ public class TupleReaderTask<T> implements Runnable {
 
     private final int taskNumber;
     private final DataSplit split;
-    private final Queue<List<T>> outputQueue;
+    private final BlockingQueue<List<T>> outputQueue;
     private final QuerySession<T> querySession;
     private final String uniqueResourceName;
     private final Processor<T> processor;
@@ -53,6 +53,7 @@ public class TupleReaderTask<T> implements Runnable {
 
         this.runningThread = Thread.currentThread();
 
+        boolean interrupted = Thread.interrupted();
         int totalRows = 0;
         int batchSize = querySession.getContext().getConfiguration()
                 .getInt(PXF_TUPLE_READER_BATCH_SIZE_PROPERTY, DEFAULT_BATCH_SIZE);
@@ -60,21 +61,24 @@ public class TupleReaderTask<T> implements Runnable {
         try {
             iterator = processor.getTupleIterator(querySession, split);
             List<T> batch = new ArrayList<>(batchSize);
-            while (iterator.hasNext() && querySession.isActive()) {
+            while (!runningThread.isInterrupted() && iterator.hasNext() && querySession.isActive()) {
                 batch.add(iterator.next());
                 if (batch.size() == batchSize) {
                     totalRows += batchSize;
-                    outputQueue.offer(batch);
+                    outputQueue.put(batch);
                     // TODO: when the outputQueue is full we might want to sleep this
                     //       thread and reschedule it until later (backpressure)
                     batch = new ArrayList<>(batchSize);
-                    Thread.sleep(200);
+//                    Thread.sleep(200);
                 }
             }
             if (!batch.isEmpty() && querySession.isActive()) {
                 totalRows += batch.size();
-                outputQueue.offer(batch);
+                outputQueue.put(batch);
             }
+        } catch (InterruptedException e) {
+            LOG.debug("Thread " + runningThread.getId() + " has been interrupted");
+            interrupted = true;
         } catch (ClientAbortException e) {
             querySession.cancelQuery(e);
         } catch (IOException e) {
@@ -97,6 +101,10 @@ public class TupleReaderTask<T> implements Runnable {
         // Keep track of the number of records processed by this task
         LOG.debug("completed processing {} row{} {} for query {}",
                 totalRows, totalRows == 1 ? "" : "s", uniqueResourceName, querySession);
+
+        if (interrupted) {
+            runningThread.interrupt();
+        }
     }
 
     /**

@@ -22,6 +22,8 @@ public class BinarySerializer extends BaseSerializer {
 
     @Override
     public void startRow(int numColumns) throws IOException {
+        // Each tuple begins with a 16-bit integer count of the number of
+        // fields in the tuple
         buffer.writeShort(numColumns);
     }
 
@@ -39,6 +41,8 @@ public class BinarySerializer extends BaseSerializer {
         Object field = function.apply(session, tuple, columnIndex);
 
         if (field == null) {
+            // As a special case, -1 indicates a NULL field value.
+            // No value bytes follow in the NULL case.
             buffer.writeInt(-1);
         } else {
             writeFieldValue(dataType, field);
@@ -55,6 +59,8 @@ public class BinarySerializer extends BaseSerializer {
 
     @Override
     public void close() throws IOException {
+        // The file trailer consists of a 16-bit integer word containing -1.
+        // This is easily distinguished from a tuple's field-count word.
         buffer.writeShort(-1);
         super.close();
     }

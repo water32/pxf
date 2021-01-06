@@ -7,13 +7,15 @@ import org.slf4j.LoggerFactory;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 
 /**
+ * Source: io.airlift.concurrent.BoundedExecutor
+ * <p>
  * Guarantees that no more than maxThreads will be used to execute tasks submitted
  * through {@link #execute(Runnable) execute()}.
  * <p>
@@ -47,7 +49,9 @@ public class BoundedExecutor
 
     @Override
     public void execute(Runnable task) {
-        checkState(!failed.get(), "BoundedExecutor is in a failed state");
+        if (failed.get()) {
+            throw new RejectedExecutionException("BoundedExecutor is in a failed state");
+        }
 
         queue.add(task);
 
@@ -72,7 +76,6 @@ public class BoundedExecutor
             } catch (Throwable e) {
                 LOG.error("Task failed", e);
             }
-        }
-        while (queueSize.getAndDecrement() > maxThreads);
+        } while (queueSize.getAndDecrement() > maxThreads);
     }
 }

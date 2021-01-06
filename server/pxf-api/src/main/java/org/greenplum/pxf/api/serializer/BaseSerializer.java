@@ -15,7 +15,6 @@ public abstract class BaseSerializer implements Serializer, AutoCloseable {
 
     @Override
     public void close() throws IOException {
-        buffer.flush();
         buffer.close();
     }
 }

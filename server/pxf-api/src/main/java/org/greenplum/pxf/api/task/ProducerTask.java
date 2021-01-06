@@ -101,11 +101,13 @@ public class ProducerTask<T> implements Runnable {
         } finally {
 
             // TODO: find a better way to wait for this
-            // Allow segments to deregister to the query session
+            //       Allow segments to deregister to the query session
+            //       We need to have a timeout here in case the segments take
+            //       too long to deregister
             while (querySession.getActiveSegmentCount() > 0) {
                 // wait or until timeout
                 try {
-                    querySession.wait(1);
+                    Thread.sleep(1000);
                 } catch (InterruptedException ignored) {
                 }
             }

@@ -71,25 +71,28 @@ public class ScanResponse<T> implements StreamingResponseBody {
 
             while (querySession.isActive()) {
                 List<T> batch = outputQueue.poll(1, TimeUnit.MILLISECONDS);
-                if (batch != null) {
-
-                    if (functions == null) {
-                        functions = querySession.getProcessor().getMappingFunctions(querySession);
-                    }
-
-                    for (T tuple : batch) {
-                        serializer.startRow(columnDescriptors.size());
-                        for (int i = 0; i < columnDescriptors.size(); i++) {
-                            ColumnDescriptor columnDescriptor = columnDescriptors.get(i);
-
-                            serializer.startField();
-                            serializer.writeField(columnDescriptor.getDataType(), functions[i], querySession, tuple, i);
-                            serializer.endField();
-                        }
-                        serializer.endRow();
-                    }
-                    recordCount += batch.size();
+                if (batch == null) {
+                    // keep waiting until the query session becomes inactive or
+                    // there are items in the output queue to be consumed
+                    continue;
                 }
+
+                if (functions == null) {
+                    functions = querySession.getProcessor().getMappingFunctions(querySession);
+                }
+
+                for (T tuple : batch) {
+                    serializer.startRow(columnDescriptors.size());
+                    for (int i = 0; i < columnDescriptors.size(); i++) {
+                        ColumnDescriptor columnDescriptor = columnDescriptors.get(i);
+
+                        serializer.startField();
+                        serializer.writeField(columnDescriptor.getDataType(), functions[i], querySession, tuple, i);
+                        serializer.endField();
+                    }
+                    serializer.endRow();
+                }
+                recordCount += batch.size();
             }
 
             if (!querySession.isQueryErrored() && !querySession.isQueryCancelled()) {
@@ -114,6 +117,7 @@ public class ScanResponse<T> implements StreamingResponseBody {
             // Re-throw the exception so Spring MVC is aware that an IO error has occurred
             throw e;
         } catch (IOException e) {
+            querySession.errorQuery(e);
             throw e;
         } catch (Exception e) {
             querySession.errorQuery(e);

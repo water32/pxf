@@ -121,7 +121,7 @@ public class QuerySession<T> {
     private final AtomicInteger activeSegmentCount;
 
     /**
-     * Tracks number of active tasks
+     * Tracks number of created tasks
      */
     private final AtomicInteger createdTupleReaderTaskCount;
 

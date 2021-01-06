@@ -14,7 +14,7 @@ import java.util.Set;
 
 /**
  * Iterates over the {@link DataSplit}s for a given segment. It uses a
- * consistent hashing algorithm to determine which segment will process a
+ * consistent hashing algorithm to determine which segment(s) will process a
  * given split. The {@link FragmentMetadata} object in the {@link DataSplit}
  * needs to implement the {@code hashCode()} method to allow the consistent
  * hashing algorithm to always produce the same hash value for a given
