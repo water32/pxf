@@ -146,11 +146,6 @@ public class QuerySession<T> {
      */
     private final Cache<String, QuerySession<T>> querySessionCache;
 
-    /**
-     * A map of taskNumber to TupleReaderTasks
-     */
-    private final Map<Integer, TupleReaderTask<T>> tupleReaderTaskMap;
-
     public QuerySession(RequestContext context, Cache<String, QuerySession<T>> querySessionCache, MeterRegistry meterRegistry) {
         this.context = context;
         this.querySessionCache = querySessionCache;
@@ -171,7 +166,6 @@ public class QuerySession<T> {
         this.createdTupleReaderTaskCount = new AtomicInteger(0);
         this.completedTupleReaderTaskCount = new AtomicInteger(0);
         this.totalTupleCount = 0;
-        this.tupleReaderTaskMap = new HashMap<>();
     }
 
     /**
@@ -246,9 +240,8 @@ public class QuerySession<T> {
         registrationLock.lock();
         try {
             totalTupleCount += recordCount;
-            activeSegmentCount--;
 
-            if (activeSegmentCount == 0) {
+            if (--activeSegmentCount == 0) {
                 noActiveSegments.signal();
             }
         } finally {
@@ -256,6 +249,10 @@ public class QuerySession<T> {
         }
     }
 
+    /**
+     * Waits, if there are still active segments, until all segments have
+     * de-registered.
+     */
     public void waitForAllSegmentsToDeregister() throws InterruptedException {
         final ReentrantLock registrationLock = this.registrationLock;
         registrationLock.lock();
@@ -328,50 +325,17 @@ public class QuerySession<T> {
     }
 
     /**
-     * Registers the {@link TupleReaderTask} to the querySession and keeps
-     * track of the number of tasks that have been created.
-     *
-     * @param taskNumber a unique number for the task
-     * @param task       the {@link TupleReaderTask}
+     * Increments the number of created tasks
      */
-    public void addTupleReaderTask(int taskNumber, TupleReaderTask<T> task) {
+    public void markTaskAsCreated() {
         createdTupleReaderTaskCount.incrementAndGet();
-        synchronized (tupleReaderTaskMap) {
-            tupleReaderTaskMap.put(taskNumber, task);
-        }
     }
 
     /**
-     * De-registers the {@link TupleReaderTask} with the given
-     * {@code taskIndex} and keeps track of the number of tasks that have
-     * completed. The completion count is regardless the task completed
-     * successfully or with failures.
-     *
-     * @param taskNumber a unique number for the task
-     * @param task       the {@link TupleReaderTask}
+     * Increments the number of completed tasks
      */
-    public void removeTupleReaderTask(int taskNumber, TupleReaderTask<T> task) {
+    public void markTaskAsCompleted() {
         completedTupleReaderTaskCount.incrementAndGet();
-        synchronized (tupleReaderTaskMap) {
-            tupleReaderTaskMap.remove(taskNumber);
-        }
-    }
-
-    /**
-     * Cancels all the {@link TupleReaderTask}s that are still active for this
-     * {@link QuerySession}
-     */
-    public void cancelAllTasks() {
-        synchronized (tupleReaderTaskMap) {
-            for (Map.Entry<Integer, TupleReaderTask<T>> entry : tupleReaderTaskMap.entrySet()) {
-                try {
-                    entry.getValue().cancel();
-                } catch (Throwable e) {
-                    LOG.warn(String.format("Unable to interrupt task number %d (%s)", entry.getKey(), entry.getValue()), e);
-                }
-            }
-            tupleReaderTaskMap.clear();
-        }
     }
 
     /**
@@ -384,9 +348,6 @@ public class QuerySession<T> {
 
         // Clear the queue of registered segments
         registeredSegmentQueue.clear();
-
-        // Clear tasks in the list
-        tupleReaderTaskMap.clear();
 
         // TODO: Close UGI
 

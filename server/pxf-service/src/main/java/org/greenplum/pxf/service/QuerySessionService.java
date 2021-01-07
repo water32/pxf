@@ -24,7 +24,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 import static org.greenplum.pxf.service.PxfConfiguration.PXF_PRODUCER_TASK_EXECUTOR;
-import static org.greenplum.pxf.service.PxfConfiguration.PXF_TUPLE_TASK_EXECUTOR;
+import static org.greenplum.pxf.service.PxfConfiguration.PXF_PROCESSOR_TASK_EXECUTOR;
 
 /**
  * The {@code QuerySessionManager} manages {@link QuerySession} objects.
@@ -68,7 +68,7 @@ public class QuerySessionService<T> {
 
         this.configurationFactory = configurationFactory;
         this.producerTaskExecutor = (Executor) beanFactory.getBean(PXF_PRODUCER_TASK_EXECUTOR);
-        this.tupleTaskExecutor = (Executor) beanFactory.getBean(PXF_TUPLE_TASK_EXECUTOR);
+        this.tupleTaskExecutor = (Executor) beanFactory.getBean(PXF_PROCESSOR_TASK_EXECUTOR);
         this.registeredProcessors = applicationContext.getBeansOfType(Processor.class).values();
         this.meterRegistry = meterRegistry;
     }

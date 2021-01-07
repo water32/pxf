@@ -4,10 +4,14 @@ import org.greenplum.pxf.api.io.DataType;
 import org.greenplum.pxf.api.model.QuerySession;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -15,6 +19,10 @@ import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
 class BinarySerializerTest {
+
+    static Stream<DataType> dataTypeValues() {
+        return Arrays.stream(DataType.values());
+    }
 
     ByteArrayOutputStream out = new ByteArrayOutputStream();
 
@@ -40,6 +48,28 @@ class BinarySerializerTest {
         byte[] result = out.toByteArray();
         offset = verifyHeader(result, offset);
         offset = verifyStartRow(result, offset, 0);
+        verifyClose(result, offset);
+    }
+
+    @MethodSource("dataTypeValues")
+    @ParameterizedTest
+    @SuppressWarnings("unchecked")
+    void testWriteNull(DataType dataType) throws IOException {
+        int numberOfFields = 1;
+        QuerySession<String> session = mock(QuerySession.class);
+        try (BinarySerializer serializer = new BinarySerializer()) {
+            serializer.open(out);
+            serializer.startRow(numberOfFields);
+            serializer.startField();
+            serializer.writeField(dataType, (s, o, c) -> null, session, "5L", 0);
+            serializer.endField();
+            serializer.endRow();
+        }
+        int offset = 0;
+        byte[] result = out.toByteArray();
+        offset = verifyHeader(result, offset);
+        offset = verifyStartRow(result, offset, numberOfFields);
+        offset = verifyNull(result, offset);
         verifyClose(result, offset);
     }
 
@@ -82,34 +112,6 @@ class BinarySerializerTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void testWriteNull_BIGINT() throws IOException {
-        int numberOfFields = 1;
-        QuerySession<String> session = mock(QuerySession.class);
-        try (BinarySerializer serializer = new BinarySerializer()) {
-            serializer.open(out);
-            serializer.startRow(numberOfFields);
-            serializer.startField();
-            serializer.writeField(DataType.BIGINT, (s, o, c) -> null, session, "5L", 0);
-            serializer.endField();
-            serializer.endRow();
-        }
-        int offset = 0;
-        byte[] result = out.toByteArray();
-        offset = verifyHeader(result, offset);
-        offset = verifyStartRow(result, offset, numberOfFields);
-
-        // As a special case, -1 indicates a NULL field value.
-        // No value bytes follow in the NULL case.
-        assertThat(result[offset++]).isEqualTo((byte) (-1 >>> 24));
-        assertThat(result[offset++]).isEqualTo((byte) (-1 >>> 16));
-        assertThat(result[offset++]).isEqualTo((byte) (-1 >>> 8));
-        assertThat(result[offset++]).isEqualTo((byte) -1);
-
-        verifyClose(result, offset);
-    }
-
-    @Test
-    @SuppressWarnings("unchecked")
     void testCastExceptionOnWrite_BIGINT() throws IOException {
         int numberOfFields = 1;
         QuerySession<String> session = mock(QuerySession.class);
@@ -132,7 +134,12 @@ class BinarySerializerTest {
             serializer.open(out);
             serializer.startRow(numberOfFields);
             serializer.startField();
-            serializer.writeField(DataType.BOOLEAN, (s, o, c) -> true, session, "5L", 0);
+            serializer.writeField(DataType.BOOLEAN, (s, o, c) -> true, session, "true", 0);
+            serializer.endField();
+            serializer.endRow();
+            serializer.startRow(numberOfFields);
+            serializer.startField();
+            serializer.writeField(DataType.BOOLEAN, (s, o, c) -> false, session, "false", 0);
             serializer.endField();
             serializer.endRow();
         }
@@ -148,14 +155,82 @@ class BinarySerializerTest {
         assertThat(result[offset++]).isEqualTo((byte) 1);
 
         // verify that we write the actual value of the long
-        assertThat(result[offset++]).isEqualTo((byte) (5L >>> 56));
-        assertThat(result[offset++]).isEqualTo((byte) (5L >>> 48));
-        assertThat(result[offset++]).isEqualTo((byte) (5L >>> 40));
-        assertThat(result[offset++]).isEqualTo((byte) (5L >>> 32));
-        assertThat(result[offset++]).isEqualTo((byte) (5L >>> 24));
-        assertThat(result[offset++]).isEqualTo((byte) (5L >>> 16));
-        assertThat(result[offset++]).isEqualTo((byte) (5L >>> 8));
-        assertThat(result[offset++]).isEqualTo((byte) (5L));
+        assertThat(result[offset++]).isEqualTo((byte) 1);
+
+        offset = verifyStartRow(result, offset, numberOfFields);
+
+        // verify that we write the length of bigint (8 bytes)
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 1);
+
+        // verify that we write the actual value of the long
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+
+        verifyClose(result, offset);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testWrite_BPCHAR() throws IOException {
+        int numberOfFields = 1;
+        QuerySession<String> session = mock(QuerySession.class);
+        try (BinarySerializer serializer = new BinarySerializer()) {
+            serializer.open(out);
+            serializer.startRow(numberOfFields);
+            serializer.startField();
+            serializer.writeField(DataType.BPCHAR, (s, o, c) -> "foo", session, "foo", 0);
+            serializer.endField();
+            serializer.endRow();
+        }
+        int offset = 0;
+        byte[] result = out.toByteArray();
+        offset = verifyHeader(result, offset);
+        offset = verifyStartRow(result, offset, numberOfFields);
+
+        // verify that we write the length of the bytes of the string (variable)
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 3);
+
+        // verify that we write the actual value of the string
+        assertThat(result[offset++]).isEqualTo((byte) 'f');
+        assertThat(result[offset++]).isEqualTo((byte) 'o');
+        assertThat(result[offset++]).isEqualTo((byte) 'o');
+
+        verifyClose(result, offset);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testWrite_TEXT() throws IOException {
+        int numberOfFields = 1;
+        QuerySession<String> session = mock(QuerySession.class);
+        try (BinarySerializer serializer = new BinarySerializer()) {
+            serializer.open(out);
+            serializer.startRow(numberOfFields);
+            serializer.startField();
+            serializer.writeField(DataType.TEXT, (s, o, c) -> "bar", session, "bar", 0);
+            serializer.endField();
+            serializer.endRow();
+        }
+        int offset = 0;
+        byte[] result = out.toByteArray();
+        offset = verifyHeader(result, offset);
+        offset = verifyStartRow(result, offset, numberOfFields);
+
+        // verify that we write the length of the bytes of the string (variable)
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 3);
+
+        // verify that we write the actual value of the string
+        assertThat(result[offset++]).isEqualTo((byte) 'b');
+        assertThat(result[offset++]).isEqualTo((byte) 'a');
+        assertThat(result[offset++]).isEqualTo((byte) 'r');
 
         verifyClose(result, offset);
     }
@@ -191,6 +266,16 @@ class BinarySerializerTest {
         // Each tuple begins with a 16-bit integer count of the number of fields in the tuple
         assertThat(result[offset++]).isEqualTo((byte) (numberOfFields >>> 8));
         assertThat(result[offset++]).isEqualTo((byte) numberOfFields);
+        return offset;
+    }
+
+    private int verifyNull(byte[] result, int offset) {
+        // As a special case, -1 indicates a NULL field value.
+        // No value bytes follow in the NULL case.
+        assertThat(result[offset++]).isEqualTo((byte) (-1 >>> 24));
+        assertThat(result[offset++]).isEqualTo((byte) (-1 >>> 16));
+        assertThat(result[offset++]).isEqualTo((byte) (-1 >>> 8));
+        assertThat(result[offset++]).isEqualTo((byte) -1);
         return offset;
     }
 

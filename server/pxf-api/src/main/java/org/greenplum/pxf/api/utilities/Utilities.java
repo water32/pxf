@@ -24,6 +24,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.greenplum.pxf.api.StatsAccessor;
+import org.greenplum.pxf.api.configuration.PxfServerProperties;
 import org.greenplum.pxf.api.model.RequestContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -332,5 +333,15 @@ public class Utilities {
         }
 
         return (end > start) ? uri.substring(start, end) : null;
+    }
+
+    /**
+     * Return the number of threads to allocate given the scale factor
+     *
+     * @param scaleFactor the scale factor
+     * @return the number of threads to allocate given the scale factor
+     */
+    public static int getProcessorMaxThreadsPerSession(int scaleFactor) {
+        return scaleFactor * Runtime.getRuntime().availableProcessors();
     }
 }

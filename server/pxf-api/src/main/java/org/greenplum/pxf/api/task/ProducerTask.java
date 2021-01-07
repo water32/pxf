@@ -6,9 +6,11 @@ import org.greenplum.pxf.api.model.DataSplit;
 import org.greenplum.pxf.api.model.DataSplitSegmentIterator;
 import org.greenplum.pxf.api.model.DataSplitter;
 import org.greenplum.pxf.api.model.QuerySession;
+import org.greenplum.pxf.api.utilities.Utilities;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -18,18 +20,10 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 import static java.util.Objects.requireNonNull;
+import static org.greenplum.pxf.api.configuration.PxfServerProperties.DEFAULT_SCALE_FACTOR;
+import static org.greenplum.pxf.api.factory.ConfigurationFactory.PXF_PROCESSOR_SCALE_FACTOR_PROPERTY;
 
 public class ProducerTask<T> implements Runnable {
-
-    // TODO: Come up with a DEFAULT_MAX_THREADS value and make sure we add a comment
-    //       explaining how we came up with that number
-    private static final int DEFAULT_MAX_THREADS = 10;
-
-    /**
-     * Name of the property that allows overriding the number of maximum
-     * concurrent threads that process tuples
-     */
-    private static final String PXF_PROCESSOR_MAX_THREADS_PROPERTY = "pxf.processor.max-threads";
 
     protected Logger LOG = LoggerFactory.getLogger(this.getClass());
 
@@ -38,11 +32,13 @@ public class ProducerTask<T> implements Runnable {
 
     public ProducerTask(QuerySession<T> querySession, Executor executor) {
         this.querySession = requireNonNull(querySession, "querySession cannot be null");
-        // Defaults to the minimum between DEFAULT_MAX_THREADS and the number of available processors
-        int maxThreads = querySession.getContext().getConfiguration()
-                .getInt(PXF_PROCESSOR_MAX_THREADS_PROPERTY,// DEFAULT_MAX_THREADS);
-                        Math.min(DEFAULT_MAX_THREADS, Runtime.getRuntime().availableProcessors()));
-        this.boundedExecutor = new BoundedExecutor(executor, maxThreads);
+        // maxProcessorThreads defaults to MAX_PROCESSOR_THREADS_PER_SESSION
+        // it can be overridden by setting the PXF_MAX_PROCESSOR_THREADS_PROPERTY
+        // in the server configuration
+        int scaleFactor = querySession.getContext().getConfiguration()
+                .getInt(PXF_PROCESSOR_SCALE_FACTOR_PROPERTY, DEFAULT_SCALE_FACTOR);
+        int maxProcessorThreads = Utilities.getProcessorMaxThreadsPerSession(scaleFactor);
+        this.boundedExecutor = new BoundedExecutor(executor, maxProcessorThreads);
     }
 
     /**
@@ -50,13 +46,11 @@ public class ProducerTask<T> implements Runnable {
      */
     @Override
     public void run() {
-        int taskCount = 0;
         int totalSegments = querySession.getContext().getTotalSegments();
         Integer segmentId;
         Set<Integer> segmentIds;
 
         try {
-
             // Materialize the list of splits
             DataSplitter splitter = querySession.getProcessor().getDataSplitter(querySession);
             List<DataSplit> splitList = Lists.newArrayList(splitter);
@@ -92,12 +86,10 @@ public class ProducerTask<T> implements Runnable {
                         DataSplit split = iterator.next();
                         LOG.debug("Submitting {} to the pool for query {}", split, querySession);
 
-                        TupleReaderTask<T> task = new TupleReaderTask<>(taskCount, split, querySession);
+                        TupleReaderTask<T> task = new TupleReaderTask<>(split, querySession);
 
-                        // Registers the task and increases the number of jobs submitted to the executor
-                        querySession.addTupleReaderTask(taskCount, task);
+                        querySession.markTaskAsCreated();
                         boundedExecutor.execute(task);
-                        taskCount++;
                     }
                 }
             }
@@ -115,7 +107,11 @@ public class ProducerTask<T> implements Runnable {
             if (querySession.isQueryErrored() || querySession.isQueryCancelled()) {
                 // When an error occurs or the query is cancelled, we need
                 // to cancel all the running TupleReaderTasks.
-                querySession.cancelAllTasks();
+                boundedExecutor.shutdownNow();
+                cancelAllTasks();
+                tasks.clear();
+                boundedExecutor.awaitTermination(1000, TimeUnit.SECONDS);
+                // TODO drain outputQueue
             }
 
             try {
@@ -135,6 +131,12 @@ public class ProducerTask<T> implements Runnable {
 
             // Clean the interrupted flag
             Thread.interrupted();
+        }
+    }
+
+    private void cancelAllTasks() {
+        for (TupleReaderTask<T> task : tasks) {
+            task.cancel();
         }
     }
 }

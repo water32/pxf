@@ -24,14 +24,16 @@ public class BaseConfigurationFactory implements ConfigurationFactory {
     protected final Logger LOG = LoggerFactory.getLogger(this.getClass());
 
     private final File serversConfigDirectory;
+    private final PxfServerProperties pxfServerProperties;
 
     @Autowired
     public BaseConfigurationFactory(PxfServerProperties pxfServerProperties) {
-        this(new File(String.format("%s%sservers", pxfServerProperties.getBase(), File.separator)));
+        this(new File(String.format("%s%sservers", pxfServerProperties.getBase(), File.separator)), pxfServerProperties);
     }
 
-    BaseConfigurationFactory(File serversConfigDirectory) {
+    BaseConfigurationFactory(File serversConfigDirectory, PxfServerProperties pxfServerProperties) {
         this.serversConfigDirectory = serversConfigDirectory;
+        this.pxfServerProperties = pxfServerProperties;
     }
 
     /**
@@ -42,6 +44,10 @@ public class BaseConfigurationFactory implements ConfigurationFactory {
         // start with built-in Hadoop configuration that loads core-site.xml
         LOG.debug("Initializing configuration for server {}", serverName);
         Configuration configuration = new Configuration();
+
+        // add default properties from PxfServerProperties
+        configuration.setInt(PXF_PROCESSOR_SCALE_FACTOR_PROPERTY, pxfServerProperties.getScaleFactor());
+
         // while implementing multiple kerberized support we noticed that non-kerberized hadoop
         // access was trying to use SASL-client authentication. Setting the fallback to simple auth
         // allows us to still access non-kerberized hadoop clusters when there exists at least one

@@ -19,6 +19,15 @@ public class PxfServerProperties {
     public static final String PROPERTY_PREFIX = "pxf";
 
     /**
+     * By default we assume the scale factor to be 3 times the number of
+     * available processors.
+     * <p>
+     * Given the nature of the Threads that will spend most of the time
+     * performing IO operations, we estimate this value to be reasonable.
+     */
+    public static final int DEFAULT_SCALE_FACTOR = 3;
+
+    /**
      * The path for the server configuration. If the configuration has not
      * been initialized, it will be set to NOT_INITIALIZED.
      */
@@ -31,6 +40,14 @@ public class PxfServerProperties {
     @Getter
     @Setter
     private boolean metadataCacheEnabled = true;
+
+    /**
+     * We use the scale factor to calculate the maximum number of
+     * processor threads allocated for every query session.
+     */
+    @Getter
+    @Setter
+    private int scaleFactor = DEFAULT_SCALE_FACTOR;
 
     /**
      * Customizable settings for tomcat through PXF

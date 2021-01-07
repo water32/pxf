@@ -1,6 +1,7 @@
 package org.greenplum.pxf.service;
 
 import org.greenplum.pxf.api.configuration.PxfServerProperties;
+import org.greenplum.pxf.api.utilities.Utilities;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ListableBeanFactory;
@@ -20,7 +21,6 @@ import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.time.Duration;
-import java.util.concurrent.Executors;
 
 /**
  * Configures the {@link AsyncTaskExecutor} for tasks that will stream data to
@@ -45,7 +45,7 @@ public class PxfConfiguration implements WebMvcConfigurer {
     /**
      * Bean name of PXF's {@link TaskExecutor} for tuple tasks.
      */
-    public static final String PXF_TUPLE_TASK_EXECUTOR = "pxfTupleTaskExecutor";
+    public static final String PXF_PROCESSOR_TASK_EXECUTOR = "pxfProcessorTaskExecutor";
 
     private final ListableBeanFactory beanFactory;
 
@@ -118,7 +118,7 @@ public class PxfConfiguration implements WebMvcConfigurer {
     public ThreadPoolTaskExecutor pxfProducerTaskExecutor() {
         TaskExecutorBuilder builder = new TaskExecutorBuilder();
         builder = builder.queueCapacity(0);
-        builder = builder.corePoolSize(8);
+        builder = builder.corePoolSize(4);
         builder = builder.maxPoolSize(Integer.MAX_VALUE);
         builder = builder.allowCoreThreadTimeOut(false);
         builder = builder.keepAlive(Duration.ofSeconds(60));
@@ -126,15 +126,15 @@ public class PxfConfiguration implements WebMvcConfigurer {
         return builder.build();
     }
 
-    @Bean(name = PXF_TUPLE_TASK_EXECUTOR)
-    public ThreadPoolTaskExecutor pxfTupleTaskExecutor() {
+    @Bean(name = PXF_PROCESSOR_TASK_EXECUTOR)
+    public ThreadPoolTaskExecutor pxfProcessorTaskExecutor(PxfServerProperties pxfServerProperties) {
         TaskExecutorBuilder builder = new TaskExecutorBuilder();
         builder = builder.queueCapacity(0);
-        builder = builder.corePoolSize(8);
+        builder = builder.corePoolSize(Utilities.getProcessorMaxThreadsPerSession(pxfServerProperties.getScaleFactor()));
         builder = builder.maxPoolSize(Integer.MAX_VALUE);
         builder = builder.allowCoreThreadTimeOut(false);
         builder = builder.keepAlive(Duration.ofSeconds(60));
-        builder = builder.threadNamePrefix("pxf-tuple-executor-");
+        builder = builder.threadNamePrefix("pxf-processor-");
         return builder.build();
     }
 }

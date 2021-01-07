@@ -28,6 +28,12 @@ public interface ConfigurationFactory {
     String PXF_SESSION_USER_PROPERTY = "pxf.session.user";
 
     /**
+     * Name of the property that allows overriding the number of maximum
+     * concurrent threads that process tuples
+     */
+    String PXF_PROCESSOR_SCALE_FACTOR_PROPERTY = "pxf.processor.scale-factor";
+
+    /**
      * Initializes a configuration object that applies server-specific configurations and
      * adds additional properties on top of it, if specified.
      *
