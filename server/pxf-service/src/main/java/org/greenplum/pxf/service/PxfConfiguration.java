@@ -43,11 +43,6 @@ public class PxfConfiguration implements WebMvcConfigurer {
      */
     public static final String PXF_PRODUCER_TASK_EXECUTOR = "pxfProducerTaskExecutor";
 
-    /**
-     * Bean name of PXF's {@link TaskExecutor} for tuple tasks.
-     */
-    public static final String PXF_PROCESSOR_TASK_EXECUTOR = "pxfProcessorTaskExecutor";
-
     private final ListableBeanFactory beanFactory;
 
     /**

@@ -112,7 +112,7 @@ public class ScanResponse<T> implements StreamingResponseBody {
                 serializer.close();
             }
         } catch (ClientAbortException e) {
-            querySession.cancelQuery(e);
+            querySession.cancelQuery();
             // Occurs whenever client (Greenplum) decides to end the connection
             if (LOG.isDebugEnabled()) {
                 // Stacktrace in debug

@@ -17,8 +17,7 @@ import java.util.concurrent.BlockingQueue;
  * tuples in the buffer, until the buffer is full, then it adds the buffer to
  * the outputQueue.
  */
-// TODO: rename to ProcessorTask
-public class TupleReaderTask<T> implements Runnable {
+public class ProcessorTask<T> implements Runnable {
 
     private static final int DEFAULT_BATCH_SIZE = 10240;
 
@@ -27,7 +26,7 @@ public class TupleReaderTask<T> implements Runnable {
      */
     private static final String PXF_TUPLE_READER_BATCH_SIZE_PROPERTY = "pxf.processor.batch-size";
 
-    private final Logger LOG = LoggerFactory.getLogger(TupleReaderTask.class);
+    private final Logger LOG = LoggerFactory.getLogger(ProcessorTask.class);
 
     private final DataSplit split;
     private final BlockingQueue<List<T>> outputQueue;
@@ -35,7 +34,7 @@ public class TupleReaderTask<T> implements Runnable {
     private final String uniqueResourceName;
     private final Processor<T> processor;
 
-    public TupleReaderTask(DataSplit split, QuerySession<T> querySession) {
+    public ProcessorTask(DataSplit split, QuerySession<T> querySession) {
         this.split = split;
         this.querySession = querySession;
         this.outputQueue = querySession.getOutputQueue();
@@ -62,6 +61,7 @@ public class TupleReaderTask<T> implements Runnable {
                     totalRows += batchSize;
                     outputQueue.put(batch);
                     batch = new ArrayList<>(batchSize);
+                    Thread.sleep(200);
                 }
             }
             if (!currentThread.isInterrupted() && !batch.isEmpty()) {
@@ -69,7 +69,7 @@ public class TupleReaderTask<T> implements Runnable {
                 outputQueue.put(batch);
             }
         } catch (InterruptedException e) {
-            LOG.debug("TupleReaderTask with thread ID {} has been interrupted", currentThread.getId());
+            LOG.debug("ProcessorTask with thread ID {} has been interrupted", currentThread.getId());
 
             // Reset the interrupt flag
             currentThread.interrupt();

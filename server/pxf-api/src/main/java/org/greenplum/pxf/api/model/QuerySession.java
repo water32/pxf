@@ -5,17 +5,13 @@ import io.micrometer.core.instrument.MeterRegistry;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
-import org.apache.catalina.connector.ClientAbortException;
-import org.greenplum.pxf.api.task.TupleReaderTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Deque;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -129,12 +125,12 @@ public class QuerySession<T> {
     /**
      * Tracks number of created tasks
      */
-    private final AtomicInteger createdTupleReaderTaskCount;
+    private final AtomicInteger createdProcessorTaskCount;
 
     /**
      * Tracks number of completed tasks
      */
-    private final AtomicInteger completedTupleReaderTaskCount;
+    private final AtomicInteger completedProcessorTaskCount;
 
     /**
      * The total number of tuples that were streamed out to the client
@@ -163,8 +159,8 @@ public class QuerySession<T> {
         this.outputQueue = new LinkedBlockingQueue<>(400);
         this.errors = new ConcurrentLinkedDeque<>();
         this.activeSegmentCount = 0;
-        this.createdTupleReaderTaskCount = new AtomicInteger(0);
-        this.completedTupleReaderTaskCount = new AtomicInteger(0);
+        this.createdProcessorTaskCount = new AtomicInteger(0);
+        this.completedProcessorTaskCount = new AtomicInteger(0);
         this.totalTupleCount = 0;
     }
 
@@ -172,13 +168,11 @@ public class QuerySession<T> {
      * Cancels the query, the first thread to cancel the query sets the cancel
      * time
      */
-    public void cancelQuery(ClientAbortException e) {
+    public void cancelQuery() {
         queryActive.set(false);
         if (!queryCancelled.getAndSet(true)) {
             cancelTime = Instant.now();
         }
-        // TODO:
-//        errors.offer(e); <- I don't think we need this
     }
 
     /**
@@ -282,8 +276,8 @@ public class QuerySession<T> {
      *
      * @return the number of tasks that have completed
      */
-    public int getCompletedTupleReaderTaskCount() {
-        return completedTupleReaderTaskCount.get();
+    public int getCompletedProcessorCount() {
+        return completedProcessorTaskCount.get();
     }
 
     /**
@@ -291,8 +285,8 @@ public class QuerySession<T> {
      *
      * @return the number of tasks that have been created
      */
-    public int getCreatedTupleReaderTaskCount() {
-        return createdTupleReaderTaskCount.get();
+    public int getCreatedProcessorCount() {
+        return createdProcessorTaskCount.get();
     }
 
     /**
@@ -328,14 +322,14 @@ public class QuerySession<T> {
      * Increments the number of created tasks
      */
     public void markTaskAsCreated() {
-        createdTupleReaderTaskCount.incrementAndGet();
+        createdProcessorTaskCount.incrementAndGet();
     }
 
     /**
      * Increments the number of completed tasks
      */
     public void markTaskAsCompleted() {
-        completedTupleReaderTaskCount.incrementAndGet();
+        completedProcessorTaskCount.incrementAndGet();
     }
 
     /**

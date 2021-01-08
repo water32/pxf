@@ -24,7 +24,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 import static org.greenplum.pxf.service.PxfConfiguration.PXF_PRODUCER_TASK_EXECUTOR;
-import static org.greenplum.pxf.service.PxfConfiguration.PXF_PROCESSOR_TASK_EXECUTOR;
 
 /**
  * The {@code QuerySessionManager} manages {@link QuerySession} objects.
@@ -42,7 +41,6 @@ public class QuerySessionService<T> {
     private final Logger LOG = LoggerFactory.getLogger(this.getClass());
 
     private final Executor producerTaskExecutor;
-    private final Executor tupleTaskExecutor;
     @SuppressWarnings("rawtypes")
     private final Collection<Processor> registeredProcessors;
     private final MeterRegistry meterRegistry;
@@ -68,7 +66,6 @@ public class QuerySessionService<T> {
 
         this.configurationFactory = configurationFactory;
         this.producerTaskExecutor = (Executor) beanFactory.getBean(PXF_PRODUCER_TASK_EXECUTOR);
-        this.tupleTaskExecutor = (Executor) beanFactory.getBean(PXF_PROCESSOR_TASK_EXECUTOR);
         this.registeredProcessors = applicationContext.getBeansOfType(Processor.class).values();
         this.meterRegistry = meterRegistry;
     }
@@ -174,7 +171,7 @@ public class QuerySessionService<T> {
      */
     private void initializeAndExecuteProducerTask(QuerySession<T> querySession) {
         // Execute the ProducerTask
-        ProducerTask<T> producer = new ProducerTask<>(querySession, tupleTaskExecutor);
+        ProducerTask<T> producer = new ProducerTask<>(querySession);
         producerTaskExecutor.execute(producer);
     }
 

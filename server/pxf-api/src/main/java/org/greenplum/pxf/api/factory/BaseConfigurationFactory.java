@@ -45,9 +45,6 @@ public class BaseConfigurationFactory implements ConfigurationFactory {
         LOG.debug("Initializing configuration for server {}", serverName);
         Configuration configuration = new Configuration();
 
-        // add default properties from PxfServerProperties
-        configuration.setInt(PXF_PROCESSOR_SCALE_FACTOR_PROPERTY, pxfServerProperties.getScaleFactor());
-
         // while implementing multiple kerberized support we noticed that non-kerberized hadoop
         // access was trying to use SASL-client authentication. Setting the fallback to simple auth
         // allows us to still access non-kerberized hadoop clusters when there exists at least one
@@ -113,6 +110,10 @@ public class BaseConfigurationFactory implements ConfigurationFactory {
         } catch (NoSuchMethodError e) {
             // Expected exception for MapR
         }
+
+        // Add defaults if not overridden by server configuration
+        configuration.set(PXF_PROCESSOR_SCALE_FACTOR_PROPERTY,
+                configuration.get(PXF_PROCESSOR_SCALE_FACTOR_PROPERTY, String.valueOf(pxfServerProperties.getScaleFactor())));
 
         return configuration;
     }

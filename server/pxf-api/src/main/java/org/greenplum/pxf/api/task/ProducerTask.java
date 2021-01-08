@@ -1,6 +1,7 @@
 package org.greenplum.pxf.api.task;
 
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.greenplum.pxf.api.model.DataSplit;
 import org.greenplum.pxf.api.model.DataSplitSegmentIterator;
 import org.greenplum.pxf.api.model.DataSplitter;
@@ -16,6 +17,7 @@ import java.util.Set;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 import static java.util.Objects.requireNonNull;
@@ -27,19 +29,22 @@ public class ProducerTask<T> implements Runnable {
     protected Logger LOG = LoggerFactory.getLogger(this.getClass());
 
     private final QuerySession<T> querySession;
-    private final ExecutorService fixedExecutorService;
+    private final ExecutorService processorExecutorService;
 
     public ProducerTask(QuerySession<T> querySession) {
         this.querySession = requireNonNull(querySession, "querySession cannot be null");
         // maxProcessorThreads defaults to MAX_PROCESSOR_THREADS_PER_SESSION
         // it can be overridden by setting the PXF_MAX_PROCESSOR_THREADS_PROPERTY
         // in the server configuration
+        String poolId = querySession.getContext().getUser() + ":" + querySession.getContext().getTransactionId();
         int scaleFactor = querySession.getContext().getConfiguration()
                 .getInt(PXF_PROCESSOR_SCALE_FACTOR_PROPERTY, DEFAULT_SCALE_FACTOR);
         int maxProcessorThreads = Utilities.getProcessorMaxThreadsPerSession(scaleFactor);
-
-
-        this.fixedExecutorService = Executors.newFixedThreadPool(maxProcessorThreads);
+        // We create a new ExecutorService with a fixed amount of threads.
+        // We create one ExecutorService per query so we don't need to build
+        // a customized ExecutorService
+        this.processorExecutorService =
+                createProcessorTaskExecutorService(poolId, maxProcessorThreads);
     }
 
     /**
@@ -62,8 +67,8 @@ public class ProducerTask<T> implements Runnable {
                 segmentId = registeredSegmentQueue.poll(20, TimeUnit.MILLISECONDS);
 
                 if (segmentId == null) {
-                    int completed = querySession.getCompletedTupleReaderTaskCount();
-                    int created = querySession.getCreatedTupleReaderTaskCount();
+                    int completed = querySession.getCompletedProcessorCount();
+                    int created = querySession.getCreatedProcessorCount();
                     if (completed == created) {
                         // try to mark the session as inactive. If another
                         // thread is able to register itself before we mark it
@@ -87,10 +92,10 @@ public class ProducerTask<T> implements Runnable {
                         DataSplit split = iterator.next();
                         LOG.debug("Submitting {} to the pool for query {}", split, querySession);
 
-                        TupleReaderTask<T> task = new TupleReaderTask<>(split, querySession);
+                        ProcessorTask<T> task = new ProcessorTask<>(split, querySession);
 
                         querySession.markTaskAsCreated();
-                        fixedExecutorService.execute(task);
+                        processorExecutorService.execute(task);
                     }
                 }
             }
@@ -107,12 +112,18 @@ public class ProducerTask<T> implements Runnable {
 
             if (querySession.isQueryErrored() || querySession.isQueryCancelled()) {
                 // When an error occurs or the query is cancelled, we need
-                // to cancel all the running TupleReaderTasks.
-                fixedExecutorService.shutdownNow();
-                try {
-                    fixedExecutorService.awaitTermination(10, TimeUnit.SECONDS);
-                } catch (InterruptedException ignored) {
+                // to cancel all the running ProcessorTasks by interrupting
+                // them.
+                processorExecutorService.shutdownNow();
+            } else {
+                processorExecutorService.shutdown();
+            }
+
+            try {
+                if (!processorExecutorService.awaitTermination(10, TimeUnit.SECONDS)) {
+                    LOG.warn("Pool for query {} did not shutdown within 10 seconds", querySession.getQueryId());
                 }
+            } catch (InterruptedException ignored) {
             }
 
             try {
@@ -129,9 +140,12 @@ public class ProducerTask<T> implements Runnable {
             } catch (Exception ex) {
                 LOG.warn(String.format("Error while closing the QuerySession %s", querySession), ex);
             }
-
-            // Clean the interrupted flag
-            Thread.interrupted();
         }
+    }
+
+    private ExecutorService createProcessorTaskExecutorService(String poolId, int nThreads) {
+        ThreadFactory namedThreadFactory =
+                new ThreadFactoryBuilder().setNameFormat("pxf-processor-" + poolId + "-%d").build();
+        return Executors.newFixedThreadPool(nThreads, namedThreadFactory);
     }
 }
