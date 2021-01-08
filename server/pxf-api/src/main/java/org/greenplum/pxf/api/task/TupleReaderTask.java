@@ -1,6 +1,5 @@
 package org.greenplum.pxf.api.task;
 
-import org.apache.catalina.connector.ClientAbortException;
 import org.greenplum.pxf.api.model.DataSplit;
 import org.greenplum.pxf.api.model.Processor;
 import org.greenplum.pxf.api.model.QuerySession;
@@ -21,14 +20,6 @@ import java.util.concurrent.BlockingQueue;
 // TODO: rename to ProcessorTask
 public class TupleReaderTask<T> implements Runnable {
 
-    enum TaskStatus {
-        CREATED,
-        RUNNING,
-        COMPLETED,
-        CANCELLED,
-        FAILED
-    }
-
     private static final int DEFAULT_BATCH_SIZE = 10240;
 
     /**
@@ -43,9 +34,6 @@ public class TupleReaderTask<T> implements Runnable {
     private final QuerySession<T> querySession;
     private final String uniqueResourceName;
     private final Processor<T> processor;
-    private Thread runningThread;
-
-    private volatile TaskStatus status;
 
     public TupleReaderTask(DataSplit split, QuerySession<T> querySession) {
         this.split = split;
@@ -53,7 +41,6 @@ public class TupleReaderTask<T> implements Runnable {
         this.outputQueue = querySession.getOutputQueue();
         this.processor = querySession.getProcessor();
         this.uniqueResourceName = split.toString();
-        this.status = TaskStatus.CREATED;
     }
 
     /**
@@ -61,20 +48,15 @@ public class TupleReaderTask<T> implements Runnable {
      */
     @Override
     public void run() {
-        this.runningThread = Thread.currentThread();
-        if (status == TaskStatus.CANCELLED)
-            return; // Query is no longer active because of an error or cancellation
-
-        status = TaskStatus.RUNNING;
-
         int totalRows = 0;
         int batchSize = querySession.getContext().getConfiguration()
                 .getInt(PXF_TUPLE_READER_BATCH_SIZE_PROPERTY, DEFAULT_BATCH_SIZE);
         TupleIterator<T> iterator = null;
+        Thread currentThread = Thread.currentThread();
         try {
             iterator = processor.getTupleIterator(querySession, split);
             List<T> batch = new ArrayList<>(batchSize);
-            while (status == TaskStatus.RUNNING && iterator.hasNext()) {
+            while (!currentThread.isInterrupted() && iterator.hasNext()) {
                 batch.add(iterator.next());
                 if (batch.size() == batchSize) {
                     totalRows += batchSize;
@@ -82,30 +64,22 @@ public class TupleReaderTask<T> implements Runnable {
                     batch = new ArrayList<>(batchSize);
                 }
             }
-            if (status == TaskStatus.RUNNING && !batch.isEmpty()) {
+            if (!currentThread.isInterrupted() && !batch.isEmpty()) {
                 totalRows += batch.size();
                 outputQueue.put(batch);
             }
-
-            status = TaskStatus.COMPLETED;
         } catch (InterruptedException e) {
-            status = TaskStatus.CANCELLED;
-            LOG.debug("TupleReaderTask with thread ID " + runningThread.getId() + " has been interrupted");
-        } catch (ClientAbortException e) {
-            status = TaskStatus.CANCELLED;
-            querySession.cancelQuery(e);
+            LOG.debug("TupleReaderTask with thread ID {} has been interrupted", currentThread.getId());
+
+            // Reset the interrupt flag
+            currentThread.interrupt();
         } catch (IOException e) {
-            status = TaskStatus.FAILED;
             querySession.errorQuery(e);
             LOG.info(String.format("error while processing split %s for query %s",
                     uniqueResourceName, querySession), e);
         } catch (Exception e) {
-            status = TaskStatus.FAILED;
             querySession.errorQuery(e);
         } finally {
-
-            // Clear the interrupted status of this thread by calling Thread.interrupted()
-            Thread.interrupted();
 
             querySession.markTaskAsCompleted();
             if (iterator != null) {
@@ -120,18 +94,6 @@ public class TupleReaderTask<T> implements Runnable {
         // Keep track of the number of records processed by this task
         LOG.debug("completed processing {} row{} {} for query {}",
                 totalRows, totalRows == 1 ? "" : "s", uniqueResourceName, querySession);
-    }
-
-    /**
-     * Cancel this {@link TupleReaderTask}
-     */
-    public void cancel() {
-        if (status != TaskStatus.COMPLETED && status != TaskStatus.FAILED) {
-            status = TaskStatus.CANCELLED;
-            if (runningThread != null) {
-                runningThread.interrupt();
-            }
-        }
     }
 }
 

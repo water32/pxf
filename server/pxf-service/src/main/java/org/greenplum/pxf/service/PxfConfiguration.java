@@ -21,6 +21,7 @@ import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.time.Duration;
+import java.util.concurrent.Executors;
 
 /**
  * Configures the {@link AsyncTaskExecutor} for tasks that will stream data to
@@ -123,18 +124,6 @@ public class PxfConfiguration implements WebMvcConfigurer {
         builder = builder.allowCoreThreadTimeOut(false);
         builder = builder.keepAlive(Duration.ofSeconds(60));
         builder = builder.threadNamePrefix("pxf-producer-");
-        return builder.build();
-    }
-
-    @Bean(name = PXF_PROCESSOR_TASK_EXECUTOR)
-    public ThreadPoolTaskExecutor pxfProcessorTaskExecutor(PxfServerProperties pxfServerProperties) {
-        TaskExecutorBuilder builder = new TaskExecutorBuilder();
-        builder = builder.queueCapacity(0);
-        builder = builder.corePoolSize(Utilities.getProcessorMaxThreadsPerSession(pxfServerProperties.getScaleFactor()));
-        builder = builder.maxPoolSize(Integer.MAX_VALUE);
-        builder = builder.allowCoreThreadTimeOut(false);
-        builder = builder.keepAlive(Duration.ofSeconds(60));
-        builder = builder.threadNamePrefix("pxf-processor-");
         return builder.build();
     }
 }

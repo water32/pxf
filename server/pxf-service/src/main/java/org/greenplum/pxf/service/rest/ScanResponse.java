@@ -71,6 +71,12 @@ public class ScanResponse<T> implements StreamingResponseBody {
 
             while (querySession.isActive()) {
                 List<T> batch = outputQueue.poll(1, TimeUnit.MILLISECONDS);
+
+                if (!querySession.isActive()) {
+                    // Double check again to make sure that the query is still active
+                    break;
+                }
+
                 if (batch == null) {
                     // keep waiting until the query session becomes inactive or
                     // there are items in the output queue to be consumed
