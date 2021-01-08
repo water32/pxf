@@ -15,9 +15,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingDeque;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import static java.util.Objects.requireNonNull;
@@ -29,7 +30,9 @@ public class ProducerTask<T> implements Runnable {
     protected Logger LOG = LoggerFactory.getLogger(this.getClass());
 
     private final QuerySession<T> querySession;
-    private final ExecutorService processorExecutorService;
+    private final ThreadPoolExecutor processorExecutorService;
+    private int currentScaleFactor = 1;
+    private final int maximumScaleFactor;
 
     public ProducerTask(QuerySession<T> querySession) {
         this.querySession = requireNonNull(querySession, "querySession cannot be null");
@@ -37,9 +40,10 @@ public class ProducerTask<T> implements Runnable {
         // it can be overridden by setting the PXF_MAX_PROCESSOR_THREADS_PROPERTY
         // in the server configuration
         String poolId = querySession.getContext().getUser() + ":" + querySession.getContext().getTransactionId();
-        int scaleFactor = querySession.getContext().getConfiguration()
+
+        maximumScaleFactor = querySession.getContext().getConfiguration()
                 .getInt(PXF_PROCESSOR_SCALE_FACTOR_PROPERTY, DEFAULT_SCALE_FACTOR);
-        int maxProcessorThreads = Utilities.getProcessorMaxThreadsPerSession(scaleFactor);
+        int maxProcessorThreads = Utilities.getProcessorMaxThreadsPerSession(1);
         // We create a new ExecutorService with a fixed amount of threads.
         // We create one ExecutorService per query so we don't need to build
         // a customized ExecutorService
@@ -62,7 +66,10 @@ public class ProducerTask<T> implements Runnable {
             List<DataSplit> splitList = Lists.newArrayList(splitter);
             // get the queue of segments IDs that have registered to this QuerySession
             BlockingDeque<Integer> registeredSegmentQueue = querySession.getRegisteredSegmentQueue();
+            BlockingQueue<List<T>> outputQueue = querySession.getOutputQueue();
 
+            // TODO: check for interruptions and make sure that we exit the loop
+            //       if we have been interrupted. This would be the case of a `pxf stop`
             while (querySession.isActive()) {
                 segmentId = registeredSegmentQueue.poll(20, TimeUnit.MILLISECONDS);
 
@@ -77,6 +84,26 @@ public class ProducerTask<T> implements Runnable {
                         // a no-op
                         querySession.tryMarkInactive();
                     }
+
+
+                    int outputQueueSize = outputQueue.size();
+                    if (currentScaleFactor < maximumScaleFactor && outputQueueSize <= 5) {
+                        int threads = Utilities.getProcessorMaxThreadsPerSession(currentScaleFactor + 1);
+
+                        // Check if there is sufficient work left that justifies
+                        // increasing the pool size
+                        int executorQueueSize = processorExecutorService.getQueue().size();
+                        if (executorQueueSize > 0) {
+                            currentScaleFactor++;
+                            LOG.info("output queue size is {} new scale factor is {} with {} tasks queued to be processed",
+                                    outputQueueSize, currentScaleFactor, executorQueueSize);
+
+                            processorExecutorService.setMaximumPoolSize(threads);
+                            processorExecutorService.setCorePoolSize(threads);
+                        } else {
+                            LOG.info("queue size={}, executorQueueSize={}, new number of threads to allocate={}, currentScaleFactor={}", outputQueueSize, executorQueueSize, threads, currentScaleFactor);
+                        }
+                    }
                 } else {
                     // Add all the segment ids that are available
                     segmentIds = new HashSet<>();
@@ -87,6 +114,7 @@ public class ProducerTask<T> implements Runnable {
 
                     LOG.debug("ProducerTask with a set of {} segmentId(s)", segmentIds.size());
 
+                    int createdTasks = 0;
                     Iterator<DataSplit> iterator = new DataSplitSegmentIterator<>(segmentIds, totalSegments, splitList);
                     while (iterator.hasNext() && querySession.isActive()) {
                         DataSplit split = iterator.next();
@@ -96,7 +124,10 @@ public class ProducerTask<T> implements Runnable {
 
                         querySession.markTaskAsCreated();
                         processorExecutorService.execute(task);
+                        createdTasks++;
                     }
+
+                    LOG.info("Stopped producing {} tasks", createdTasks);
                 }
             }
         } catch (Exception ex) {
@@ -143,9 +174,12 @@ public class ProducerTask<T> implements Runnable {
         }
     }
 
-    private ExecutorService createProcessorTaskExecutorService(String poolId, int nThreads) {
+    private ThreadPoolExecutor createProcessorTaskExecutorService(String poolId, int nThreads) {
         ThreadFactory namedThreadFactory =
                 new ThreadFactoryBuilder().setNameFormat("pxf-processor-" + poolId + "-%d").build();
-        return Executors.newFixedThreadPool(nThreads, namedThreadFactory);
+        return new ThreadPoolExecutor(nThreads, nThreads,
+                0L, TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<>(),
+                namedThreadFactory);
     }
 }

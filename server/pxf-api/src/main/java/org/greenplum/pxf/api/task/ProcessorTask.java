@@ -7,7 +7,6 @@ import org.greenplum.pxf.api.model.TupleIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -57,6 +56,7 @@ public class ProcessorTask<T> implements Runnable {
             List<T> batch = new ArrayList<>(batchSize);
             while (!currentThread.isInterrupted() && iterator.hasNext()) {
                 batch.add(iterator.next());
+
                 if (batch.size() == batchSize) {
                     totalRows += batchSize;
                     outputQueue.put(batch);
@@ -73,12 +73,10 @@ public class ProcessorTask<T> implements Runnable {
 
             // Reset the interrupt flag
             currentThread.interrupt();
-        } catch (IOException e) {
-            querySession.errorQuery(e);
-            LOG.info(String.format("error while processing split %s for query %s",
-                    uniqueResourceName, querySession), e);
         } catch (Exception e) {
             querySession.errorQuery(e);
+            LOG.error(String.format("Error while processing split %s for query %s",
+                    uniqueResourceName, querySession), e);
         } finally {
 
             querySession.markTaskAsCompleted();

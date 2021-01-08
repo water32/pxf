@@ -124,9 +124,11 @@ public class ScanResponse<T> implements StreamingResponseBody {
             throw e;
         } catch (IOException e) {
             querySession.errorQuery(e);
+            LOG.error("Error while writing data for segment {}", segmentId, e);
             throw e;
         } catch (Exception e) {
             querySession.errorQuery(e);
+            LOG.error("Error while writing data for segment {}", segmentId, e);
             throw new IOException(e.getMessage(), e);
         } finally {
             querySession.deregisterSegment(recordCount);
