@@ -24,7 +24,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.greenplum.pxf.api.StatsAccessor;
-import org.greenplum.pxf.api.configuration.PxfServerProperties;
 import org.greenplum.pxf.api.model.RequestContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,9 +41,12 @@ import java.util.regex.Pattern;
 public class Utilities {
 
     private static final Logger LOG = LoggerFactory.getLogger(Utilities.class);
-    private static final String PROPERTY_KEY_FRAGMENTER_CACHE = "pxf.service.fragmenter.cache.enabled";
     private static final char[] PROHIBITED_CHARS = new char[]{'/', '\\', '.', ' ', ',', ';'};
-    private static final String[] HOSTS = new String[]{"localhost"};
+
+    /**
+     * The number of available processors during runtime
+     */
+    private static final int NUMBER_OF_AVAILABLE_PROCESSORS = Runtime.getRuntime().availableProcessors();
 
     /**
      * matches the scheme:// portion of a URI where the "scheme:" is optional,
@@ -342,6 +344,6 @@ public class Utilities {
      * @return the number of threads to allocate given the scale factor
      */
     public static int getProcessorMaxThreadsPerSession(int scaleFactor) {
-        return scaleFactor * Runtime.getRuntime().availableProcessors();
+        return scaleFactor * NUMBER_OF_AVAILABLE_PROCESSORS;
     }
 }
