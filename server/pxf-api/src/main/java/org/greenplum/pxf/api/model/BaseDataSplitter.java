@@ -5,24 +5,25 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Base class for all {@link DataSplitter} types. Initializes the
- * {@link Plugin} with the given {@link RequestContext} and
- * {@link Configuration}
+ * Base class for all {@link DataSplitter} types. Initializes the splitter
+ * with the query session.
  */
 public abstract class BaseDataSplitter implements DataSplitter {
 
     protected Logger LOG = LoggerFactory.getLogger(this.getClass());
 
     protected Configuration configuration;
+    protected QuerySession querySession;
     protected RequestContext context;
 
     /**
      * Constructs a {@link DataSplitter} and initializes the {@link Plugin}
      *
-     * @param context the request context for the given query
+     * @param querySession the query session
      */
-    public BaseDataSplitter(RequestContext context) {
-        this.context = context;
+    public BaseDataSplitter(QuerySession querySession) {
+        this.querySession = querySession;
+        this.context = querySession.getContext();
         this.configuration = context.getConfiguration();
     }
 }

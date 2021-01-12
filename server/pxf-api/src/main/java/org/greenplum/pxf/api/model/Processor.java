@@ -31,15 +31,6 @@ public interface Processor<T> {
      */
     TupleIterator<T> getTupleIterator(QuerySession<T> querySession, DataSplit split) throws IOException;
 
-//    /**
-//     * Return a list of fields for the the tuple
-//     *
-//     * @param querySession the session for the query
-//     * @param tuple        the tuple
-//     * @return the list of fields for the given tuple
-//     */
-//    Iterator<Object> getFields(QuerySession<T> querySession, T tuple) throws IOException;
-
     /**
      * Returns an array of mapping functions that map a tuple at a given index
      * to the resolved type to be serialized.

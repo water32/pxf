@@ -26,7 +26,7 @@ public class DemoProcessor implements Processor<String[]> {
      */
     @Override
     public DataSplitter getDataSplitter(QuerySession<String[]> session) {
-        return new DemoDataSplitter(session.getContext());
+        return new DemoDataSplitter(session);
     }
 
     /**

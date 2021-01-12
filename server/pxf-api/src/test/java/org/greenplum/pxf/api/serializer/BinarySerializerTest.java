@@ -1,5 +1,6 @@
 package org.greenplum.pxf.api.serializer;
 
+import org.greenplum.pxf.api.error.UnsupportedTypeException;
 import org.greenplum.pxf.api.io.DataType;
 import org.greenplum.pxf.api.model.QuerySession;
 import org.junit.jupiter.api.Test;
@@ -61,7 +62,7 @@ class BinarySerializerTest {
             serializer.open(out);
             serializer.startRow(numberOfFields);
             serializer.startField();
-            serializer.writeField(dataType, (s, o, c) -> null, session, "5L", 0);
+            serializer.writeField(dataType, (s, o, c) -> null, session, "null", 0);
             serializer.endField();
             serializer.endRow();
         }
@@ -71,6 +72,20 @@ class BinarySerializerTest {
         offset = verifyStartRow(result, offset, numberOfFields);
         offset = verifyNull(result, offset);
         verifyClose(result, offset);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testWriteUnsupportedType() throws IOException {
+        int numberOfFields = 1;
+        QuerySession<String> session = mock(QuerySession.class);
+        BinarySerializer serializer = new BinarySerializer();
+        serializer.open(out);
+        serializer.startRow(numberOfFields);
+        serializer.startField();
+        assertThatThrownBy(() -> serializer.writeField(DataType.FLOAT8ARRAY, (s, o, c) -> "foo", session, "foo", 0))
+                .isInstanceOf(UnsupportedTypeException.class)
+                .hasMessageContaining("Unsupported data type FLOAT8ARRAY");
     }
 
     @Test
@@ -231,6 +246,194 @@ class BinarySerializerTest {
         assertThat(result[offset++]).isEqualTo((byte) 'b');
         assertThat(result[offset++]).isEqualTo((byte) 'a');
         assertThat(result[offset++]).isEqualTo((byte) 'r');
+
+        verifyClose(result, offset);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testWrite_FLOAT8() throws IOException {
+        int numberOfFields = 1;
+        QuerySession<String> session = mock(QuerySession.class);
+        try (BinarySerializer serializer = new BinarySerializer()) {
+            serializer.open(out);
+            serializer.startRow(numberOfFields);
+            serializer.startField();
+            serializer.writeField(DataType.FLOAT8, (s, o, c) -> 5.0, session, "5.0", 0);
+            serializer.endField();
+            serializer.endRow();
+        }
+        int offset = 0;
+        byte[] result = out.toByteArray();
+        offset = verifyHeader(result, offset);
+        offset = verifyStartRow(result, offset, numberOfFields);
+
+        // verify that we write the length of bytes for double
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 8);
+
+        long v = Double.doubleToLongBits(5.0);
+
+        // verify that we write the actual value of the double value converted to long
+        assertThat(result[offset++]).isEqualTo((byte) (v >>> 56));
+        assertThat(result[offset++]).isEqualTo((byte) (v >>> 48));
+        assertThat(result[offset++]).isEqualTo((byte) (v >>> 40));
+        assertThat(result[offset++]).isEqualTo((byte) (v >>> 32));
+        assertThat(result[offset++]).isEqualTo((byte) (v >>> 24));
+        assertThat(result[offset++]).isEqualTo((byte) (v >>> 16));
+        assertThat(result[offset++]).isEqualTo((byte) (v >>> 8));
+        assertThat(result[offset++]).isEqualTo((byte) v);
+
+        verifyClose(result, offset);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testWrite_INTEGER() throws IOException {
+        int numberOfFields = 1;
+        QuerySession<String> session = mock(QuerySession.class);
+        try (BinarySerializer serializer = new BinarySerializer()) {
+            serializer.open(out);
+            serializer.startRow(numberOfFields);
+            serializer.startField();
+            serializer.writeField(DataType.INTEGER, (s, o, c) -> 22, session, "22", 0);
+            serializer.endField();
+            serializer.endRow();
+        }
+        int offset = 0;
+        byte[] result = out.toByteArray();
+        offset = verifyHeader(result, offset);
+        offset = verifyStartRow(result, offset, numberOfFields);
+
+        // verify that we write the length of the bytes of integer
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 4);
+
+        // verify that we write the actual value of the integer
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 22);
+
+        verifyClose(result, offset);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testWrite_REAL() throws IOException {
+        int numberOfFields = 1;
+        QuerySession<String> session = mock(QuerySession.class);
+        try (BinarySerializer serializer = new BinarySerializer()) {
+            serializer.open(out);
+            serializer.startRow(numberOfFields);
+            serializer.startField();
+            serializer.writeField(DataType.REAL, (s, o, c) -> 64.5F, session, "64.5F", 0);
+            serializer.endField();
+            serializer.endRow();
+        }
+        int offset = 0;
+        byte[] result = out.toByteArray();
+        offset = verifyHeader(result, offset);
+        offset = verifyStartRow(result, offset, numberOfFields);
+
+        // verify that we write the length of the bytes of float
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 4);
+
+        int v = Float.floatToIntBits(64.5F);
+
+        // verify that we write the actual value of the float
+        assertThat(result[offset++]).isEqualTo((byte) (v >>> 24));
+        assertThat(result[offset++]).isEqualTo((byte) (v >>> 16));
+        assertThat(result[offset++]).isEqualTo((byte) (v >>> 8));
+        assertThat(result[offset++]).isEqualTo((byte) v);
+
+        verifyClose(result, offset);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testWrite_SMALLINT() throws IOException {
+        int numberOfFields = 1;
+        QuerySession<String> session = mock(QuerySession.class);
+        try (BinarySerializer serializer = new BinarySerializer()) {
+            serializer.open(out);
+
+            // value as short
+            serializer.startRow(numberOfFields);
+            serializer.startField();
+            serializer.writeField(DataType.SMALLINT, (s, o, c) -> (short) 36, session, "36", 0);
+            serializer.endField();
+            serializer.endRow();
+
+            // value as int
+            serializer.startRow(numberOfFields);
+            serializer.startField();
+            serializer.writeField(DataType.SMALLINT, (s, o, c) -> (int) Short.MAX_VALUE, session, "64", 0);
+            serializer.endField();
+            serializer.endRow();
+        }
+        int offset = 0;
+        byte[] result = out.toByteArray();
+        offset = verifyHeader(result, offset);
+        offset = verifyStartRow(result, offset, numberOfFields);
+
+        // verify that we write the length of the bytes of smallint
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 2);
+
+        // verify that we write the actual value of the smallint
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 36);
+        offset = verifyStartRow(result, offset, numberOfFields);
+
+        // verify that we write the length of the bytes of smallint
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 2);
+
+        // verify that we write the actual value of the smallint
+        assertThat(result[offset++]).isEqualTo((byte) (Short.MAX_VALUE >>> 8));
+        assertThat(result[offset++]).isEqualTo((byte) Short.MAX_VALUE);
+
+        verifyClose(result, offset);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testWrite_BYTEA() throws IOException {
+        int numberOfFields = 1;
+        QuerySession<String> session = mock(QuerySession.class);
+        try (BinarySerializer serializer = new BinarySerializer()) {
+            serializer.open(out);
+            serializer.startRow(numberOfFields);
+            serializer.startField();
+            serializer.writeField(DataType.BYTEA, (s, o, c) -> new byte[]{(byte) 'a'}, session, "a", 0);
+            serializer.endField();
+            serializer.endRow();
+        }
+        int offset = 0;
+        byte[] result = out.toByteArray();
+        offset = verifyHeader(result, offset);
+        offset = verifyStartRow(result, offset, numberOfFields);
+
+        // verify that we write the length of the byte array
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 0);
+        assertThat(result[offset++]).isEqualTo((byte) 1);
+
+        // verify that we write the actual value of the byte a
+        assertThat(result[offset++]).isEqualTo((byte) 'a');
 
         verifyClose(result, offset);
     }

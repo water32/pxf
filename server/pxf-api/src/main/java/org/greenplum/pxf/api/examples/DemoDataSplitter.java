@@ -2,6 +2,7 @@ package org.greenplum.pxf.api.examples;
 
 import org.greenplum.pxf.api.model.BaseDataSplitter;
 import org.greenplum.pxf.api.model.DataSplit;
+import org.greenplum.pxf.api.model.QuerySession;
 import org.greenplum.pxf.api.model.RequestContext;
 
 import java.util.NoSuchElementException;
@@ -21,10 +22,10 @@ public class DemoDataSplitter extends BaseDataSplitter {
     /**
      * Constructs a DemoDataSplitter
      *
-     * @param context the context for the request
+     * @param querySession the query session
      */
-    public DemoDataSplitter(RequestContext context) {
-        super(context);
+    public DemoDataSplitter(QuerySession querySession) {
+        super(querySession);
     }
 
     /**

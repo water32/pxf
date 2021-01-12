@@ -1,7 +1,7 @@
 package org.greenplum.pxf.api.factory;
 
 import org.apache.hadoop.conf.Configuration;
-import org.greenplum.pxf.api.factory.BaseConfigurationFactory;
+import org.greenplum.pxf.api.configuration.PxfServerProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -18,7 +18,6 @@ import static org.greenplum.pxf.api.factory.ConfigurationFactory.PXF_CONFIG_SERV
 import static org.greenplum.pxf.api.factory.ConfigurationFactory.PXF_SESSION_USER_PROPERTY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -30,13 +29,15 @@ public class BaseConfigurationFactoryTest {
     private Map<String, String> additionalProperties;
     private File mockServersDirectory;
     private File serversDirectory;
+    private PxfServerProperties pxfServerProperties;
 
     @BeforeEach
     public void setup() throws URISyntaxException {
+        pxfServerProperties = new PxfServerProperties();
         mockServersDirectory = mock(File.class);
         additionalProperties = new HashMap<>();
         serversDirectory = new File(this.getClass().getClassLoader().getResource("servers").toURI());
-        factory = new BaseConfigurationFactory(serversDirectory);
+        factory = new BaseConfigurationFactory(serversDirectory, pxfServerProperties);
     }
 
     @Test
@@ -44,7 +45,7 @@ public class BaseConfigurationFactoryTest {
         Exception ex = assertThrows(
                 IllegalStateException.class,
                 () -> {
-                    factory = new BaseConfigurationFactory(mockServersDirectory);
+                    factory = new BaseConfigurationFactory(mockServersDirectory, pxfServerProperties);
                     when(mockServersDirectory.listFiles(any(FileFilter.class))).thenReturn(new File[]{new File("a"), new File("b")});
 
                     factory.initConfiguration("dummy", "dummy", "dummy", null);
@@ -193,9 +194,8 @@ public class BaseConfigurationFactoryTest {
     }
 
     @Test
-    public void testConfigurationSetsSessionUser() throws IOException {
+    public void testConfigurationSetsSessionUser() {
         Configuration configuration = factory.initConfiguration("default", "default", "dummy", additionalProperties);
-        File defaultServerDirectory = new File(serversDirectory, "default");
 
         assertEquals("dummy", configuration.get(PXF_SESSION_USER_PROPERTY));
     }

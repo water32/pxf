@@ -133,7 +133,7 @@ public class BinarySerializer extends BaseSerializer {
 
             case INTEGER: {
                 buffer.writeInt(4);
-                buffer.writeInt((int) value);
+                buffer.writeInt(((Number) value).intValue());
                 break;
             }
 
@@ -150,7 +150,7 @@ public class BinarySerializer extends BaseSerializer {
 
             case SMALLINT: {
                 buffer.writeInt(2);
-                buffer.writeShort((Short) value);
+                buffer.writeShort(((Number) value).shortValue());
                 break;
             }
 
