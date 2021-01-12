@@ -49,7 +49,7 @@ class DemoProcessorTest {
         Cache<String, QuerySession<String[]>> mockCache = mock(Cache.class);
         MeterRegistry mockMeterRegistry = mock(MeterRegistry.class);
 
-        processor = new DemoProcessor();
+        processor = new DemoProcessor(null);
         querySession = new QuerySession<>(context, mockCache, mockMeterRegistry);
         querySession.setProcessor(processor);
     }

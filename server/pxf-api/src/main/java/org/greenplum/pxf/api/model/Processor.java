@@ -1,9 +1,9 @@
 package org.greenplum.pxf.api.model;
 
 import org.greenplum.pxf.api.function.TriFunction;
+import org.greenplum.pxf.api.serializer.TupleSerializer;
 
 import java.io.IOException;
-import java.util.Iterator;
 
 /**
  * Interface that defines tuple access from the external data store (HDFS,
@@ -31,14 +31,16 @@ public interface Processor<T> {
      */
     TupleIterator<T> getTupleIterator(QuerySession<T> querySession, DataSplit split) throws IOException;
 
-    /**
-     * Returns an array of mapping functions that map a tuple at a given index
-     * to the resolved type to be serialized.
-     *
-     * @param querySession the session for the query
-     * @return the array of mapping functions
-     */
-    TriFunction<QuerySession<T>, T, Integer, Object>[] getMappingFunctions(QuerySession<T> querySession);
+//    /**
+//     * Returns an array of mapping functions that map a tuple at a given index
+//     * to the resolved type to be serialized.
+//     *
+//     * @param querySession the session for the query
+//     * @return the array of mapping functions
+//     */
+//    TriFunction<QuerySession<T>, T, Integer, Object>[] getMappingFunctions(QuerySession<T> querySession);
+
+    TupleSerializer<T> tupleSerializer(QuerySession<T> querySession);
 
     /**
      * Returns true if this processor can handle the request, false otherwise

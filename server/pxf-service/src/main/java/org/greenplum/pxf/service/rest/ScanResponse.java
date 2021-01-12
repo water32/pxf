@@ -5,6 +5,7 @@ import org.apache.catalina.connector.ClientAbortException;
 import org.greenplum.pxf.api.function.TriFunction;
 import org.greenplum.pxf.api.model.QuerySession;
 import org.greenplum.pxf.api.model.RequestContext;
+import org.greenplum.pxf.api.serializer.TupleSerializer;
 import org.greenplum.pxf.api.serializer.BinarySerializer;
 import org.greenplum.pxf.api.serializer.CsvSerializer;
 import org.greenplum.pxf.api.serializer.Serializer;
@@ -13,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.List;
@@ -62,14 +64,17 @@ public class ScanResponse<T> implements StreamingResponseBody {
                 segmentId, querySession);
 
         int recordCount = 0;
-        TriFunction<QuerySession<T>, T, Integer, Object>[] functions = null;
+//        TriFunction<QuerySession<T>, T, Integer, Object>[] functions = null;
+        TupleSerializer<T> serializer = querySession.getProcessor().tupleSerializer(querySession);
         BlockingQueue<List<T>> outputQueue = querySession.getOutputQueue();
         ColumnDescriptor[] columnDescriptors = new ColumnDescriptor[this.columnDescriptors.size()];
         this.columnDescriptors.toArray(columnDescriptors);
-        int numColumns = columnDescriptors.length;
+//        int numColumns = columnDescriptors.length;
         try {
-            Serializer serializer = getSerializer();
-            serializer.open(output);
+//            Serializer serializer = getSerializer();
+//            serializer.open(output);
+            DataOutputStream dataOutputStream = new DataOutputStream(output);
+            serializer.open(dataOutputStream);
 
             while (querySession.isActive()) {
                 List<T> batch = outputQueue.poll(5, TimeUnit.MILLISECONDS);
@@ -85,20 +90,8 @@ public class ScanResponse<T> implements StreamingResponseBody {
                     continue;
                 }
 
-                if (functions == null) {
-                    functions = querySession.getProcessor().getMappingFunctions(querySession);
-                }
-
                 for (T tuple : batch) {
-                    serializer.startRow(numColumns);
-                    for (int i = 0; i < numColumns; i++) {
-                        ColumnDescriptor columnDescriptor = columnDescriptors[i];
-
-                        serializer.startField();
-                        serializer.writeField(columnDescriptor.getDataType(), functions[i], querySession, tuple, i);
-                        serializer.endField();
-                    }
-                    serializer.endRow();
+                    serializer.serialize(dataOutputStream, columnDescriptors, tuple);
                 }
                 recordCount += batch.size();
             }
@@ -111,7 +104,8 @@ public class ScanResponse<T> implements StreamingResponseBody {
                  * need to discard the buffer, and replace it with an error
                  * response and a new error code.
                  */
-                serializer.close();
+                serializer.close(dataOutputStream);
+                dataOutputStream.flush();
             }
         } catch (ClientAbortException e) {
             querySession.cancelQuery();

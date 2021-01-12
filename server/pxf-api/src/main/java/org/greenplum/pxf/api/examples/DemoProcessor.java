@@ -1,16 +1,15 @@
 package org.greenplum.pxf.api.examples;
 
 import org.apache.commons.lang3.StringUtils;
-import org.greenplum.pxf.api.function.TriFunction;
 import org.greenplum.pxf.api.model.DataSplit;
 import org.greenplum.pxf.api.model.DataSplitter;
 import org.greenplum.pxf.api.model.Processor;
 import org.greenplum.pxf.api.model.QuerySession;
 import org.greenplum.pxf.api.model.RequestContext;
 import org.greenplum.pxf.api.model.TupleIterator;
+import org.greenplum.pxf.api.serializer.TupleSerializer;
 import org.springframework.stereotype.Component;
 
-import java.util.Arrays;
 import java.util.NoSuchElementException;
 
 /**
@@ -20,6 +19,12 @@ import java.util.NoSuchElementException;
 public class DemoProcessor implements Processor<String[]> {
 
     static final int TOTAL_ROWS = 200_000;
+
+    private final TupleSerializer<String[]> tupleSerializer;
+
+    public DemoProcessor(TupleSerializer<String[]> tupleSerializer) {
+        this.tupleSerializer = tupleSerializer;
+    }
 
     /**
      * {@inheritDoc}
@@ -37,6 +42,11 @@ public class DemoProcessor implements Processor<String[]> {
         return new DemoTupleIterator(session.getContext(), (DemoFragmentMetadata) split.getMetadata());
     }
 
+    @Override
+    public TupleSerializer<String[]> tupleSerializer(QuerySession<String[]> querySession) {
+        return tupleSerializer;
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -47,20 +57,20 @@ public class DemoProcessor implements Processor<String[]> {
                 StringUtils.equalsIgnoreCase("demo", context.getProtocol());
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @SuppressWarnings("unchecked")
-    @Override
-    public TriFunction<QuerySession<String[]>, String[], Integer, Object>[] getMappingFunctions(QuerySession<String[]> session) {
-        TriFunction<QuerySession<String[]>, String[], Integer, Object>[] functions;
-        functions = new TriFunction[session.getContext().getColumns()];
-        Arrays.fill(functions, (TriFunction<QuerySession<String[]>, String[], Integer, Object>) DemoProcessor::stringMapper);
-        return functions;
-    }
+//    /**
+//     * {@inheritDoc}
+//     */
+//    @SuppressWarnings("unchecked")
+//    @Override
+//    public TriFunction<QuerySession<String[]>, String[], Integer, Object>[] getMappingFunctions(QuerySession<String[]> session) {
+//        TriFunction<QuerySession<String[]>, String[], Integer, Object>[] functions;
+//        functions = new TriFunction[session.getContext().getColumns()];
+//        Arrays.fill(functions, (TriFunction<QuerySession<String[]>, String[], Integer, Object>) DemoProcessor::stringMapper);
+//        return functions;
+//    }
 
-    private static String stringMapper(QuerySession<String[]> session, String[] s, int columnIndex) {
-        return s[columnIndex];
+    private static String stringMapper(QuerySession<String[]> session, String[] tuple, int columnIndex) {
+        return tuple[columnIndex];
     }
 
     /**
