@@ -40,14 +40,12 @@ public class DemoFragmenter extends BaseFragmenter {
      */
     @Override
     public List<Fragment> getFragments() throws Exception {
-        List<Fragment> fragments = new ArrayList<>(300);
+        List<Fragment> fragments = new ArrayList<>(3);
         String localhostname = java.net.InetAddress.getLocalHost().getHostName();
         String[] localHosts = new String[]{localhostname, localhostname};
-        for (int i = 1; i <= 300; i++) {
-            fragments.add(new Fragment(context.getDataSource() + "." + i, localHosts, new DemoFragmentMetadata("fragment" + i)));
-        }
-//        fragments.add(new Fragment(context.getDataSource() + ".2", localHosts, new DemoFragmentMetadata("fragment2")));
-//        fragments.add(new Fragment(context.getDataSource() + ".3", localHosts, new DemoFragmentMetadata("fragment3")));
+        fragments.add(new Fragment(context.getDataSource() + ".1", localHosts, new DemoFragmentMetadata("fragment1")));
+        fragments.add(new Fragment(context.getDataSource() + ".2", localHosts, new DemoFragmentMetadata("fragment2")));
+        fragments.add(new Fragment(context.getDataSource() + ".3", localHosts, new DemoFragmentMetadata("fragment3")));
         return fragments;
     }
 }
