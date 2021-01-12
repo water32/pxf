@@ -64,13 +64,15 @@ public class ScanResponse<T> implements StreamingResponseBody {
         int recordCount = 0;
         TriFunction<QuerySession<T>, T, Integer, Object>[] functions = null;
         BlockingQueue<List<T>> outputQueue = querySession.getOutputQueue();
-        List<ColumnDescriptor> columnDescriptors = this.columnDescriptors;
+        ColumnDescriptor[] columnDescriptors = new ColumnDescriptor[this.columnDescriptors.size()];
+        this.columnDescriptors.toArray(columnDescriptors);
+        int numColumns = columnDescriptors.length;
         try {
             Serializer serializer = getSerializer();
             serializer.open(output);
 
             while (querySession.isActive()) {
-                List<T> batch = outputQueue.poll(1, TimeUnit.MILLISECONDS);
+                List<T> batch = outputQueue.poll(5, TimeUnit.MILLISECONDS);
 
                 if (!querySession.isActive()) {
                     // Double check again to make sure that the query is still active
@@ -88,9 +90,9 @@ public class ScanResponse<T> implements StreamingResponseBody {
                 }
 
                 for (T tuple : batch) {
-                    serializer.startRow(columnDescriptors.size());
-                    for (int i = 0; i < columnDescriptors.size(); i++) {
-                        ColumnDescriptor columnDescriptor = columnDescriptors.get(i);
+                    serializer.startRow(numColumns);
+                    for (int i = 0; i < numColumns; i++) {
+                        ColumnDescriptor columnDescriptor = columnDescriptors[i];
 
                         serializer.startField();
                         serializer.writeField(columnDescriptor.getDataType(), functions[i], querySession, tuple, i);
