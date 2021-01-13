@@ -4,15 +4,12 @@ import org.greenplum.pxf.api.error.UnsupportedTypeException;
 import org.greenplum.pxf.api.function.TriFunction;
 import org.greenplum.pxf.api.io.DataType;
 import org.greenplum.pxf.api.model.QuerySession;
-import org.greenplum.pxf.api.serializer.binary.BigDecimalValueHandler;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 
 public class BinarySerializer extends BaseSerializer {
-
-    private static final BigDecimalValueHandler BIG_DECIMAL_VALUE_HANDLER = new BigDecimalValueHandler();
 
     @Override
     public void open(OutputStream out) throws IOException {
@@ -138,7 +135,6 @@ public class BinarySerializer extends BaseSerializer {
             }
 
             case NUMERIC: {
-                BIG_DECIMAL_VALUE_HANDLER.handle(buffer, value);
                 break;
             }
 

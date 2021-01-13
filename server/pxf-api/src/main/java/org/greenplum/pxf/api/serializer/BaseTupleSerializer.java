@@ -10,9 +10,7 @@ import java.io.IOException;
 public abstract class BaseTupleSerializer<T> implements TupleSerializer<T> {
 
     @Override
-    public void serialize(DataOutputStream out,
-                          ColumnDescriptor[] columnDescriptors,
-                          T tuple) throws IOException {
+    public void serialize(DataOutputStream out, ColumnDescriptor[] columnDescriptors, T tuple) throws IOException {
         int numColumns = columnDescriptors.length;
         startRow(out, numColumns);
         for (int columnIndex = 0; columnIndex < numColumns; columnIndex++) {
@@ -38,74 +36,49 @@ public abstract class BaseTupleSerializer<T> implements TupleSerializer<T> {
                     break;
                 }
 
-//                case BYTEA: {
-//                    byte[] bytes = (byte[]) value;
-//                    buffer.writeInt(bytes.length);
-//                    buffer.write(bytes, 0, bytes.length);
-//                    break;
-//                }
-//
-//                case DATE: {
-//                    buffer.writeInt(4);
-//                    // TODO: decide whether we will support both Date and String
-//                    //       (and maybe int too) for the Date DataType
-////                if (value instanceof Date) {
-////                    buffer.writeInt(dateConverter.convert(((Date) value).toLocalDate()));
-////                } else {
-////                    buffer.writeInt(dateConverter.convert(LocalDate.parse(value.toString())));
-////                }
-//                    break;
-//                }
-//
-//                case FLOAT8: {
-//                    buffer.writeInt(8);
-//                    buffer.writeDouble((double) value);
-//                    break;
-//                }
-//
-//                case INTEGER: {
-//                    buffer.writeInt(4);
-//                    buffer.writeInt(((Number) value).intValue());
-//                    break;
-//                }
-//
-//                case NUMERIC: {
-//                    BIG_DECIMAL_VALUE_HANDLER.handle(buffer, value);
-//                    break;
-//                }
-//
-//                case REAL: {
-//                    buffer.writeInt(4);
-//                    buffer.writeFloat((float) value);
-//                    break;
-//                }
-//
-//                case SMALLINT: {
-//                    buffer.writeInt(2);
-//                    buffer.writeShort(((Number) value).shortValue());
-//                    break;
-//                }
-//
-//                case TIMESTAMP: {
-//                    buffer.writeInt(8);
-//
-//                    // TODO: decide what to do here
-////                LocalDateTime localDateTime;
-////                if (value instanceof LocalDateTime) {
-////                    localDateTime = (LocalDateTime) value;
-////                } else {
-////                    localDateTime = LocalDateTime.parse(value.toString(), GreenplumDateTime.DATETIME_FORMATTER);
-////                }
-////                buffer.writeLong(dateTimeConverter.convert(localDateTime));
-//                    break;
-//                }
+                case BYTEA: {
+                    writeBytes(out, tuple, columnIndex);
+                    break;
+                }
+
+                case DATE: {
+                    writeDate(out, tuple, columnIndex);
+                    break;
+                }
+
+                case FLOAT8: {
+                    writeDouble(out, tuple, columnIndex);
+                    break;
+                }
+
+                case INTEGER: {
+                    writeInteger(out, tuple, columnIndex);
+                    break;
+                }
+
+                case NUMERIC: {
+                    writeNumeric(out, tuple, columnIndex);
+                    break;
+                }
+
+                case REAL: {
+                    writeFloat(out, tuple, columnIndex);
+                    break;
+                }
+
+                case SMALLINT: {
+                    writeShort(out, tuple, columnIndex);
+                    break;
+                }
+
+                case TIMESTAMP: {
+                    writeTimestamp(out, tuple, columnIndex);
+                    break;
+                }
 
                 default:
                     throw new UnsupportedTypeException("Unsupported data type " + dataType);
             }
-
-
-//            writeField(out, columnDescriptor.getDataType(), functions[i], tuple, i);
             endField(out);
         }
         endRow(out);
@@ -124,4 +97,20 @@ public abstract class BaseTupleSerializer<T> implements TupleSerializer<T> {
     protected abstract void writeBoolean(DataOutputStream out, T tuple, int columnIndex) throws IOException;
 
     protected abstract void writeText(DataOutputStream out, T tuple, int columnIndex) throws IOException;
+
+    protected abstract void writeBytes(DataOutputStream out, T tuple, int columnIndex) throws IOException;
+
+    protected abstract void writeDouble(DataOutputStream out, T tuple, int columnIndex) throws IOException;
+
+    protected abstract void writeInteger(DataOutputStream out, T tuple, int columnIndex) throws IOException;
+
+    protected abstract void writeFloat(DataOutputStream out, T tuple, int columnIndex) throws IOException;
+
+    protected abstract void writeShort(DataOutputStream out, T tuple, int columnIndex) throws IOException;
+
+    protected abstract void writeDate(DataOutputStream out, T tuple, int columnIndex) throws IOException;
+
+    protected abstract void writeTimestamp(DataOutputStream out, T tuple, int columnIndex) throws IOException;
+
+    protected abstract void writeNumeric(DataOutputStream out, T tuple, int columnIndex) throws IOException;
 }

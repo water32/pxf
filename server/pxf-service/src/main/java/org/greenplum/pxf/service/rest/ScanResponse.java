@@ -2,13 +2,12 @@ package org.greenplum.pxf.service.rest;
 
 import lombok.SneakyThrows;
 import org.apache.catalina.connector.ClientAbortException;
-import org.greenplum.pxf.api.function.TriFunction;
 import org.greenplum.pxf.api.model.QuerySession;
 import org.greenplum.pxf.api.model.RequestContext;
-import org.greenplum.pxf.api.serializer.TupleSerializer;
 import org.greenplum.pxf.api.serializer.BinarySerializer;
 import org.greenplum.pxf.api.serializer.CsvSerializer;
 import org.greenplum.pxf.api.serializer.Serializer;
+import org.greenplum.pxf.api.serializer.TupleSerializer;
 import org.greenplum.pxf.api.utilities.ColumnDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,15 +63,11 @@ public class ScanResponse<T> implements StreamingResponseBody {
                 segmentId, querySession);
 
         int recordCount = 0;
-//        TriFunction<QuerySession<T>, T, Integer, Object>[] functions = null;
         TupleSerializer<T> serializer = querySession.getProcessor().tupleSerializer(querySession);
         BlockingQueue<List<T>> outputQueue = querySession.getOutputQueue();
         ColumnDescriptor[] columnDescriptors = new ColumnDescriptor[this.columnDescriptors.size()];
         this.columnDescriptors.toArray(columnDescriptors);
-//        int numColumns = columnDescriptors.length;
         try {
-//            Serializer serializer = getSerializer();
-//            serializer.open(output);
             DataOutputStream dataOutputStream = new DataOutputStream(output);
             serializer.open(dataOutputStream);
 
