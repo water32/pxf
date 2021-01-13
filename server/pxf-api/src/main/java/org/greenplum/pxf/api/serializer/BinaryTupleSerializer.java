@@ -15,10 +15,12 @@ import java.util.List;
 
 public abstract class BinaryTupleSerializer<T> extends BaseTupleSerializer<T> {
 
+    private static final String BINARY_FORMAT_HEADER = "PGCOPY\n\377\r\n\0";
+
     private static final int DECIMAL_DIGITS = 4;
 
     private static final BigInteger TEN = new BigInteger("10");
-    private static final BigInteger TEN_THOUSAND = new BigInteger("10_000");
+    private static final BigInteger TEN_THOUSAND = new BigInteger("10000");
 
     @Override
     public void open(DataOutputStream out) throws IOException {
