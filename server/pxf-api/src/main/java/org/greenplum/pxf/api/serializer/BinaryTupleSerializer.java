@@ -51,12 +51,22 @@ public abstract class BinaryTupleSerializer<T> extends BaseTupleSerializer<T> {
     }
 
     protected void doWriteLong(DataOutputStream out, long value) throws IOException {
-        out.writeInt(8);
+        // Write the length=8 of the field
+        out.write(0);
+        out.write(0);
+        out.write(0);
+        out.write(8);
+        // Write the value of the field
         out.writeLong(value);
     }
 
     protected void doWriteBoolean(DataOutputStream out, boolean value) throws IOException {
-        out.writeInt(1);
+        // Write the length=1 of the field
+        out.write(0);
+        out.write(0);
+        out.write(0);
+        out.write(1);
+        // Write the value of the field
         out.writeByte(value ? 1 : 0);
     }
 
