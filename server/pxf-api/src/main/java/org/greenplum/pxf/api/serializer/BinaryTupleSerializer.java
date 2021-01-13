@@ -25,7 +25,7 @@ public abstract class BinaryTupleSerializer<T> extends BaseTupleSerializer<T> {
     @Override
     public void open(DataOutputStream out) throws IOException {
         // 11 bytes required header
-        out.writeBytes("PGCOPY\n\377\r\n\0");
+        out.writeBytes(BINARY_FORMAT_HEADER);
         // 32 bit integer indicating no OID
         out.writeInt(0);
         // 32 bit header extension area length
