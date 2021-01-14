@@ -42,6 +42,14 @@ public class PxfServerProperties {
     private boolean metadataCacheEnabled = true;
 
     /**
+     * Disable the Apache Portable Runtime (APR) based Native library for
+     * Tomcat (enabled by default)
+     */
+    @Getter
+    @Setter
+    private boolean aprDisabled = false;
+
+    /**
      * We use the scale factor to calculate the maximum number of
      * processor threads allocated for every query session.
      */

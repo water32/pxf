@@ -16,13 +16,13 @@ import java.util.NoSuchElementException;
  * Demo implementation of a processor
  */
 @Component
-public class DemoProcessor implements Processor<String[]> {
+public class DemoProcessor implements Processor<String[], Void> {
 
     static final int TOTAL_ROWS = 200_000;
 
-    private final TupleSerializer<String[]> tupleSerializer;
+    private final DemoTupleSerializer tupleSerializer;
 
-    public DemoProcessor(TupleSerializer<String[]> tupleSerializer) {
+    public DemoProcessor(DemoTupleSerializer tupleSerializer) {
         this.tupleSerializer = tupleSerializer;
     }
 
@@ -30,7 +30,7 @@ public class DemoProcessor implements Processor<String[]> {
      * {@inheritDoc}
      */
     @Override
-    public DataSplitter getDataSplitter(QuerySession<String[]> session) {
+    public DataSplitter getDataSplitter(QuerySession<String[], Void> session) {
         return new DemoDataSplitter(session);
     }
 
@@ -38,12 +38,12 @@ public class DemoProcessor implements Processor<String[]> {
      * {@inheritDoc}
      */
     @Override
-    public TupleIterator<String[]> getTupleIterator(QuerySession<String[]> session, DataSplit split) {
+    public TupleIterator<String[], Void> getTupleIterator(QuerySession<String[], Void> session, DataSplit split) {
         return new DemoTupleIterator(session.getContext(), (DemoFragmentMetadata) split.getMetadata());
     }
 
     @Override
-    public TupleSerializer<String[]> tupleSerializer(QuerySession<String[]> querySession) {
+    public TupleSerializer<String[], Void> tupleSerializer(QuerySession<String[], Void> querySession) {
         return tupleSerializer;
     }
 
@@ -51,25 +51,13 @@ public class DemoProcessor implements Processor<String[]> {
      * {@inheritDoc}
      */
     @Override
-    public boolean canProcessRequest(QuerySession<String[]> session) {
+    public boolean canProcessRequest(QuerySession<String[], Void> session) {
         RequestContext context = session.getContext();
         return StringUtils.isEmpty(context.getFormat()) &&
                 StringUtils.equalsIgnoreCase("demo", context.getProtocol());
     }
 
-//    /**
-//     * {@inheritDoc}
-//     */
-//    @SuppressWarnings("unchecked")
-//    @Override
-//    public TriFunction<QuerySession<String[]>, String[], Integer, Object>[] getMappingFunctions(QuerySession<String[]> session) {
-//        TriFunction<QuerySession<String[]>, String[], Integer, Object>[] functions;
-//        functions = new TriFunction[session.getContext().getColumns()];
-//        Arrays.fill(functions, (TriFunction<QuerySession<String[]>, String[], Integer, Object>) DemoProcessor::stringMapper);
-//        return functions;
-//    }
-
-    private static String stringMapper(QuerySession<String[]> session, String[] tuple, int columnIndex) {
+    private static String stringMapper(QuerySession<String[], Void> session, String[] tuple, int columnIndex) {
         return tuple[columnIndex];
     }
 
@@ -77,7 +65,7 @@ public class DemoProcessor implements Processor<String[]> {
      * An iterator that produces tuples for a given {@link RequestContext} and
      * {@link DemoFragmentMetadata}.
      */
-    private static class DemoTupleIterator implements TupleIterator<String[]> {
+    private static class DemoTupleIterator implements TupleIterator<String[], Void> {
 
         private final int numRows = TOTAL_ROWS;
 
@@ -116,6 +104,14 @@ public class DemoProcessor implements Processor<String[]> {
             }
             rowNumber++;
             return tuple;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public Void getMetadata() {
+            return null;
         }
 
         /**

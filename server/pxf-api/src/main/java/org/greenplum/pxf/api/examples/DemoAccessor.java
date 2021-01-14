@@ -33,7 +33,7 @@ public class DemoAccessor extends BasePlugin implements Accessor {
 
     private int rowNumber;
     private int fragmentNumber;
-    private static final int NUM_ROWS = 2;
+    private static final int NUM_ROWS = 200_000;
 
     @Override
     public boolean openForRead() {
@@ -69,6 +69,14 @@ public class DemoAccessor extends BasePlugin implements Accessor {
         if (rowNumber == NUM_ROWS) {
             rowNumber = 0;
             fragmentNumber += 1;
+        }
+
+        if (rowNumber % 10240 == 0) {
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
 
         /* return data */

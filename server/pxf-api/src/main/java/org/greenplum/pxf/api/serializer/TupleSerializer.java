@@ -1,15 +1,18 @@
 package org.greenplum.pxf.api.serializer;
 
+import org.greenplum.pxf.api.model.TupleBatch;
+import org.greenplum.pxf.api.serializer.adapter.SerializerAdapter;
 import org.greenplum.pxf.api.utilities.ColumnDescriptor;
 
-import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 
-public interface TupleSerializer<T> {
+public interface TupleSerializer<T, M> {
 
-    void open(final DataOutputStream out) throws IOException;
+    void open(OutputStream out, SerializerAdapter adapter) throws IOException;
 
-    void serialize(final DataOutputStream out, ColumnDescriptor[] columnDescriptors, T tuple) throws IOException;
+    void serialize(OutputStream out, ColumnDescriptor[] columnDescriptors, TupleBatch<T, M> batch, SerializerAdapter adapter) throws IOException;
 
-    void close(final DataOutputStream out) throws IOException;
+    void close(OutputStream out, SerializerAdapter adapter) throws IOException;
+
 }

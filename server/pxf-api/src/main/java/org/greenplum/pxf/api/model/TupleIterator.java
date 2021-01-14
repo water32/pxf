@@ -8,7 +8,9 @@ import java.util.Iterator;
  *
  * @param <T> the tuple type
  */
-public interface TupleIterator<T> extends Iterator<T> {
+public interface TupleIterator<T, M> extends Iterator<T> {
+
+    M getMetadata();
 
     /**
      * Perform any clean up operations after the iterator has been consumed

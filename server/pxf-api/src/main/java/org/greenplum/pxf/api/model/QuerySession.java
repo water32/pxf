@@ -5,13 +5,15 @@ import io.micrometer.core.instrument.MeterRegistry;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
+import org.greenplum.pxf.api.serializer.adapter.BinarySerializerAdapter;
+import org.greenplum.pxf.api.serializer.adapter.SerializerAdapter;
+import org.greenplum.pxf.api.utilities.SpringContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Deque;
-import java.util.List;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -27,7 +29,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * for the same query slice.
  */
 @EqualsAndHashCode(of = {"queryId"})
-public class QuerySession<T> {
+public class QuerySession<T, M> {
 
     private static final Logger LOG = LoggerFactory.getLogger(QuerySession.class);
 
@@ -60,11 +62,17 @@ public class QuerySession<T> {
     private final MeterRegistry meterRegistry;
 
     /**
+     * The binary serializer adapter
+     */
+    @Getter
+    private final SerializerAdapter adapter;
+
+    /**
      * The processor used for this query session
      */
     @Getter
     @Setter
-    private Processor<T> processor;
+    private Processor<T, M> processor;
 
     /**
      * True if the query is active, false otherwise
@@ -80,6 +88,11 @@ public class QuerySession<T> {
      * True if the query has errors, false otherwise
      */
     private final AtomicBoolean queryErrored;
+
+    /**
+     * True if the error has been reported to the client, false otherwise
+     */
+    private final AtomicBoolean errorReported;
 
     /**
      * Records the Instant when the query was created
@@ -115,7 +128,7 @@ public class QuerySession<T> {
      * The queue used to process tuples.
      */
     @Getter
-    private final BlockingQueue<List<T>> outputQueue;
+    private final BlockingQueue<TupleBatch<T, M>> outputQueue;
 
     /**
      * Number of active segments that have registered to this QuerySession
@@ -140,13 +153,16 @@ public class QuerySession<T> {
     /**
      * Holds a reference to the querySessionCache
      */
-    private final Cache<String, QuerySession<T>> querySessionCache;
+    private final Cache<String, QuerySession<T, M>> querySessionCache;
 
-    public QuerySession(RequestContext context, Cache<String, QuerySession<T>> querySessionCache, MeterRegistry meterRegistry) {
+    public QuerySession(
+            RequestContext context,
+            Cache<String, QuerySession<T, M>> querySessionCache,
+            MeterRegistry meterRegistry) {
         this.context = context;
         this.querySessionCache = querySessionCache;
         this.meterRegistry = meterRegistry;
-
+        this.adapter = resolveSerializationAdapter(context);
         this.registrationLock = new ReentrantLock();
         this.noActiveSegments = registrationLock.newCondition();
         this.queryId = String.format("%s:%s:%s:%s", context.getServerName(),
@@ -155,6 +171,7 @@ public class QuerySession<T> {
         this.queryActive = new AtomicBoolean(true);
         this.queryCancelled = new AtomicBoolean(false);
         this.queryErrored = new AtomicBoolean(false);
+        this.errorReported = new AtomicBoolean(false);
         this.registeredSegmentQueue = new LinkedBlockingDeque<>();
         this.outputQueue = new LinkedBlockingQueue<>(400);
         this.errors = new ConcurrentLinkedDeque<>();
@@ -162,17 +179,6 @@ public class QuerySession<T> {
         this.createdProcessorTaskCount = new AtomicInteger(0);
         this.completedProcessorTaskCount = new AtomicInteger(0);
         this.totalTupleCount = 0;
-    }
-
-    /**
-     * Cancels the query, the first thread to cancel the query sets the cancel
-     * time
-     */
-    public void cancelQuery() {
-        queryActive.set(false);
-        if (!queryCancelled.getAndSet(true)) {
-            cancelTime = Instant.now();
-        }
     }
 
     /**
@@ -260,15 +266,43 @@ public class QuerySession<T> {
     }
 
     /**
+     * Cancels the query, the first thread to cancel the query sets the cancel
+     * time
+     */
+    public void cancelQuery() {
+        queryActive.set(false);
+        if (!queryCancelled.getAndSet(true)) {
+            cancelTime = Instant.now();
+        }
+    }
+
+    /**
      * Marks the query as errored, the first thread to error the query sets
      * the error time
+     *
+     * @param e        the error
+     * @param reported whether the error has been reported to the client
      */
-    public void errorQuery(Exception e) {
+    public void errorQuery(Exception e, boolean reported) {
         queryActive.set(false);
         if (!queryErrored.getAndSet(true)) {
             errorTime = Instant.now();
         }
         errors.offer(e);
+        if (reported) {
+            errorReported.set(true);
+        }
+    }
+
+    /**
+     * Makes sure that the error is reported to the client.
+     *
+     * @throws Exception the error
+     */
+    public void ensureErrorReported() throws Exception {
+        if (errorReported.compareAndSet(false, true)) {
+            throw errors.getFirst();
+        }
     }
 
     /**
@@ -381,5 +415,17 @@ public class QuerySession<T> {
                 Integer.toHexString(System.identityHashCode(this)) +
                 "{queryId='" + queryId + '\'' +
                 '}';
+    }
+
+    private SerializerAdapter resolveSerializationAdapter(RequestContext context) {
+        switch (context.getOutputFormat()) {
+            case TEXT:
+                throw new UnsupportedOperationException();
+            case BINARY:
+                return SpringContext.getBean(BinarySerializerAdapter.class);
+            default:
+                throw new UnsupportedOperationException(
+                        String.format("The output format '%s' is not supported", context.getOutputFormat()));
+        }
     }
 }

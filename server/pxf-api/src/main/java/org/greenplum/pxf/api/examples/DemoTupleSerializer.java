@@ -1,56 +1,57 @@
 package org.greenplum.pxf.api.examples;
 
-import org.greenplum.pxf.api.serializer.BinaryTupleSerializer;
+import org.greenplum.pxf.api.serializer.BaseTupleSerializer;
+import org.greenplum.pxf.api.serializer.adapter.SerializerAdapter;
 import org.springframework.stereotype.Component;
 
-import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 
 @Component
-public class DemoTupleSerializer extends BinaryTupleSerializer<String[]> {
+public class DemoTupleSerializer extends BaseTupleSerializer<String[], Void> {
 
     @Override
-    protected void writeLong(DataOutputStream out, String[] tuple, int columnIndex) {
+    protected void writeLong(OutputStream out, String[] tuple, int columnIndex, Void metadata, SerializerAdapter adapter) {
     } // DO NOTHING
 
     @Override
-    protected void writeBoolean(DataOutputStream out, String[] tuple, int columnIndex) {
+    protected void writeBoolean(OutputStream out, String[] tuple, int columnIndex, Void metadata, SerializerAdapter adapter) {
     } // DO NOTHING
 
     @Override
-    protected void writeText(DataOutputStream out, String[] tuple, int columnIndex) throws IOException {
-        doWriteText(out, tuple[columnIndex]);
+    protected void writeText(OutputStream out, String[] tuple, int columnIndex, Void metadata, SerializerAdapter adapter) throws IOException {
+        adapter.writeText(out, tuple[columnIndex]);
     }
 
     @Override
-    protected void writeBytes(DataOutputStream out, String[] tuple, int columnIndex) {
+    protected void writeBytes(OutputStream out, String[] tuple, int columnIndex, Void metadata, SerializerAdapter adapter) {
     } // DO NOTHING
 
     @Override
-    protected void writeDouble(DataOutputStream out, String[] tuple, int columnIndex) {
+    protected void writeDouble(OutputStream out, String[] tuple, int columnIndex, Void metadata, SerializerAdapter adapter) {
     } // DO NOTHING
 
     @Override
-    protected void writeInteger(DataOutputStream out, String[] tuple, int columnIndex) {
+    protected void writeInteger(OutputStream out, String[] tuple, int columnIndex, Void metadata, SerializerAdapter adapter) {
     } // DO NOTHING
 
     @Override
-    protected void writeFloat(DataOutputStream out, String[] tuple, int columnIndex) {
+    protected void writeFloat(OutputStream out, String[] tuple, int columnIndex, Void metadata, SerializerAdapter adapter) {
     } // DO NOTHING
 
     @Override
-    protected void writeShort(DataOutputStream out, String[] tuple, int columnIndex) {
+    protected void writeShort(OutputStream out, String[] tuple, int columnIndex, Void metadata, SerializerAdapter adapter) {
     } // DO NOTHING
 
     @Override
-    protected void writeDate(DataOutputStream out, String[] tuple, int columnIndex) {
+    protected void writeDate(OutputStream out, String[] tuple, int columnIndex, Void metadata, SerializerAdapter adapter) {
     } // DO NOTHING
 
     @Override
-    protected void writeTimestamp(DataOutputStream out, String[] tuple, int columnIndex) {
+    protected void writeTimestamp(OutputStream out, String[] tuple, int columnIndex, Void metadata, SerializerAdapter adapter) {
     } // DO NOTHING
 
     @Override
-    protected void writeNumeric(DataOutputStream out, String[] tuple, int columnIndex) {
+    protected void writeNumeric(OutputStream out, String[] tuple, int columnIndex, Void metadata, SerializerAdapter adapter) {
     } // DO NOTHING
 }

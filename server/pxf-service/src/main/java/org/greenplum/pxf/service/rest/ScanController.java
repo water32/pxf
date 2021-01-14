@@ -25,10 +25,10 @@ import static org.greenplum.pxf.api.model.RequestContext.RequestType.SCAN_CONTRO
 public class ScanController {
 
     private final RequestParser<MultiValueMap<String, String>> parser;
-    private final QuerySessionService<?> querySessionService;
+    private final QuerySessionService<?, ?> querySessionService;
 
     public ScanController(RequestParser<MultiValueMap<String, String>> parser,
-                          QuerySessionService<?> querySessionService) {
+                          QuerySessionService<?, ?> querySessionService) {
         this.parser = parser;
         this.querySessionService = querySessionService;
     }
@@ -45,7 +45,7 @@ public class ScanController {
         // Get the query session
         // QuerySession has the processor, the RequestContext, state of the
         // query, among other information
-        QuerySession<?> querySession = querySessionService.get(context);
+        QuerySession<?, ?> querySession = querySessionService.get(context);
 
         if (querySession == null) {
             return new ResponseEntity<>(HttpStatus.OK);

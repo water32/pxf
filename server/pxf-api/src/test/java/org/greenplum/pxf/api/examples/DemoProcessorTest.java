@@ -7,6 +7,7 @@ import org.greenplum.pxf.api.model.DataSplit;
 import org.greenplum.pxf.api.model.Processor;
 import org.greenplum.pxf.api.model.QuerySession;
 import org.greenplum.pxf.api.model.RequestContext;
+import org.greenplum.pxf.api.serializer.adapter.BinarySerializerAdapter;
 import org.greenplum.pxf.api.utilities.ColumnDescriptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,7 +19,6 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -28,8 +28,8 @@ import static org.mockito.Mockito.mock;
 
 class DemoProcessorTest {
 
-    private Processor<String[]> processor;
-    private QuerySession<String[]> querySession;
+    private Processor<String[], Void> processor;
+    private QuerySession<String[], Void> querySession;
 
     @BeforeEach
     void setup() {
@@ -46,11 +46,11 @@ class DemoProcessorTest {
         context.setTupleDescription(columnDescriptors);
 
         @SuppressWarnings("unchecked")
-        Cache<String, QuerySession<String[]>> mockCache = mock(Cache.class);
+        Cache<String, QuerySession<String[], Void>> mockCache = mock(Cache.class);
         MeterRegistry mockMeterRegistry = mock(MeterRegistry.class);
 
         processor = new DemoProcessor(null);
-        querySession = new QuerySession<>(context, mockCache, mockMeterRegistry);
+        querySession = new QuerySession<>(context, mockCache, mockMeterRegistry, new BinarySerializerAdapter());
         querySession.setProcessor(processor);
     }
 
@@ -65,7 +65,7 @@ class DemoProcessorTest {
         Iterator<String[]> tupleIterator = processor.getTupleIterator(querySession, split);
 
         assertNotNull(tupleIterator);
-        for (int i=1; i<=DemoProcessor.TOTAL_ROWS; i++) {
+        for (int i = 1; i <= DemoProcessor.TOTAL_ROWS; i++) {
             assertTrue(tupleIterator.hasNext());
             assertArrayEquals(new String[]{"fragment5 row" + i, "value1", "value2"}, tupleIterator.next());
         }

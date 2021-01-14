@@ -1,6 +1,5 @@
 package org.greenplum.pxf.api.model;
 
-import org.greenplum.pxf.api.function.TriFunction;
 import org.greenplum.pxf.api.serializer.TupleSerializer;
 
 import java.io.IOException;
@@ -11,7 +10,7 @@ import java.io.IOException;
  *
  * @param <T> the tuple type that the processor returns
  */
-public interface Processor<T> {
+public interface Processor<T, M> {
 
     /**
      * Returns the query splitter for this {@link Processor}
@@ -19,7 +18,7 @@ public interface Processor<T> {
      * @param querySession the session for the query
      * @return the query splitter
      */
-    DataSplitter getDataSplitter(QuerySession<T> querySession);
+    DataSplitter getDataSplitter(QuerySession<T, M> querySession);
 
     /**
      * Process the current split and return an iterator to retrieve tuples
@@ -29,18 +28,9 @@ public interface Processor<T> {
      * @param split        the split
      * @return an iterator of tuples of type {@code T}
      */
-    TupleIterator<T> getTupleIterator(QuerySession<T> querySession, DataSplit split) throws IOException;
+    TupleIterator<T, M> getTupleIterator(QuerySession<T, M> querySession, DataSplit split) throws IOException;
 
-//    /**
-//     * Returns an array of mapping functions that map a tuple at a given index
-//     * to the resolved type to be serialized.
-//     *
-//     * @param querySession the session for the query
-//     * @return the array of mapping functions
-//     */
-//    TriFunction<QuerySession<T>, T, Integer, Object>[] getMappingFunctions(QuerySession<T> querySession);
-
-    TupleSerializer<T> tupleSerializer(QuerySession<T> querySession);
+    TupleSerializer<T, M> tupleSerializer(QuerySession<T, M> querySession);
 
     /**
      * Returns true if this processor can handle the request, false otherwise
@@ -48,5 +38,5 @@ public interface Processor<T> {
      * @param querySession the session for the query
      * @return true if this processor can handle the request, false otherwise
      */
-    boolean canProcessRequest(QuerySession<T> querySession);
+    boolean canProcessRequest(QuerySession<T, M> querySession);
 }

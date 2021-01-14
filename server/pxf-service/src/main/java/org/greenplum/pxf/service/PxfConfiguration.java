@@ -125,11 +125,13 @@ public class PxfConfiguration implements WebMvcConfigurer {
     }
 
     @Bean
-    public ServletWebServerFactory servletContainer() {
+    public ServletWebServerFactory servletContainer(PxfServerProperties properties) {
         TomcatServletWebServerFactory tomcat = new TomcatServletWebServerFactory();
-        LifecycleListener arpLifecycle = new AprLifecycleListener();
-        tomcat.setProtocol("org.apache.coyote.http11.Http11AprProtocol");
-        tomcat.addContextLifecycleListeners(arpLifecycle);
+        if (!properties.isAprDisabled()) {
+            LifecycleListener arpLifecycle = new AprLifecycleListener();
+            tomcat.setProtocol("org.apache.coyote.http11.Http11AprProtocol");
+            tomcat.addContextLifecycleListeners(arpLifecycle);
+        }
         return tomcat;
     }
 }

@@ -13,7 +13,7 @@ public abstract class BaseDataSplitter implements DataSplitter {
     protected Logger LOG = LoggerFactory.getLogger(this.getClass());
 
     protected Configuration configuration;
-    protected QuerySession querySession;
+    protected QuerySession<?, ?> querySession;
     protected RequestContext context;
 
     /**
@@ -21,7 +21,7 @@ public abstract class BaseDataSplitter implements DataSplitter {
      *
      * @param querySession the query session
      */
-    public BaseDataSplitter(QuerySession querySession) {
+    public BaseDataSplitter(QuerySession<?, ?> querySession) {
         this.querySession = querySession;
         this.context = querySession.getContext();
         this.configuration = context.getConfiguration();

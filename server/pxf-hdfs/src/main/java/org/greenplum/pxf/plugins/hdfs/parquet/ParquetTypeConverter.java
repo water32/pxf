@@ -296,7 +296,7 @@ public enum ParquetTypeConverter {
     }
 
     // Helper method that takes a ZonedDateTime object and return it as nano time in binary form (UTC)
-    private static Binary getBinaryFromZonedDateTime(String timestampString, ZonedDateTime zdt) {
+    public static Binary getBinaryFromZonedDateTime(String timestampString, ZonedDateTime zdt) {
         long timeMicros = (zdt.toEpochSecond() * SECOND_IN_MICROS) + zdt.getNano() / NANOS_IN_MICROS;
         long daysSinceEpoch = timeMicros / MICROS_IN_DAY;
         int julianDays = (int) (JULIAN_EPOCH_OFFSET_DAYS + daysSinceEpoch);

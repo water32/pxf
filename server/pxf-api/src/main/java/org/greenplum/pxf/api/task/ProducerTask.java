@@ -6,6 +6,7 @@ import org.greenplum.pxf.api.model.DataSplit;
 import org.greenplum.pxf.api.model.DataSplitSegmentIterator;
 import org.greenplum.pxf.api.model.DataSplitter;
 import org.greenplum.pxf.api.model.QuerySession;
+import org.greenplum.pxf.api.model.TupleBatch;
 import org.greenplum.pxf.api.utilities.Utilities;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,16 +26,16 @@ import static java.util.Objects.requireNonNull;
 import static org.greenplum.pxf.api.configuration.PxfServerProperties.DEFAULT_SCALE_FACTOR;
 import static org.greenplum.pxf.api.factory.ConfigurationFactory.PXF_PROCESSOR_SCALE_FACTOR_PROPERTY;
 
-public class ProducerTask<T> implements Runnable {
+public class ProducerTask<T, M> implements Runnable {
 
     protected Logger LOG = LoggerFactory.getLogger(this.getClass());
 
-    private final QuerySession<T> querySession;
+    private final QuerySession<T, M> querySession;
     private final ThreadPoolExecutor processorExecutorService;
     private int currentScaleFactor = 1;
     private final int maximumScaleFactor;
 
-    public ProducerTask(QuerySession<T> querySession) {
+    public ProducerTask(QuerySession<T, M> querySession) {
         this.querySession = requireNonNull(querySession, "querySession cannot be null");
         // maxProcessorThreads defaults to MAX_PROCESSOR_THREADS_PER_SESSION
         // it can be overridden by setting the PXF_MAX_PROCESSOR_THREADS_PROPERTY
@@ -66,7 +67,7 @@ public class ProducerTask<T> implements Runnable {
             List<DataSplit> splitList = Lists.newArrayList(splitter);
             // get the queue of segments IDs that have registered to this QuerySession
             BlockingDeque<Integer> registeredSegmentQueue = querySession.getRegisteredSegmentQueue();
-            BlockingQueue<List<T>> outputQueue = querySession.getOutputQueue();
+            BlockingQueue<TupleBatch<T, M>> outputQueue = querySession.getOutputQueue();
 
             while (querySession.isActive()) {
                 // In case this thread is interrupted, the poll call below will
@@ -127,7 +128,7 @@ public class ProducerTask<T> implements Runnable {
                         DataSplit split = iterator.next();
                         LOG.debug("{}: Submitting '{}' to the pool", querySession, split);
 
-                        ProcessorTask<T> task = new ProcessorTask<>(split, querySession);
+                        ProcessorTask<T, M> task = new ProcessorTask<>(split, querySession);
 
                         querySession.markTaskAsCreated();
                         processorExecutorService.execute(task);
@@ -141,7 +142,7 @@ public class ProducerTask<T> implements Runnable {
             querySession.cancelQuery();
             LOG.warn("{}: ProducerTask has been interrupted", querySession);
         } catch (Exception ex) {
-            querySession.errorQuery(ex);
+            querySession.errorQuery(ex, false);
             throw new RuntimeException(ex);
         } finally {
 

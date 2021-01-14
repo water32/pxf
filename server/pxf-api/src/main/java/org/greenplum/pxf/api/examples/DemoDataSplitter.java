@@ -24,7 +24,7 @@ public class DemoDataSplitter extends BaseDataSplitter {
      *
      * @param querySession the query session
      */
-    public DemoDataSplitter(QuerySession querySession) {
+    public DemoDataSplitter(QuerySession<?, ?> querySession) {
         super(querySession);
     }
 

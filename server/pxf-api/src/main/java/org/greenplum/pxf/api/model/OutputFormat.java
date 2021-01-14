@@ -21,6 +21,8 @@ package org.greenplum.pxf.api.model;
 
 
 import org.greenplum.pxf.api.error.UnsupportedTypeException;
+import org.greenplum.pxf.api.serializer.adapter.BinarySerializerAdapter;
+import org.greenplum.pxf.api.serializer.adapter.SerializerAdapter;
 
 /**
  * PXF supported output formats, enum which contains serializations classes

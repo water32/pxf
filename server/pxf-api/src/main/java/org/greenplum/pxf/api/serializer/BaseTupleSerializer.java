@@ -2,115 +2,122 @@ package org.greenplum.pxf.api.serializer;
 
 import org.greenplum.pxf.api.error.UnsupportedTypeException;
 import org.greenplum.pxf.api.io.DataType;
+import org.greenplum.pxf.api.model.TupleBatch;
+import org.greenplum.pxf.api.serializer.adapter.SerializerAdapter;
 import org.greenplum.pxf.api.utilities.ColumnDescriptor;
 
-import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 
-public abstract class BaseTupleSerializer<T> implements TupleSerializer<T> {
+public abstract class BaseTupleSerializer<T, M> implements TupleSerializer<T, M> {
 
     @Override
-    public void serialize(DataOutputStream out, ColumnDescriptor[] columnDescriptors, T tuple) throws IOException {
-        int numColumns = columnDescriptors.length;
-        startRow(out, numColumns);
-        for (int columnIndex = 0; columnIndex < numColumns; columnIndex++) {
-            ColumnDescriptor columnDescriptor = columnDescriptors[columnIndex];
-            DataType dataType = columnDescriptor.getDataType();
-
-            startField(out);
-            switch (dataType) {
-                case BIGINT: {
-                    writeLong(out, tuple, columnIndex);
-                    break;
-                }
-
-                case BOOLEAN: {
-                    writeBoolean(out, tuple, columnIndex);
-                    break;
-                }
-
-                case BPCHAR:
-                case TEXT:
-                case VARCHAR: {
-                    writeText(out, tuple, columnIndex);
-                    break;
-                }
-
-                case BYTEA: {
-                    writeBytes(out, tuple, columnIndex);
-                    break;
-                }
-
-                case DATE: {
-                    writeDate(out, tuple, columnIndex);
-                    break;
-                }
-
-                case FLOAT8: {
-                    writeDouble(out, tuple, columnIndex);
-                    break;
-                }
-
-                case INTEGER: {
-                    writeInteger(out, tuple, columnIndex);
-                    break;
-                }
-
-                case NUMERIC: {
-                    writeNumeric(out, tuple, columnIndex);
-                    break;
-                }
-
-                case REAL: {
-                    writeFloat(out, tuple, columnIndex);
-                    break;
-                }
-
-                case SMALLINT: {
-                    writeShort(out, tuple, columnIndex);
-                    break;
-                }
-
-                case TIMESTAMP: {
-                    writeTimestamp(out, tuple, columnIndex);
-                    break;
-                }
-
-                default:
-                    throw new UnsupportedTypeException("Unsupported data type " + dataType);
-            }
-            endField(out);
-        }
-        endRow(out);
+    public void open(OutputStream out, SerializerAdapter adapter) throws IOException {
+        adapter.open(out);
     }
 
-    abstract void startRow(DataOutputStream out, int numColumns) throws IOException;
+    @Override
+    public void serialize(OutputStream out, ColumnDescriptor[] columnDescriptors, TupleBatch<T, M> batch, SerializerAdapter adapter) throws IOException {
+        int numColumns = columnDescriptors.length;
+        M metadata = batch.getMetadata();
+        for (T tuple : batch) {
+            adapter.startRow(out, numColumns);
+            for (int columnIndex = 0; columnIndex < numColumns; columnIndex++) {
+                ColumnDescriptor columnDescriptor = columnDescriptors[columnIndex];
+                DataType dataType = columnDescriptor.getDataType();
 
-    abstract void startField(DataOutputStream out) throws IOException;
+                adapter.startField(out);
+                switch (dataType) {
+                    case BIGINT: {
+                        writeLong(out, tuple, columnIndex, metadata, adapter);
+                        break;
+                    }
 
-    abstract void endField(DataOutputStream out) throws IOException;
+                    case BOOLEAN: {
+                        writeBoolean(out, tuple, columnIndex, metadata, adapter);
+                        break;
+                    }
 
-    abstract void endRow(DataOutputStream out) throws IOException;
+                    case BPCHAR:
+                    case TEXT:
+                    case VARCHAR: {
+                        writeText(out, tuple, columnIndex, metadata, adapter);
+                        break;
+                    }
 
-    protected abstract void writeLong(DataOutputStream out, T tuple, int columnIndex) throws IOException;
+                    case BYTEA: {
+                        writeBytes(out, tuple, columnIndex, metadata, adapter);
+                        break;
+                    }
 
-    protected abstract void writeBoolean(DataOutputStream out, T tuple, int columnIndex) throws IOException;
+                    case DATE: {
+                        writeDate(out, tuple, columnIndex, metadata, adapter);
+                        break;
+                    }
 
-    protected abstract void writeText(DataOutputStream out, T tuple, int columnIndex) throws IOException;
+                    case FLOAT8: {
+                        writeDouble(out, tuple, columnIndex, metadata, adapter);
+                        break;
+                    }
 
-    protected abstract void writeBytes(DataOutputStream out, T tuple, int columnIndex) throws IOException;
+                    case INTEGER: {
+                        writeInteger(out, tuple, columnIndex, metadata, adapter);
+                        break;
+                    }
 
-    protected abstract void writeDouble(DataOutputStream out, T tuple, int columnIndex) throws IOException;
+                    case NUMERIC: {
+                        writeNumeric(out, tuple, columnIndex, metadata, adapter);
+                        break;
+                    }
 
-    protected abstract void writeInteger(DataOutputStream out, T tuple, int columnIndex) throws IOException;
+                    case REAL: {
+                        writeFloat(out, tuple, columnIndex, metadata, adapter);
+                        break;
+                    }
 
-    protected abstract void writeFloat(DataOutputStream out, T tuple, int columnIndex) throws IOException;
+                    case SMALLINT: {
+                        writeShort(out, tuple, columnIndex, metadata, adapter);
+                        break;
+                    }
 
-    protected abstract void writeShort(DataOutputStream out, T tuple, int columnIndex) throws IOException;
+                    case TIMESTAMP: {
+                        writeTimestamp(out, tuple, columnIndex, metadata, adapter);
+                        break;
+                    }
 
-    protected abstract void writeDate(DataOutputStream out, T tuple, int columnIndex) throws IOException;
+                    default:
+                        throw new UnsupportedTypeException("Unsupported data type " + dataType);
+                }
+                adapter.endField(out);
+            }
+            adapter.endRow(out);
+        }
+    }
 
-    protected abstract void writeTimestamp(DataOutputStream out, T tuple, int columnIndex) throws IOException;
+    @Override
+    public void close(OutputStream out, SerializerAdapter adapter) throws IOException {
+        adapter.close(out);
+    }
 
-    protected abstract void writeNumeric(DataOutputStream out, T tuple, int columnIndex) throws IOException;
+    protected abstract void writeLong(OutputStream out, T tuple, int columnIndex, M metadata, SerializerAdapter adapter) throws IOException;
+
+    protected abstract void writeBoolean(OutputStream out, T tuple, int columnIndex, M metadata, SerializerAdapter adapter) throws IOException;
+
+    protected abstract void writeText(OutputStream out, T tuple, int columnIndex, M metadata, SerializerAdapter adapter) throws IOException;
+
+    protected abstract void writeBytes(OutputStream out, T tuple, int columnIndex, M metadata, SerializerAdapter adapter) throws IOException;
+
+    protected abstract void writeDouble(OutputStream out, T tuple, int columnIndex, M metadata, SerializerAdapter adapter) throws IOException;
+
+    protected abstract void writeInteger(OutputStream out, T tuple, int columnIndex, M metadata, SerializerAdapter adapter) throws IOException;
+
+    protected abstract void writeFloat(OutputStream out, T tuple, int columnIndex, M metadata, SerializerAdapter adapter) throws IOException;
+
+    protected abstract void writeShort(OutputStream out, T tuple, int columnIndex, M metadata, SerializerAdapter adapter) throws IOException;
+
+    protected abstract void writeDate(OutputStream out, T tuple, int columnIndex, M metadata, SerializerAdapter adapter) throws IOException;
+
+    protected abstract void writeTimestamp(OutputStream out, T tuple, int columnIndex, M metadata, SerializerAdapter adapter) throws IOException;
+
+    protected abstract void writeNumeric(OutputStream out, T tuple, int columnIndex, M metadata, SerializerAdapter adapter) throws IOException;
 }

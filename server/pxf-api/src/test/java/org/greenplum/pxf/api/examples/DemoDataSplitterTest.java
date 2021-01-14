@@ -19,7 +19,7 @@ class DemoDataSplitterTest {
     void testIterator() {
         RequestContext context = new RequestContext();
         context.setDataSource("demo-datasource");
-        QuerySession<String> querySession = new QuerySession<>(context, null, null);
+        QuerySession<String, Void> querySession = new QuerySession<>(context, null, null, null);
 
         DemoDataSplitter splitter = new DemoDataSplitter(querySession);
 

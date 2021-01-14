@@ -33,6 +33,9 @@ import java.util.List;
  */
 public class DemoFragmenter extends BaseFragmenter {
 
+    static final int TOTAL_FRAGMENTS = 300;
+
+
     /**
      * Provide metadata for each data partition of the given datasource
      *
@@ -43,9 +46,10 @@ public class DemoFragmenter extends BaseFragmenter {
         List<Fragment> fragments = new ArrayList<>(3);
         String localhostname = java.net.InetAddress.getLocalHost().getHostName();
         String[] localHosts = new String[]{localhostname, localhostname};
-        fragments.add(new Fragment(context.getDataSource() + ".1", localHosts, new DemoFragmentMetadata("fragment1")));
-        fragments.add(new Fragment(context.getDataSource() + ".2", localHosts, new DemoFragmentMetadata("fragment2")));
-        fragments.add(new Fragment(context.getDataSource() + ".3", localHosts, new DemoFragmentMetadata("fragment3")));
+
+        for (int i = 1; i <= TOTAL_FRAGMENTS; i++) {
+            fragments.add(new Fragment(context.getDataSource() + "." + i, localHosts, new DemoFragmentMetadata("fragment" + i)));
+        }
         return fragments;
     }
 }

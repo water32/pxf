@@ -4,16 +4,14 @@ import lombok.SneakyThrows;
 import org.apache.catalina.connector.ClientAbortException;
 import org.greenplum.pxf.api.model.QuerySession;
 import org.greenplum.pxf.api.model.RequestContext;
-import org.greenplum.pxf.api.serializer.BinarySerializer;
-import org.greenplum.pxf.api.serializer.CsvSerializer;
-import org.greenplum.pxf.api.serializer.Serializer;
+import org.greenplum.pxf.api.model.TupleBatch;
 import org.greenplum.pxf.api.serializer.TupleSerializer;
+import org.greenplum.pxf.api.serializer.adapter.SerializerAdapter;
 import org.greenplum.pxf.api.utilities.ColumnDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.List;
@@ -26,12 +24,12 @@ import java.util.concurrent.TimeUnit;
  * it contains the {@code outputQueue} where tuple batches are stored for
  * consumption and serialization.
  */
-public class ScanResponse<T> implements StreamingResponseBody {
+public class ScanResponse<T, M> implements StreamingResponseBody {
 
     private static final Logger LOG = LoggerFactory.getLogger(ScanResponse.class);
 
     private final int segmentId;
-    private final QuerySession<T> querySession;
+    private final QuerySession<T, M> querySession;
     private final RequestContext context;
     private final List<ColumnDescriptor> columnDescriptors;
 
@@ -41,7 +39,7 @@ public class ScanResponse<T> implements StreamingResponseBody {
      *
      * @param querySession the query session object
      */
-    public ScanResponse(int segmentId, QuerySession<T> querySession) {
+    public ScanResponse(int segmentId, QuerySession<T, M> querySession) {
         this.segmentId = segmentId;
         this.querySession = querySession;
         this.context = querySession.getContext();
@@ -63,16 +61,16 @@ public class ScanResponse<T> implements StreamingResponseBody {
                 segmentId, querySession);
 
         int recordCount = 0;
-        TupleSerializer<T> serializer = querySession.getProcessor().tupleSerializer(querySession);
-        BlockingQueue<List<T>> outputQueue = querySession.getOutputQueue();
+        SerializerAdapter adapter = querySession.getAdapter();
+        TupleSerializer<T, M> serializer = querySession.getProcessor().tupleSerializer(querySession);
+        BlockingQueue<TupleBatch<T, M>> outputQueue = querySession.getOutputQueue();
         ColumnDescriptor[] columnDescriptors = new ColumnDescriptor[this.columnDescriptors.size()];
         this.columnDescriptors.toArray(columnDescriptors);
         try {
-            DataOutputStream dataOutputStream = new DataOutputStream(output);
-            serializer.open(dataOutputStream);
+            serializer.open(output, adapter);
 
             while (querySession.isActive()) {
-                List<T> batch = outputQueue.poll(5, TimeUnit.MILLISECONDS);
+                TupleBatch<T, M> batch = outputQueue.poll(5, TimeUnit.MILLISECONDS);
 
                 if (!querySession.isActive()) {
                     // Double check again to make sure that the query is still active
@@ -85,9 +83,9 @@ public class ScanResponse<T> implements StreamingResponseBody {
                     continue;
                 }
 
-                for (T tuple : batch) {
-                    serializer.serialize(dataOutputStream, columnDescriptors, tuple);
-                }
+                // serialize a batch of tuples to the outputstream using the
+                // adapter for the query
+                serializer.serialize(output, columnDescriptors, batch, adapter);
                 recordCount += batch.size();
             }
 
@@ -99,8 +97,9 @@ public class ScanResponse<T> implements StreamingResponseBody {
                  * need to discard the buffer, and replace it with an error
                  * response and a new error code.
                  */
-                serializer.close(dataOutputStream);
-                dataOutputStream.flush();
+                serializer.close(output, adapter);
+            } else {
+                querySession.ensureErrorReported();
             }
         } catch (ClientAbortException e) {
             querySession.cancelQuery();
@@ -114,11 +113,11 @@ public class ScanResponse<T> implements StreamingResponseBody {
             // Re-throw the exception so Spring MVC is aware that an IO error has occurred
             throw e;
         } catch (IOException e) {
-            querySession.errorQuery(e);
+            querySession.errorQuery(e, true);
             LOG.error("Error while writing data for segment {}", segmentId, e);
             throw e;
         } catch (Exception e) {
-            querySession.errorQuery(e);
+            querySession.errorQuery(e, true);
             LOG.error("Error while writing data for segment {}", segmentId, e);
             throw new IOException(e.getMessage(), e);
         } finally {
@@ -126,23 +125,6 @@ public class ScanResponse<T> implements StreamingResponseBody {
             LOG.debug("{}-{}-- Stopped streaming {} record{} for {}",
                     context.getTransactionId(), segmentId,
                     recordCount, recordCount == 1 ? "" : "s", querySession);
-        }
-    }
-
-    /**
-     * Returns the serializer used for the on-the-wire format
-     *
-     * @return the serializer
-     */
-    public Serializer getSerializer() {
-        switch (context.getOutputFormat()) {
-            case TEXT:
-                return new CsvSerializer(context.getGreenplumCSV());
-            case BINARY:
-                return new BinarySerializer();
-            default:
-                throw new UnsupportedOperationException(
-                        String.format("The output format '%s' is not supported", context.getOutputFormat()));
         }
     }
 }
