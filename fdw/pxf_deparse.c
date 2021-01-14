@@ -14,6 +14,7 @@
 #include "postgres.h"
 
 #include "pxf_fdw.h"
+#if PG_VERSION_NUM >= 90600
 #include "optimizer/optimizer.h"
 
 
@@ -50,6 +51,7 @@ typedef struct foreign_loc_cxt
 static bool ForeignExprWalker(Node *node, foreign_glob_cxt *glob_cxt, foreign_loc_cxt *outer_cxt);
 static bool IsBuiltin(Oid procid);
 static bool IsForeignExpr(PlannerInfo *root, RelOptInfo *baserel, Expr *expr);
+#endif
 
 /*
  * We create an integer List of the columns being retrieved, which is
@@ -107,13 +109,18 @@ PxfClassifyConditions(PlannerInfo *root,
 	{
 		RestrictInfo *ri = (RestrictInfo *) lfirst(lc);
 
+#if PG_VERSION_NUM >= 90600
 		if (IsForeignExpr(root, baserel, ri->clause))
+#endif
 			*remote_conds = lappend(*remote_conds, ri);
+#if PG_VERSION_NUM >= 90600
 		else
 			*local_conds = lappend(*local_conds, ri);
+#endif
 	}
 }
 
+#if PG_VERSION_NUM >= 90600
 /*
  * Returns true if given expr is safe to evaluate on the foreign server.
  */
@@ -419,3 +426,4 @@ IsBuiltin(Oid procid)
 {
 	return (procid < FirstBootstrapObjectId);
 }
+#endif
