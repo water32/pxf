@@ -11,6 +11,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,6 +22,10 @@ public class BinarySerializerAdapter implements SerializerAdapter {
 
     private static final BigInteger TEN = new BigInteger("10");
     private static final BigInteger TEN_THOUSAND = new BigInteger("10000");
+
+    private static final LocalDateTime JAVA_EPOCH = LocalDateTime.of(1970, 1, 1, 0, 0, 0);
+    private static final LocalDateTime POSTGRES_EPOCH = LocalDateTime.of(2000, 1, 1, 0, 0, 0);
+    private static final long DAYS_BETWEEN_JAVA_AND_POSTGRES_EPOCHS = ChronoUnit.DAYS.between(JAVA_EPOCH, POSTGRES_EPOCH);
 
     private static final String BINARY_FORMAT_HEADER = "PGCOPY\n\377\r\n\0";
 
@@ -167,8 +172,7 @@ public class BinarySerializerAdapter implements SerializerAdapter {
         // Write the length=8 of the field
         writeIntInternal(out, 8);
         // Write the value of the field
-//        out.writeLong(dateTimeConverter.convert(localDateTime));
-        throw new UnsupportedOperationException();
+        writeLongInternal(out, convertLocalDateTime(localDateTime));
     }
 
     @Override
@@ -287,5 +291,26 @@ public class BinarySerializerAdapter implements SerializerAdapter {
         out.write((byte) (v >>> 16));
         out.write((byte) (v >>> 8));
         out.write((byte) v);
+    }
+
+    private long convertLocalDateTime(LocalDateTime dateTime) {
+        // Extract the Time of the Day in Nanoseconds:
+        long timeInNanoseconds = dateTime
+                .toLocalTime()
+                .toNanoOfDay();
+
+        // Convert the Nanoseconds to Microseconds:
+        long timeInMicroseconds = timeInNanoseconds / 1000;
+
+        // Now Calculate the Postgres Timestamp:
+        if (dateTime.isBefore(POSTGRES_EPOCH)) {
+            long dateInMicroseconds = (dateTime.toLocalDate().toEpochDay() - DAYS_BETWEEN_JAVA_AND_POSTGRES_EPOCHS) * 86400000000L;
+
+            return dateInMicroseconds + timeInMicroseconds;
+        } else {
+            long dateInMicroseconds = (DAYS_BETWEEN_JAVA_AND_POSTGRES_EPOCHS - dateTime.toLocalDate().toEpochDay()) * 86400000000L;
+
+            return -(dateInMicroseconds - timeInMicroseconds);
+        }
     }
 }

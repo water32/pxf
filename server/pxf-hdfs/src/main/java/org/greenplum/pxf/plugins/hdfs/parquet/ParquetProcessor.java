@@ -122,7 +122,7 @@ public class ParquetProcessor implements Processor<Group, MessageType> {
             this.configuration = context.getConfiguration();
             Path file = new Path(context.getDataSource() + split.getResource());
 
-            FileSplit fileSplit = HdfsUtilities.parseFileSplit(context.getDataSource(), context.getFragmentMetadata());
+            FileSplit fileSplit = HdfsUtilities.parseFileSplit(file, split.getMetadata());
 
             // Read the original schema from the parquet file
             MessageType originalSchema = getSchema(file, fileSplit);
@@ -185,7 +185,9 @@ public class ParquetProcessor implements Processor<Group, MessageType> {
          */
         @Override
         public void cleanup() throws IOException {
-            closeForRead();
+            if (fileReader != null) {
+                fileReader.close();
+            }
         }
 
         /**
@@ -309,12 +311,6 @@ public class ParquetProcessor implements Processor<Group, MessageType> {
 
         private void readNext() throws IOException {
             group = fileReader.read();
-        }
-
-        private void closeForRead() throws IOException {
-            if (fileReader != null) {
-                fileReader.close();
-            }
         }
     }
 }

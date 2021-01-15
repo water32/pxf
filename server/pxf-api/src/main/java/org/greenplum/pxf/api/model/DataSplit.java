@@ -22,8 +22,17 @@ public class DataSplit {
     /**
      * Fragment metadata information (starting point + length, region location, etc.).
      */
-    @Getter
     private final FragmentMetadata metadata;
+
+    /**
+     * Return the fragment metadata information
+     *
+     * @return the fragment metadata information
+     */
+    @SuppressWarnings("unchecked")
+    public <T extends FragmentMetadata> T getMetadata() {
+        return (T) metadata;
+    }
 
     /**
      * Returns a unique resource name for the given split

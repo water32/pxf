@@ -22,66 +22,72 @@ public abstract class BaseTupleSerializer<T, M> implements TupleSerializer<T, M>
         M metadata = batch.getMetadata();
         for (T tuple : batch) {
             adapter.startRow(out, numColumns);
-            for (int columnIndex = 0; columnIndex < numColumns; columnIndex++) {
+            for (int columnIndex = 0, projectedIndex =0; columnIndex < numColumns; columnIndex++) {
                 ColumnDescriptor columnDescriptor = columnDescriptors[columnIndex];
+
+                if (!columnDescriptor.isProjected()) {
+                    adapter.writeNull(out);
+                    continue;
+                }
+
                 DataType dataType = columnDescriptor.getDataType();
 
                 adapter.startField(out);
                 switch (dataType) {
                     case BIGINT: {
-                        writeLong(out, tuple, columnIndex, metadata, adapter);
+                        writeLong(out, tuple, projectedIndex, metadata, adapter);
                         break;
                     }
 
                     case BOOLEAN: {
-                        writeBoolean(out, tuple, columnIndex, metadata, adapter);
+                        writeBoolean(out, tuple, projectedIndex, metadata, adapter);
                         break;
                     }
 
                     case BPCHAR:
                     case TEXT:
                     case VARCHAR: {
-                        writeText(out, tuple, columnIndex, metadata, adapter);
+                        writeText(out, tuple, projectedIndex, metadata, adapter);
                         break;
                     }
 
                     case BYTEA: {
-                        writeBytes(out, tuple, columnIndex, metadata, adapter);
+                        writeBytes(out, tuple, projectedIndex, metadata, adapter);
                         break;
                     }
 
                     case DATE: {
-                        writeDate(out, tuple, columnIndex, metadata, adapter);
+                        writeDate(out, tuple, projectedIndex, metadata, adapter);
                         break;
                     }
 
                     case FLOAT8: {
-                        writeDouble(out, tuple, columnIndex, metadata, adapter);
+                        writeDouble(out, tuple, projectedIndex, metadata, adapter);
                         break;
                     }
 
                     case INTEGER: {
-                        writeInteger(out, tuple, columnIndex, metadata, adapter);
+                        writeInteger(out, tuple, projectedIndex, metadata, adapter);
                         break;
                     }
 
                     case NUMERIC: {
-                        writeNumeric(out, tuple, columnIndex, metadata, adapter);
+                        writeNumeric(out, tuple, projectedIndex, metadata, adapter);
                         break;
                     }
 
                     case REAL: {
-                        writeFloat(out, tuple, columnIndex, metadata, adapter);
+                        writeFloat(out, tuple, projectedIndex, metadata, adapter);
                         break;
                     }
 
                     case SMALLINT: {
-                        writeShort(out, tuple, columnIndex, metadata, adapter);
+                        writeShort(out, tuple, projectedIndex, metadata, adapter);
                         break;
                     }
 
                     case TIMESTAMP: {
-                        writeTimestamp(out, tuple, columnIndex, metadata, adapter);
+                        writeTimestamp(out, tuple, projectedIndex, metadata, adapter);
                         break;
                     }
 
@@ -89,6 +95,7 @@ public abstract class BaseTupleSerializer<T, M> implements TupleSerializer<T, M>
                         throw new UnsupportedTypeException("Unsupported data type " + dataType);
                 }
                 adapter.endField(out);
+                projectedIndex++;
             }
             adapter.endRow(out);
         }

@@ -71,14 +71,6 @@ public class DemoAccessor extends BasePlugin implements Accessor {
             fragmentNumber += 1;
         }
 
-        if (rowNumber % 10240 == 0) {
-            try {
-                Thread.sleep(200);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-
         /* return data */
         return row;
     }

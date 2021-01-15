@@ -14,6 +14,7 @@ import org.greenplum.pxf.plugins.hdfs.utilities.PxfInputFormat;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 public class HcfsDataSplitter extends BaseDataSplitter {
 
@@ -95,6 +96,8 @@ public class HcfsDataSplitter extends BaseDataSplitter {
 
             @Override
             public InputSplit next() {
+                if (currentSplit >= splits.length)
+                    throw new NoSuchElementException();
                 return splits[currentSplit++];
             }
         };

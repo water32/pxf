@@ -49,11 +49,24 @@ public class HdfsUtilities {
      * @return FileSplit with fragment metadata
      */
     public static FileSplit parseFileSplit(String file, HcfsFragmentMetadata metadata) {
+        return parseFileSplit(new Path(file), metadata);
+    }
+
+    /**
+     * Parses fragment metadata and return matching {@link FileSplit}. If the
+     * fragment metadata is null, a {@link FileSplit} with zero start and length
+     * is returned.
+     *
+     * @param file     the file for the split
+     * @param metadata the fragment metadataa
+     * @return FileSplit with fragment metadata
+     */
+    public static FileSplit parseFileSplit(Path file, HcfsFragmentMetadata metadata) {
         long start = metadata == null ? 0 : metadata.getStart();
         long length = metadata == null ? 0 : metadata.getLength();
 
         LOG.debug("Parsed split: path={} start={} length={}", file, start, length);
-        return new FileSplit(new Path(file), start, length, (String[]) null);
+        return new FileSplit(file, start, length, (String[]) null);
     }
 
     /**

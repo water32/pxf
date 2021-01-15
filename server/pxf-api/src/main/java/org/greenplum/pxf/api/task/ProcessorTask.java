@@ -17,7 +17,7 @@ import java.util.concurrent.BlockingQueue;
  */
 public class ProcessorTask<T, M> implements Runnable {
 
-    private static final int DEFAULT_BATCH_SIZE = 10240;
+    private static final int DEFAULT_BATCH_SIZE = 1024;
 
     /**
      * Name of the property that allows overriding the default batch size
@@ -60,7 +60,6 @@ public class ProcessorTask<T, M> implements Runnable {
                     totalRows += batchSize;
                     outputQueue.put(tupleBatch);
                     tupleBatch = new TupleBatch<>(batchSize, iterator.getMetadata());
-                    Thread.sleep(200);
                 }
             }
             if (!currentThread.isInterrupted() && !tupleBatch.isEmpty()) {
