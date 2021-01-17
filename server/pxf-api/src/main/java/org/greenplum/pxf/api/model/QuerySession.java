@@ -173,7 +173,7 @@ public class QuerySession<T, M> {
         this.queryErrored = new AtomicBoolean(false);
         this.errorReported = new AtomicBoolean(false);
         this.registeredSegmentQueue = new LinkedBlockingDeque<>();
-        this.outputQueue = new LinkedBlockingQueue<>(200);
+        this.outputQueue = new LinkedBlockingQueue<>(100);
         this.errors = new ConcurrentLinkedDeque<>();
         this.activeSegmentCount = 0;
         this.createdProcessorTaskCount = new AtomicInteger(0);

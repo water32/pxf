@@ -87,6 +87,7 @@ public class ScanResponse<T, M> implements StreamingResponseBody {
                 // adapter for the query
                 serializer.serialize(output, columnDescriptors, batch, adapter);
                 recordCount += batch.size();
+                batch.clear();
             }
 
             if (!querySession.isQueryErrored() && !querySession.isQueryCancelled()) {

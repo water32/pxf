@@ -480,7 +480,7 @@ pxfExplainForeignScan(ForeignScanState *node, ExplainState *es)
 			ListCell *lc1 = NULL;
 			foreach_with_count(lc1, retrieved_attrs, counter)
 			{
-				int attno = lfirst_int(lc1);
+				int attno = lfirst_int(lc1) - 1;
 				Form_pg_attribute attr = TupleDescAttr(tupdesc, attno);
 				colname = NameStr(attr->attname);
 				appendStringInfo(&columnProjection, "%s", colname);

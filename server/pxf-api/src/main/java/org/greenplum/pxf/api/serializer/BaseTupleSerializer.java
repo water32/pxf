@@ -22,7 +22,7 @@ public abstract class BaseTupleSerializer<T, M> implements TupleSerializer<T, M>
         M metadata = batch.getMetadata();
         for (T tuple : batch) {
             adapter.startRow(out, numColumns);
-            for (int columnIndex = 0, projectedIndex =0; columnIndex < numColumns; columnIndex++) {
+            for (int columnIndex = 0, projectedIndex = 0; columnIndex < numColumns; columnIndex++) {
                 ColumnDescriptor columnDescriptor = columnDescriptors[columnIndex];
 
                 if (!columnDescriptor.isProjected()) {
