@@ -193,7 +193,7 @@ public class BinarySerializerAdapter implements SerializerAdapter {
      * The Algorithm for turning a BigDecimal into a Postgres Numeric is
      * heavily inspired by the Intermine Implementation:
      * <p>
-     * https://github.com/intermine/intermine/blob/master/intermine/objectstore/main/src/org/intermine/sql/writebatch/BatchWriterPostgresCopyImpl.java
+     * https://github.com/intermine/intermine/blob/dev/intermine/objectstore/src/main/java/org/intermine/sql/writebatch/BatchWriterPostgresCopyImpl.java
      */
     @Override
     public void writeNumeric(OutputStream out, BigDecimal value) throws IOException {
