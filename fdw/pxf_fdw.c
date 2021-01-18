@@ -1121,8 +1121,32 @@ static void
 InitCopyState(PxfFdwScanState *pxfsstate)
 {
 	CopyState	cstate;
+	int			retrieved_attrs_length;
+	List	   *attlist = NIL;
+	Value	   *colname;
+	TupleDesc	tupDesc = RelationGetDescr(pxfsstate->relation);
 
 	PxfControllerImportStart(pxfsstate);
+
+	retrieved_attrs_length	= list_length(pxfsstate->retrieved_attrs);
+
+	if (retrieved_attrs_length > 0)
+	{
+		ListCell *lc1 = NULL;
+		foreach(lc1, pxfsstate->retrieved_attrs)
+		{
+			int attno = lfirst_int(lc1) - 1;
+			Form_pg_attribute attr = TupleDescAttr(tupDesc, attno);
+
+			if (attr->attisdropped)
+				continue;
+			if (attr->attgenerated)
+				continue;
+
+			colname = makeString(NameStr(attr->attname));
+			attlist = lappend(attlist, colname);
+		}
+	}
 
 	/*
 	 * Create CopyState from FDW options.  We always acquire all columns, so
@@ -1137,7 +1161,7 @@ InitCopyState(PxfFdwScanState *pxfsstate)
 						   false,	/* is_program */
 						   &PxfControllerRead,	/* data_source_cb */
 						   pxfsstate,	/* data_source_cb_extra */
-						   NIL, /* attnamelist */
+						   attlist, /* attnamelist */
 						   pxfsstate->options->copy_options	/* copy options */
 #if PG_VERSION_NUM < 90600
 						   ,NIL	/* ao_segnos */

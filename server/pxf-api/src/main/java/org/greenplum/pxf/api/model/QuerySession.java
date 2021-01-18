@@ -406,17 +406,6 @@ public class QuerySession<T, M> {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public String toString() {
-        return "QuerySession@" +
-                Integer.toHexString(System.identityHashCode(this)) +
-                "{queryId='" + queryId + '\'' +
-                '}';
-    }
-
     private SerializerAdapter resolveSerializationAdapter(RequestContext context) {
         switch (context.getOutputFormat()) {
             case TEXT:

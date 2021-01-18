@@ -64,8 +64,11 @@ public class ScanResponse<T, M> implements StreamingResponseBody {
         SerializerAdapter adapter = querySession.getAdapter();
         TupleSerializer<T, M> serializer = querySession.getProcessor().tupleSerializer(querySession);
         BlockingQueue<TupleBatch<T, M>> outputQueue = querySession.getOutputQueue();
-        ColumnDescriptor[] columnDescriptors = new ColumnDescriptor[this.columnDescriptors.size()];
-        this.columnDescriptors.toArray(columnDescriptors);
+        ColumnDescriptor[] columnDescriptors = this.columnDescriptors
+                .stream()
+                .filter(ColumnDescriptor::isProjected)
+                .toArray(ColumnDescriptor[]::new);
+
         try {
             serializer.open(output, adapter);
 
