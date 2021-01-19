@@ -2,7 +2,6 @@ package org.greenplum.pxf.api.factory;
 
 import org.apache.hadoop.conf.Configuration;
 
-import java.io.File;
 import java.util.Map;
 
 public interface ConfigurationFactory {
@@ -32,6 +31,16 @@ public interface ConfigurationFactory {
      * concurrent threads that process tuples
      */
     String PXF_PROCESSOR_SCALE_FACTOR_PROPERTY = "pxf.processor.scale-factor";
+
+    /**
+     * Name of the property that allows overriding the default batch size
+     */
+    String PXF_PROCESSOR_BATCH_SIZE_PROPERTY = "pxf.processor.batch-size";
+
+    /**
+     * Name of the property that allows overriding the queue size of the processor queue
+     */
+    String PXF_PROCESSOR_QUEUE_SIZE_PROPERTY = "pxf.processor.queue-size";
 
     /**
      * Initializes a configuration object that applies server-specific configurations and

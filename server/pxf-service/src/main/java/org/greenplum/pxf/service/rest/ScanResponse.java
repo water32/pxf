@@ -14,6 +14,8 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -86,10 +88,15 @@ public class ScanResponse<T, M> implements StreamingResponseBody {
                     continue;
                 }
 
-                // serialize a batch of tuples to the outputstream using the
+                // serialize a batch of tuples to the output stream using the
                 // adapter for the query
+                Instant start = Instant.now();
                 serializer.serialize(output, columnDescriptors, batch, adapter);
+                long durationMs = Duration.between(start, Instant.now()).toMillis();
                 recordCount += batch.size();
+
+                querySession.reportConsumptionStats(segmentId, batch.size(), durationMs);
+
                 batch.clear();
             }
 

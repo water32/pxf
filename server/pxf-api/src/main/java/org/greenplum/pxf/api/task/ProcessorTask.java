@@ -10,6 +10,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.BlockingQueue;
 
+import static org.greenplum.pxf.api.factory.ConfigurationFactory.PXF_PROCESSOR_BATCH_SIZE_PROPERTY;
+
 /**
  * Processes a {@link DataSplit} and generates 0 or more tuples. Stores
  * tuples in the buffer, until the buffer is full, then it adds the buffer to
@@ -17,12 +19,7 @@ import java.util.concurrent.BlockingQueue;
  */
 public class ProcessorTask<T, M> implements Runnable {
 
-    private static final int DEFAULT_BATCH_SIZE = 1024;
-
-    /**
-     * Name of the property that allows overriding the default batch size
-     */
-    private static final String PXF_TUPLE_READER_BATCH_SIZE_PROPERTY = "pxf.processor.batch-size";
+    private static final int DEFAULT_BATCH_SIZE = 100;
 
     private final Logger LOG = LoggerFactory.getLogger(ProcessorTask.class);
 
@@ -47,7 +44,7 @@ public class ProcessorTask<T, M> implements Runnable {
     public void run() {
         int totalRows = 0;
         int batchSize = querySession.getContext().getConfiguration()
-                .getInt(PXF_TUPLE_READER_BATCH_SIZE_PROPERTY, DEFAULT_BATCH_SIZE);
+                .getInt(PXF_PROCESSOR_BATCH_SIZE_PROPERTY, DEFAULT_BATCH_SIZE);
         TupleIterator<T, M> iterator = null;
         Thread currentThread = Thread.currentThread();
         try {

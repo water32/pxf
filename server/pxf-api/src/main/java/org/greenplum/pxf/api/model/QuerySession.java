@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.BlockingQueue;
@@ -24,12 +25,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static org.greenplum.pxf.api.factory.ConfigurationFactory.PXF_PROCESSOR_QUEUE_SIZE_PROPERTY;
+
 /**
  * Maintains state of the query. The state is shared across multiple threads
  * for the same query slice.
  */
 @EqualsAndHashCode(of = {"queryId"})
 public class QuerySession<T, M> {
+
+    private static final int DEFAULT_PROCESSOR_QUEUE_SIZE = 20;
 
     private static final Logger LOG = LoggerFactory.getLogger(QuerySession.class);
 
@@ -173,12 +178,18 @@ public class QuerySession<T, M> {
         this.queryErrored = new AtomicBoolean(false);
         this.errorReported = new AtomicBoolean(false);
         this.registeredSegmentQueue = new LinkedBlockingDeque<>();
-        this.outputQueue = new LinkedBlockingQueue<>(100);
+
+        int processorQueueSize = context.getConfiguration()
+                .getInt(PXF_PROCESSOR_QUEUE_SIZE_PROPERTY, DEFAULT_PROCESSOR_QUEUE_SIZE);
+
+        this.outputQueue = new LinkedBlockingQueue<>(processorQueueSize);
         this.errors = new ConcurrentLinkedDeque<>();
         this.activeSegmentCount = 0;
         this.createdProcessorTaskCount = new AtomicInteger(0);
         this.completedProcessorTaskCount = new AtomicInteger(0);
         this.totalTupleCount = 0;
+        this.rateTableInMs = new double[context.getTotalSegments()];
+        Arrays.fill(rateTableInMs, -1);
     }
 
     /**
@@ -416,5 +427,36 @@ public class QuerySession<T, M> {
                 throw new UnsupportedOperationException(
                         String.format("The output format '%s' is not supported", context.getOutputFormat()));
         }
+    }
+
+    private final double[] rateTableInMs;
+
+    private volatile double avgRateMs;
+
+    public void reportConsumptionStats(int segmentId, int tupleCount, long durationMs) {
+        // get a copy of the table of consumption
+        double rateMs = durationMs == 0 ? 0 : ((double) tupleCount / (double) durationMs);
+
+        synchronized (rateTableInMs) {
+            rateTableInMs[segmentId] = rateMs;
+
+            int totalCount = 0;
+            double totalRate = 0;
+            for (double rate : rateTableInMs) {
+                if (rate >= 0) {
+                    totalRate += rate;
+                    totalCount++;
+                }
+            }
+            avgRateMs = totalRate / totalCount;
+        }
+        LOG.error("Segment {} reported rate of {} tuples/msec, average rate {} tuples/msec",
+                segmentId,
+                rateMs,
+                avgRateMs);
+    }
+
+    public double getAvgRateMs() {
+        return avgRateMs;
     }
 }
