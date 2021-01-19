@@ -31,10 +31,10 @@
 
 #include "pxf_option.h"
 
+#include "pxf_copy.h"
 #include "pxf_curl.h"
 
 #include "cdb/cdbvars.h"
-#include "commands/copy.h"
 #include "nodes/pg_list.h"
 #include "utils/rel.h"
 
@@ -55,7 +55,7 @@ typedef struct PxfFdwScanState
 #endif
 	List	   *retrieved_attrs;
 	PxfOptions *options;
-	CopyState	cstate;
+	PxfCopyState	cstate;
 } PxfFdwScanState;
 
 /*
@@ -63,7 +63,7 @@ typedef struct PxfFdwScanState
  */
 typedef struct PxfFdwModifyState
 {
-	CopyState	cstate;			/* state of writing to PXF */
+	PxfCopyState	cstate;			/* state of writing to PXF */
 
 	PXF_CURL_HANDLE curl_handle;	/* curl handle */
 	PXF_CURL_HEADERS curl_headers;	/* curl headers */

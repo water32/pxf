@@ -10,6 +10,7 @@
 
 #include <curl/curl.h>
 
+#include "pxf_copy.h"
 #include "pxf_fdw.h"
 #include "pxf_option.h"
 
@@ -18,7 +19,6 @@
 #include "catalog/pg_foreign_server.h"
 #include "catalog/pg_foreign_table.h"
 #include "catalog/pg_user_mapping.h"
-#include "commands/copy.h"
 #include "commands/defrem.h"
 #include "nodes/makefuncs.h"
 #include "foreign/foreign.h"
@@ -483,11 +483,7 @@ ValidateCopyOptions(List *options_list, Oid catalog)
 	/*
 	 * Apply the core COPY code's validation logic for more checks.
 	 */
-#if PG_VERSION_NUM >= 90600
-	ProcessCopyOptions(NULL, NULL, true, copy_options);
-#else
-	ProcessCopyOptions(NULL, true, copy_options, 0, true);
-#endif
+	PxfProcessCopyOptions(NULL, NULL, true, copy_options);
 
 	PG_RETURN_VOID();
 }

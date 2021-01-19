@@ -8,8 +8,9 @@
 
 #include "postgres.h"
 
-#include "pxf_fdw.h"
 #include "pxf_controller.h"
+#include "pxf_copy.h"
+#include "pxf_fdw.h"
 #include "pxf_filter.h"
 
 #include "access/reloptions.h"
@@ -20,7 +21,6 @@
 #include "catalog/pg_extension.h"
 #include "cdb/cdbsreh.h"
 #include "cdb/cdbvars.h"
-#include "commands/copy.h"
 #include "commands/explain.h"
 #include "commands/vacuum.h"
 #include "foreign/fdwapi.h"
@@ -150,7 +150,7 @@ static int	pxfIsForeignRelUpdatable(Relation rel);
  */
 static void InitCopyState(PxfFdwScanState *pxfsstate);
 static void InitCopyStateForModify(PxfFdwModifyState *pxfmstate);
-static CopyState BeginCopyTo(Relation forrel, List *options);
+static PxfCopyState BeginCopyTo(Relation forrel, List *options);
 static int PxfAcquireSampleRowsFunc(Relation relation, int elevel, HeapTuple *rows, int targrows, double *totalrows, double *totaldeadrows);
 static void AnalyzeRowProcessor(TupleTableSlot *slot, PxfFdwAnalyzeState *astate);
 static void PxfAbortCallback(ResourceReleasePhase phase, bool isCommit, bool isTopLevel, void *arg);
@@ -598,7 +598,7 @@ pxfIterateForeignScan(ForeignScanState *node)
 	 */
 	ExecClearTuple(slot);
 
-	found = NextCopyFrom(pxfsstate->cstate,
+	found = PxfNextCopyFrom(pxfsstate->cstate,
 						 NULL,
 #if PG_VERSION_NUM >= 90600
 						 slot->tts_values,
@@ -646,7 +646,7 @@ pxfReScanForeignScan(ForeignScanState *node)
 
 	PxfFdwScanState *pxfsstate = (PxfFdwScanState *) node->fdw_state;
 
-	EndCopyFrom(pxfsstate->cstate);
+	PxfEndCopyFrom(pxfsstate->cstate);
 	InitCopyState(pxfsstate);
 
 	elog(DEBUG5, "pxf_fdw: pxfReScanForeignScan ends on segment: %d", PXF_SEGMENT_ID);
@@ -674,7 +674,7 @@ pxfEndForeignScan(ForeignScanState *node)
 	/* if pxfsstate is NULL, we are in EXPLAIN; nothing to do */
 	if (pxfsstate)
 	{
-		EndCopyFrom(pxfsstate->cstate);
+		PxfEndCopyFrom(pxfsstate->cstate);
 
 		if (pxfsstate->curl_handle)
 		{
@@ -759,7 +759,7 @@ pxfExecForeignInsert(EState *estate,
 	if (pxfmstate == NULL)
 		return NULL;
 
-	CopyState	cstate = pxfmstate->cstate;
+	PxfCopyState	cstate = pxfmstate->cstate;
 #if PG_VERSION_NUM < 90600
 	Relation	relation = resultRelInfo->ri_RelationDesc;
 	TupleDesc	tupDesc = RelationGetDescr(relation);
@@ -773,9 +773,9 @@ pxfExecForeignInsert(EState *estate,
 
 	/* TEXT or CSV */
 	slot_getallattrs(slot);
-	CopyOneRowTo(cstate, slot);
+	PxfCopyOneRowTo(cstate, slot);
 #endif
-	CopySendEndOfRow(cstate);
+	PxfCopySendEndOfRow(cstate);
 
 	StringInfo	fe_msgbuf = cstate->fe_msgbuf;
 
@@ -814,7 +814,7 @@ pxfEndForeignModify(EState *estate,
 	if (pxfmstate == NULL)
 		return;
 
-	EndCopyFrom(pxfmstate->cstate);
+	PxfEndCopyFrom(pxfmstate->cstate);
 	pxfmstate->cstate = NULL;
 	PxfControllerCleanup(pxfmstate);
 
@@ -1120,7 +1120,7 @@ AnalyzeRowProcessor(TupleTableSlot *slot, PxfFdwAnalyzeState *astate)
 static void
 InitCopyState(PxfFdwScanState *pxfsstate)
 {
-	CopyState	cstate;
+	PxfCopyState	cstate;
 	int			retrieved_attrs_length;
 	List	   *attlist = NIL;
 	Value	   *colname;
@@ -1152,7 +1152,7 @@ InitCopyState(PxfFdwScanState *pxfsstate)
 	 * Create CopyState from FDW options.  We always acquire all columns, so
 	 * as to match the expected ScanTupleSlot signature.
 	 */
-	cstate = BeginCopyFrom(
+	cstate = PxfBeginCopyFrom(
 #if PG_VERSION_NUM >= 90600
 						   NULL,
 #endif
@@ -1173,16 +1173,16 @@ InitCopyState(PxfFdwScanState *pxfsstate)
 	{
 		/* Default error handling - "all-or-nothing" */
 		cstate->cdbsreh = NULL; /* no SREH */
-		cstate->errMode = ALL_OR_NOTHING;
+		cstate->errMode = PXF_ALL_OR_NOTHING;
 	}
 	else
 	{
 		/* no error log by default */
-		cstate->errMode = SREH_IGNORE;
+		cstate->errMode = PXF_SREH_IGNORE;
 
 		/* select the SREH mode */
 		if (pxfsstate->options->log_errors)
-			cstate->errMode = SREH_LOG; /* errors into file */
+			cstate->errMode = PXF_SREH_LOG; /* errors into file */
 
 		cstate->cdbsreh = makeCdbSreh(pxfsstate->options->reject_limit,
 									  pxfsstate->options->is_reject_limit_rows,
@@ -1222,7 +1222,7 @@ static void
 InitCopyStateForModify(PxfFdwModifyState *pxfmstate)
 {
 	List	   *copy_options;
-	CopyState	cstate;
+	PxfCopyState	cstate;
 
 	copy_options = pxfmstate->options->copy_options;
 
@@ -1282,23 +1282,16 @@ InitCopyStateForModify(PxfFdwModifyState *pxfmstate)
 }
 
 /*
- * Set up CopyState for writing to an foreign table.
+ * Set up PxfCopyState for writing to an foreign table.
  */
-static CopyState
+static PxfCopyState
 BeginCopyTo(Relation forrel, List *options)
 {
-	CopyState	cstate;
+	PxfCopyState	cstate;
 
 	Assert(forrel->rd_rel->relkind == RELKIND_FOREIGN_TABLE);
 
-	cstate = BeginCopyToForeignTable(forrel, options);
-	cstate->dispatch_mode = COPY_DIRECT;
-
-	/*
-	 * We use COPY_CALLBACK to mean that the each line should be left in
-	 * fe_msgbuf. There is no actual callback!
-	 */
-	cstate->copy_dest = COPY_CALLBACK;
+	cstate = PxfBeginCopyToForeignTable(forrel, options);
 
 	/*
 	 * Some more initialization, that in the normal COPY TO codepath, is done
