@@ -121,7 +121,7 @@ if (1) \
 	goto not_end_of_copy; \
 } else ((void) 0)
 
-static const char BinarySignature[11] = "PGCOPY\n\377\r\n\0";
+static const char BinarySignature[8] = "PXF\n\377\r\n\0";
 
 
 /* non-export function prototypes */
@@ -1537,38 +1537,38 @@ PxfBeginCopyFrom(ParseState *pstate,
 		int32		tmp;
 
 		/* Signature */
-		if (CopyGetData(cstate, readSig, 11) != 11 ||
-			memcmp(readSig, BinarySignature, 11) != 0)
+		if (CopyGetData(cstate, readSig, 8) != 8 ||
+			memcmp(readSig, BinarySignature, 8) != 0)
 			ereport(ERROR,
 					(errcode(ERRCODE_BAD_COPY_FILE_FORMAT),
-					errmsg("COPY file signature not recognized")));
+					errmsg("PXF file signature not recognized")));
 		/* Flags field */
 		if (!CopyGetInt32(cstate, &tmp))
 			ereport(ERROR,
 					(errcode(ERRCODE_BAD_COPY_FILE_FORMAT),
-					 errmsg("invalid COPY file header (missing flags)")));
+					 errmsg("invalid PXF file header (missing flags)")));
 		if ((tmp & (1 << 16)) != 0)
 			ereport(ERROR,
 					(errcode(ERRCODE_BAD_COPY_FILE_FORMAT),
-					 errmsg("invalid COPY file header (WITH OIDS)")));
+					 errmsg("invalid PXF file header (WITH OIDS)")));
 		tmp &= ~(1 << 16);
 		if ((tmp >> 16) != 0)
 			ereport(ERROR,
 					(errcode(ERRCODE_BAD_COPY_FILE_FORMAT),
-					 errmsg("unrecognized critical flags in COPY file header")));
+					 errmsg("unrecognized critical flags in PXF file header")));
 		/* Header extension length */
 		if (!CopyGetInt32(cstate, &tmp) ||
 			tmp < 0)
 			ereport(ERROR,
 					(errcode(ERRCODE_BAD_COPY_FILE_FORMAT),
-					 errmsg("invalid COPY file header (missing length)")));
+					 errmsg("invalid PXF file header (missing length)")));
 		/* Skip extension header, if present */
 		while (tmp-- > 0)
 		{
 			if (CopyGetData(cstate, readSig, 1) != 1)
 				ereport(ERROR,
 						(errcode(ERRCODE_BAD_COPY_FILE_FORMAT),
-						 errmsg("invalid COPY file header (wrong length)")));
+						 errmsg("invalid PXF file header (wrong length)")));
 		}
 	}
 
@@ -1949,18 +1949,18 @@ NextCopyFromX(PxfCopyState cstate, ExprContext *econtext,
 	else if (attr_count)
 	{
 		/* binary */
-		int16		fld_count;
+		char		readSig[1];
 		ListCell   *cur;
 
 		cstate->cur_lineno++;
 
-		if (!CopyGetInt16(cstate, &fld_count))
+		if (CopyGetData(cstate, readSig, 1) != 1)
 		{
 			/* EOF detected (end of file, or protocol-level EOF) */
 			return false;
 		}
 
-		if (fld_count == -1)
+		if (readSig[0] == 0x01)
 		{
 			/*
 			 * Received EOF marker.  In a V3-protocol copy, wait for the

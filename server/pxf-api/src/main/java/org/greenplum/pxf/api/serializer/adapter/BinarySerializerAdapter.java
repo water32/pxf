@@ -27,11 +27,11 @@ public class BinarySerializerAdapter implements SerializerAdapter {
     private static final LocalDateTime POSTGRES_EPOCH = LocalDateTime.of(2000, 1, 1, 0, 0, 0);
     private static final long DAYS_BETWEEN_JAVA_AND_POSTGRES_EPOCHS = ChronoUnit.DAYS.between(JAVA_EPOCH, POSTGRES_EPOCH);
 
-    private static final String BINARY_FORMAT_HEADER = "PGCOPY\n\377\r\n\0";
+    private static final String BINARY_FORMAT_HEADER = "PXF\n\377\r\n\0";
 
     @Override
     public void open(OutputStream out) throws IOException {
-        // 11 bytes required header
+        // 8 bytes required header
         int len = BINARY_FORMAT_HEADER.length();
         for (int i = 0; i < len; i++) {
             out.write((byte) BINARY_FORMAT_HEADER.charAt(i));
@@ -45,8 +45,12 @@ public class BinarySerializerAdapter implements SerializerAdapter {
     @Override
     public void startRow(OutputStream out, int numColumns) throws IOException {
         // Each tuple begins with a 16-bit integer count of the number of
-        // fields in the tuple
-        writeShortInternal(out, numColumns);
+        // fields in the tuple. In the PXF binary format, we write a single
+        // byte where:
+        //  - byte 0x01 represents EOF
+        //  - byte 0x02 represents data
+        //  - byte 0x03 represents error
+        out.write(0x02);
     }
 
     @Override
@@ -63,9 +67,8 @@ public class BinarySerializerAdapter implements SerializerAdapter {
 
     @Override
     public void close(OutputStream out) throws IOException {
-        // The file trailer consists of a 16-bit integer word containing -1.
-        // This is easily distinguished from a tuple's field-count word.
-        writeShortInternal(out, -1);
+        // The file trailer consists of a single byte containing byte 0x01.
+        out.write(0x01);
         out.flush();
     }
 
