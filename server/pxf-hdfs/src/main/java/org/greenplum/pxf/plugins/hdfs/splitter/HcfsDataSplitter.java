@@ -16,6 +16,13 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+/**
+ * Splitter class for Hadoop Compatible File System data resources.
+ * <p>
+ * Given an Hadoop Compatible File System data source (a file, directory,
+ * or wild card pattern) divide the data into splits and produce a
+ * {@link DataSplit} iterator.
+ */
 public class HcfsDataSplitter extends BaseDataSplitter {
 
     protected JobConf jobConf;
