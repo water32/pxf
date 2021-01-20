@@ -59,8 +59,6 @@ typedef enum PxfCopyErrMode
 typedef struct PxfCopyStateData
 {
 	/* low-level state data */
-//	CopyDest	copy_dest;		/* type of copy source/destination */
-//	FILE	   *copy_file;		/* used if copy_dest == COPY_FILE */
 	StringInfo	fe_msgbuf;		/* used for all dests during COPY TO, only for
 								 * dest == COPY_NEW_FE in COPY FROM */
 	bool		is_copy_from;	/* COPY TO, or COPY FROM? */
@@ -77,8 +75,6 @@ typedef struct PxfCopyStateData
 	QueryDesc  *queryDesc;		/* executable query to copy from */
 	List	   *attnumlist;		/* integer list of attnums to copy */
 	List	   *attnamelist;	/* list of attributes by name */
-//	char	   *filename;		/* filename, or NULL for STDIN/STDOUT */
-//	bool		is_program;		/* is 'filename' a program to popen? */
 	copy_data_source_cb data_source_cb; /* function for reading data */
 	void	   *data_source_cb_extra;
 	bool		binary;			/* binary format? */
@@ -199,7 +195,6 @@ typedef struct PxfCopyStateData
 	bool		on_segment; /* QE save data files locally */
 	bool		ignore_extra_line; /* Don't count CSV header or binary trailer in
 									  "processed" line number for on_segment mode*/
-//	ProgramPipes	*program_pipes; /* COPY PROGRAM pipes for data and stderr */
 
 
 	/* Information on the connections to QEs. */
@@ -223,10 +218,6 @@ typedef struct PxfCopyStateData *PxfCopyState;
 #define ntohll(x) ((1==ntohl(1)) ? (x) : ((uint64_t)ntohl((x) & 0xFFFFFFFF) << 32) | ntohl((x) >> 32))
 #endif
 
-//extern void DoCopy(ParseState *state, const CopyStmt *stmt,
-//				   int stmt_location, int stmt_len,
-//				   uint64 *processed);
-
 extern void PxfProcessCopyOptions(ParseState *pstate, PxfCopyState cstate, bool is_from, List *options);
 
 extern PxfCopyState PxfBeginCopyFrom(ParseState *pstate, Relation rel, bool is_program,
@@ -235,27 +226,13 @@ extern PxfCopyState PxfBeginCopyFrom(ParseState *pstate, Relation rel, bool is_p
 extern PxfCopyState PxfBeginCopy(ParseState *pstate, bool is_from, Relation rel,
 						   Oid queryRelId, List *attnamelist,
 						   List *options, TupleDesc tupDesc);
-//extern CopyState BeginCopyToOnSegment(QueryDesc *queryDesc);
-//extern void EndCopyToOnSegment(CopyState cstate);
 extern PxfCopyState PxfBeginCopyToForeignTable(Relation forrel, List *options);
 extern void PxfEndCopyFrom(PxfCopyState cstate);
 extern bool PxfNextCopyFrom(PxfCopyState cstate, ExprContext *econtext,
 						 Datum *values, bool *nulls);
-//extern bool PxfNextCopyFromRawFields(PxfCopyState cstate,
-//								  char ***fields, int *nfields);
-//extern void CopyFromErrorCallback(void *arg);
-
-//extern uint64 CopyFrom(CopyState cstate);
-
-//extern DestReceiver *CreateCopyDestReceiver(void);
-
-//extern List *CopyGetAttnums(TupleDesc tupDesc, Relation rel, List *attnamelist);
 
 extern void PxfCopyOneRowTo(PxfCopyState cstate, TupleTableSlot *slot);
-//extern void CopyOneCustomRowTo(CopyState cstate, bytea *value);
 extern void PxfCopySendEndOfRow(PxfCopyState cstate);
 extern char *limit_printout_length(const char *str);
-//extern void truncateEol(StringInfo buf, EolType	eol_type);
-//extern void truncateEolStr(char *str, EolType eol_type);
 
 #endif							/* _PXF_COPY_H_ */
