@@ -200,52 +200,64 @@ public class BinarySerializerAdapter implements SerializerAdapter {
      */
     @Override
     public void writeNumeric(OutputStream out, BigDecimal value) throws IOException {
-        BigInteger unscaledValue = value.unscaledValue();
+        String stringValue = value.toString();
+        int len = stringValue.length();
+        
+//            writeText(out, stringValue);
 
-        int sign = value.signum();
-
-        if (sign == -1) {
-            unscaledValue = unscaledValue.negate();
+        // Write the length of the field
+        writeIntInternal(out, len);
+        // Write the value of the field
+        for (int i = 0; i < len; i++) {
+            out.write((byte) stringValue.charAt(i));
         }
 
-        // Number of fractional digits:
-        int fractionDigits = value.scale();
-
-        // Number of Fraction Groups:
-        int fractionGroups = (fractionDigits + 3) / 4;
-
-        List<Integer> digits = new ArrayList<>();
-
-        // The scale needs to be a multiple of 4:
-        int scaleRemainder = fractionDigits % 4;
-
-        // Scale the first value:
-        if (scaleRemainder != 0) {
-            BigInteger[] result = unscaledValue.divideAndRemainder(TEN.pow(scaleRemainder));
-
-            int digit = result[1].intValue() * (int) Math.pow(10, DECIMAL_DIGITS - scaleRemainder);
-
-            digits.add(digit);
-
-            unscaledValue = result[0];
-        }
-
-        while (!unscaledValue.equals(BigInteger.ZERO)) {
-            BigInteger[] result = unscaledValue.divideAndRemainder(TEN_THOUSAND);
-            digits.add(result[1].intValue());
-            unscaledValue = result[0];
-        }
-
-        writeIntInternal(out, 8 + (2 * digits.size()));
-        writeShortInternal(out, digits.size());
-        writeShortInternal(out, digits.size() - fractionGroups - 1);
-        writeShortInternal(out, sign == 1 ? 0x0000 : 0x4000);
-        writeShortInternal(out, fractionDigits);
-
-        // Now write each digit:
-        for (int pos = digits.size() - 1; pos >= 0; pos--) {
-            writeShortInternal(out, digits.get(pos));
-        }
+//        BigInteger unscaledValue = value.unscaledValue();
+//
+//        int sign = value.signum();
+//
+//        if (sign == -1) {
+//            unscaledValue = unscaledValue.negate();
+//        }
+//
+//        // Number of fractional digits:
+//        int fractionDigits = value.scale();
+//
+//        // Number of Fraction Groups:
+//        int fractionGroups = (fractionDigits + 3) / 4;
+//
+//        List<Integer> digits = new ArrayList<>();
+//
+//        // The scale needs to be a multiple of 4:
+//        int scaleRemainder = fractionDigits % 4;
+//
+//        // Scale the first value:
+//        if (scaleRemainder != 0) {
+//            BigInteger[] result = unscaledValue.divideAndRemainder(TEN.pow(scaleRemainder));
+//
+//            int digit = result[1].intValue() * (int) Math.pow(10, DECIMAL_DIGITS - scaleRemainder);
+//
+//            digits.add(digit);
+//
+//            unscaledValue = result[0];
+//        }
+//
+//        while (!unscaledValue.equals(BigInteger.ZERO)) {
+//            BigInteger[] result = unscaledValue.divideAndRemainder(TEN_THOUSAND);
+//            digits.add(result[1].intValue());
+//            unscaledValue = result[0];
+//        }
+//
+//        writeIntInternal(out, 8 + (2 * digits.size()));
+//        writeShortInternal(out, digits.size());
+//        writeShortInternal(out, digits.size() - fractionGroups - 1);
+//        writeShortInternal(out, sign == 1 ? 0x0000 : 0x4000);
+//        writeShortInternal(out, fractionDigits);
+//
+//        // Now write each digit:
+//        for (int pos = digits.size() - 1; pos >= 0; pos--) {
+//            writeShortInternal(out, digits.get(pos));
+//        }
     }
 
     /**

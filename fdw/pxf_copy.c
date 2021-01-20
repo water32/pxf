@@ -1461,7 +1461,8 @@ PxfBeginCopyFrom(ParseState *pstate,
 			continue;
 
 		/* Fetch the input function and typioparam info */
-		if (cstate->binary)
+		/* For numeric, we don't process it in binary format, but rather in string format */
+		if (cstate->binary && att->atttypid != 1700)
 			getTypeBinaryInputInfo(att->atttypid,
 								   &in_func_oid, &typioparams[attnum - 1]);
 		else
@@ -3075,14 +3076,22 @@ CopyReadBinaryAttribute(PxfCopyState cstate,
 	cstate->attribute_buf.data[fld_size] = '\0';
 
 	/* Call the column type's binary input converter */
-	result = ReceiveFunctionCall(flinfo, &cstate->attribute_buf,
-								 typioparam, typmod);
+	if (typioparam == 1700)
+	{
+		result = InputFunctionCall(flinfo, cstate->attribute_buf.data,
+								   typioparam, typmod);
+	}
+	else
+	{
+		result = ReceiveFunctionCall(flinfo, &cstate->attribute_buf,
+									 typioparam, typmod);
 
-	/* Trouble if it didn't eat the whole buffer */
-	if (cstate->attribute_buf.cursor != cstate->attribute_buf.len)
-		ereport(ERROR,
-				(errcode(ERRCODE_INVALID_BINARY_REPRESENTATION),
-				 errmsg("incorrect binary data format")));
+		/* Trouble if it didn't eat the whole buffer */
+		if (cstate->attribute_buf.cursor != cstate->attribute_buf.len)
+			ereport(ERROR,
+					(errcode(ERRCODE_INVALID_BINARY_REPRESENTATION),
+					 errmsg("incorrect binary data format")));
+	}
 
 	*isnull = false;
 	return result;
