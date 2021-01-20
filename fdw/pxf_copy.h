@@ -15,12 +15,6 @@
 #define _PXF_COPY_H_
 
 #include "commands/trigger.h"
-#include "nodes/execnodes.h"
-#include "nodes/parsenodes.h"
-#include "parser/parse_node.h"
-#include "tcop/dest.h"
-#include "executor/executor.h"
-#include "cdb/cdbhash.h"
 #include "cdb/cdbcopy.h"
 
 typedef int (*copy_data_source_cb) (void *outbuf, int minread, int maxread, void *extra);
@@ -66,7 +60,7 @@ typedef struct PxfCopyStateData
 {
 	/* low-level state data */
 //	CopyDest	copy_dest;		/* type of copy source/destination */
-	FILE	   *copy_file;		/* used if copy_dest == COPY_FILE */
+//	FILE	   *copy_file;		/* used if copy_dest == COPY_FILE */
 	StringInfo	fe_msgbuf;		/* used for all dests during COPY TO, only for
 								 * dest == COPY_NEW_FE in COPY FROM */
 	bool		is_copy_from;	/* COPY TO, or COPY FROM? */
@@ -83,8 +77,8 @@ typedef struct PxfCopyStateData
 	QueryDesc  *queryDesc;		/* executable query to copy from */
 	List	   *attnumlist;		/* integer list of attnums to copy */
 	List	   *attnamelist;	/* list of attributes by name */
-	char	   *filename;		/* filename, or NULL for STDIN/STDOUT */
-	bool		is_program;		/* is 'filename' a program to popen? */
+//	char	   *filename;		/* filename, or NULL for STDIN/STDOUT */
+//	bool		is_program;		/* is 'filename' a program to popen? */
 	copy_data_source_cb data_source_cb; /* function for reading data */
 	void	   *data_source_cb_extra;
 	bool		binary;			/* binary format? */
@@ -235,21 +229,19 @@ typedef struct PxfCopyStateData *PxfCopyState;
 
 extern void PxfProcessCopyOptions(ParseState *pstate, PxfCopyState cstate, bool is_from, List *options);
 
-extern PxfCopyState PxfBeginCopyFrom(ParseState *pstate, Relation rel, const char *filename,
-							   bool is_program, copy_data_source_cb data_source_cb,
-							   void *data_source_cb_extra,
+extern PxfCopyState PxfBeginCopyFrom(ParseState *pstate, Relation rel, bool is_program,
+							   copy_data_source_cb data_source_cb, void *data_source_cb_extra,
 							   List *attnamelist, List *options);
 extern PxfCopyState PxfBeginCopy(ParseState *pstate, bool is_from, Relation rel,
-						   RawStmt *raw_query, Oid queryRelId,
-						   List *attnamelist, List *options,
-						   TupleDesc tupDesc);
+						   Oid queryRelId, List *attnamelist,
+						   List *options, TupleDesc tupDesc);
 //extern CopyState BeginCopyToOnSegment(QueryDesc *queryDesc);
 //extern void EndCopyToOnSegment(CopyState cstate);
 extern PxfCopyState PxfBeginCopyToForeignTable(Relation forrel, List *options);
 extern void PxfEndCopyFrom(PxfCopyState cstate);
 extern bool PxfNextCopyFrom(PxfCopyState cstate, ExprContext *econtext,
 						 Datum *values, bool *nulls);
-//extern bool NextCopyFromRawFields(CopyState cstate,
+//extern bool PxfNextCopyFromRawFields(PxfCopyState cstate,
 //								  char ***fields, int *nfields);
 //extern void CopyFromErrorCallback(void *arg);
 

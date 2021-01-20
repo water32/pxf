@@ -1153,19 +1153,13 @@ InitCopyState(PxfFdwScanState *pxfsstate)
 	 * as to match the expected ScanTupleSlot signature.
 	 */
 	cstate = PxfBeginCopyFrom(
-#if PG_VERSION_NUM >= 90600
 						   NULL,
-#endif
 						   pxfsstate->relation,
-						   NULL,
 						   false,	/* is_program */
 						   &PxfControllerRead,	/* data_source_cb */
 						   pxfsstate,	/* data_source_cb_extra */
 						   attlist, /* attnamelist */
 						   pxfsstate->options->copy_options	/* copy options */
-#if PG_VERSION_NUM < 90600
-						   ,NIL	/* ao_segnos */
-#endif
 						   );
 
 
