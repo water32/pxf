@@ -1124,27 +1124,31 @@ InitCopyState(PxfFdwScanState *pxfsstate)
 	int			retrieved_attrs_length;
 	List	   *attlist = NIL;
 	Value	   *colname;
-	TupleDesc	tupDesc = RelationGetDescr(pxfsstate->relation);
+	TupleDesc	tupDesc;
 
 	PxfControllerImportStart(pxfsstate);
 
-	retrieved_attrs_length	= list_length(pxfsstate->retrieved_attrs);
-
-	if (retrieved_attrs_length > 0)
+	if (pg_strcasecmp(pxfsstate->options->wire_format, FDW_OPTION_WIRE_FORMAT_BINARY) == 0)
 	{
-		ListCell *lc1 = NULL;
-		foreach(lc1, pxfsstate->retrieved_attrs)
+		tupDesc = RelationGetDescr(pxfsstate->relation);
+		retrieved_attrs_length	= list_length(pxfsstate->retrieved_attrs);
+
+		if (retrieved_attrs_length > 0)
 		{
-			int attno = lfirst_int(lc1) - 1;
-			Form_pg_attribute attr = TupleDescAttr(tupDesc, attno);
+			ListCell *lc1 = NULL;
+			foreach(lc1, pxfsstate->retrieved_attrs)
+			{
+				int attno = lfirst_int(lc1) - 1;
+				Form_pg_attribute attr = TupleDescAttr(tupDesc, attno);
 
-			if (attr->attisdropped)
-				continue;
-			if (attr->attgenerated)
-				continue;
+				if (attr->attisdropped)
+					continue;
+				if (attr->attgenerated)
+					continue;
 
-			colname = makeString(NameStr(attr->attname));
-			attlist = lappend(attlist, colname);
+				colname = makeString(NameStr(attr->attname));
+				attlist = lappend(attlist, colname);
+			}
 		}
 	}
 

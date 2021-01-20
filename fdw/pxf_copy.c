@@ -1460,8 +1460,8 @@ PxfBeginCopyFrom(ParseState *pstate,
 		if (att->attisdropped)
 			continue;
 
-		/* Fetch the input function and typioparam info */
-		/* For numeric, we don't process it in binary format, but rather in string format */
+		/* Fetch the input function and typioparam info
+		 * For numeric, we don't process it in binary format, but rather in string format */
 		if (cstate->binary && att->atttypid != 1700)
 			getTypeBinaryInputInfo(att->atttypid,
 								   &in_func_oid, &typioparams[attnum - 1]);
@@ -3075,14 +3075,15 @@ CopyReadBinaryAttribute(PxfCopyState cstate,
 	cstate->attribute_buf.len = fld_size;
 	cstate->attribute_buf.data[fld_size] = '\0';
 
-	/* Call the column type's binary input converter */
 	if (typioparam == 1700)
 	{
+		/* For numeric/decimal type, we use the string converter */
 		result = InputFunctionCall(flinfo, cstate->attribute_buf.data,
 								   typioparam, typmod);
 	}
 	else
 	{
+		/* Call the column type's binary input converter */
 		result = ReceiveFunctionCall(flinfo, &cstate->attribute_buf,
 									 typioparam, typmod);
 

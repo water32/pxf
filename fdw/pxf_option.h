@@ -15,6 +15,10 @@
 #ifndef _PXF_OPTION_H_
 #define _PXF_OPTION_H_
 
+#define FDW_OPTION_WIRE_FORMAT_TEXT "text"
+#define FDW_OPTION_WIRE_FORMAT_CSV "csv"
+#define FDW_OPTION_WIRE_FORMAT_BINARY "binary"
+
 #define PXF_FDW_DEFAULT_PROTOCOL "http"
 #define PXF_FDW_DEFAULT_HOST     "localhost"
 #define PXF_FDW_DEFAULT_PORT     5888

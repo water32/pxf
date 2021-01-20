@@ -183,13 +183,19 @@ public class BinarySerializerAdapter implements SerializerAdapter {
         if (value instanceof BigDecimal) {
             writeNumeric(out, (BigDecimal) value);
         } else {
-            writeNumeric(out, new BigDecimal(Double.toString(value.doubleValue())));
+            writeNumeric(out, Double.toString(value.doubleValue()));
         }
     }
 
     @Override
     public void writeNumeric(OutputStream out, String value) throws IOException {
-        writeNumeric(out, new BigDecimal(value));
+        int len = value.length();
+        // Write the length of the field
+        writeIntInternal(out, len);
+        // Write the value of the field
+        for (int i = 0; i < len; i++) {
+            out.write((byte) value.charAt(i));
+        }
     }
 
     /**
@@ -200,17 +206,7 @@ public class BinarySerializerAdapter implements SerializerAdapter {
      */
     @Override
     public void writeNumeric(OutputStream out, BigDecimal value) throws IOException {
-        String stringValue = value.toString();
-        int len = stringValue.length();
-        
-//            writeText(out, stringValue);
-
-        // Write the length of the field
-        writeIntInternal(out, len);
-        // Write the value of the field
-        for (int i = 0; i < len; i++) {
-            out.write((byte) stringValue.charAt(i));
-        }
+        writeNumeric(out, value.toString());
 
 //        BigInteger unscaledValue = value.unscaledValue();
 //
