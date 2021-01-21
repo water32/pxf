@@ -32,6 +32,8 @@ public interface ConfigurationFactory {
      */
     String PXF_PROCESSOR_SCALE_FACTOR_PROPERTY = "pxf.processor.scale-factor";
 
+    String PXF_PROCESSOR_THREADS = "pxf.processor.threads";
+
     /**
      * Name of the property that allows overriding the default batch size
      */

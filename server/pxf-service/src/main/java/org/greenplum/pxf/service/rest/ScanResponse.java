@@ -71,11 +71,14 @@ public class ScanResponse<T, M> implements StreamingResponseBody {
                 .filter(ColumnDescriptor::isProjected)
                 .toArray(ColumnDescriptor[]::new);
 
+        int pollTimeout = context.getConfiguration()
+                .getInt("pxf.response.poll-timeout", 5);
+
         try {
             serializer.open(output, adapter);
 
             while (querySession.isActive()) {
-                TupleBatch<T, M> batch = outputQueue.poll(5, TimeUnit.MILLISECONDS);
+                TupleBatch<T, M> batch = outputQueue.poll(pollTimeout, TimeUnit.MILLISECONDS);
 
                 if (!querySession.isActive()) {
                     // Double check again to make sure that the query is still active

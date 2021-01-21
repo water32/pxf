@@ -25,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 import static java.util.Objects.requireNonNull;
 import static org.greenplum.pxf.api.configuration.PxfServerProperties.DEFAULT_SCALE_FACTOR;
 import static org.greenplum.pxf.api.factory.ConfigurationFactory.PXF_PROCESSOR_SCALE_FACTOR_PROPERTY;
+import static org.greenplum.pxf.api.factory.ConfigurationFactory.PXF_PROCESSOR_THREADS;
 
 public class ProducerTask<T, M> implements Runnable {
 
@@ -45,11 +46,16 @@ public class ProducerTask<T, M> implements Runnable {
         maximumScaleFactor = querySession.getContext().getConfiguration()
                 .getInt(PXF_PROCESSOR_SCALE_FACTOR_PROPERTY, DEFAULT_SCALE_FACTOR);
         int maxProcessorThreads = Utilities.getProcessorMaxThreadsPerSession(1);
+
+
+        int threads = querySession.getContext().getConfiguration()
+                .getInt(PXF_PROCESSOR_THREADS, 6);
+
         // We create a new ExecutorService with a fixed amount of threads.
         // We create one ExecutorService per query so we don't need to build
         // a customized ExecutorService
         this.processorExecutorService =
-                createProcessorTaskExecutorService(poolId, 3);
+                createProcessorTaskExecutorService(poolId, threads);
     }
 
     /**

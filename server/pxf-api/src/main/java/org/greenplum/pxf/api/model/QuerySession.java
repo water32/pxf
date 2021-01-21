@@ -450,10 +450,10 @@ public class QuerySession<T, M> {
             }
             avgRateMs = totalRate / totalCount;
         }
-        LOG.error("Segment {} reported rate of {} tuples/msec, average rate {} tuples/msec",
-                segmentId,
-                rateMs,
-                avgRateMs);
+    //        LOG.error("Segment {} reported rate of {} tuples/msec, average rate {} tuples/msec",
+    //                segmentId,
+    //                rateMs,
+    //                avgRateMs);
     }
 
     public double getAvgRateMs() {
