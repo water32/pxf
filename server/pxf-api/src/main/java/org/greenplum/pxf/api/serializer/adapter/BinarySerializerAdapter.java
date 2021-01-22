@@ -1,27 +1,29 @@
 package org.greenplum.pxf.api.serializer.adapter;
 
 import org.greenplum.pxf.api.GreenplumDateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.sql.Date;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.List;
 
 @Component
 public class BinarySerializerAdapter implements SerializerAdapter {
 
-    private static final int DECIMAL_DIGITS = 4;
+    private final Logger LOG = LoggerFactory.getLogger(this.getClass());
 
-    private static final BigInteger TEN = new BigInteger("10");
-    private static final BigInteger TEN_THOUSAND = new BigInteger("10000");
+//    private static final int DECIMAL_DIGITS = 4;
+//
+//    private static final BigInteger TEN = new BigInteger("10");
+//    private static final BigInteger TEN_THOUSAND = new BigInteger("10000");
 
     private static final LocalDateTime JAVA_EPOCH = LocalDateTime.of(1970, 1, 1, 0, 0, 0);
     private static final LocalDateTime POSTGRES_EPOCH = LocalDateTime.of(2000, 1, 1, 0, 0, 0);
@@ -152,17 +154,25 @@ public class BinarySerializerAdapter implements SerializerAdapter {
     }
 
     @Override
+    public void writeDate(OutputStream out, LocalDate date) throws IOException {
+        // Write the length=4 of the field
+        writeIntInternal(out, 4);
+        // Write the value of the field
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void writeDate(OutputStream out, String date) throws IOException {
 //        doWriteDate(out, dateConverter.convert(LocalDate.parse(value.toString())));
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public void writeDate(OutputStream out, int date) throws IOException {
+    public void writeDate(OutputStream out, int numberOfDaysSinceEpoch) throws IOException {
         // Write the length=4 of the field
         writeIntInternal(out, 4);
         // Write the value of the field
-        writeIntInternal(out, date);
+        writeIntInternal(out, numberOfDaysSinceEpoch - 10957);
     }
 
     @Override

@@ -57,6 +57,7 @@ from `PXF_HOME`.
 ### HCFS-specific variables
 
 * `HCFS_CMD`: path to the `hdfs` CLI command. Required for HCFS tests
+* `WORKING_DIR`: path to the `regression` directory. Required for HCFS tests
 * `HCFS_PROTOCOL`: the protocol to use: `s3`, `gs`, `adl`, `wasbs`, `minio` (optional). Only needed when running against an object store
 * `HCFS_BUCKET`: the location on the external object store (optional)
 

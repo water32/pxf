@@ -5,11 +5,15 @@ import org.greenplum.pxf.api.io.DataType;
 import org.greenplum.pxf.api.model.TupleBatch;
 import org.greenplum.pxf.api.serializer.adapter.SerializerAdapter;
 import org.greenplum.pxf.api.utilities.ColumnDescriptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.OutputStream;
 
 public abstract class BaseTupleSerializer<T, M> implements TupleSerializer<T, M> {
+
+    protected final Logger LOG = LoggerFactory.getLogger(this.getClass());
 
     @Override
     public void open(OutputStream out, SerializerAdapter adapter) throws IOException {

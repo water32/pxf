@@ -151,7 +151,9 @@ public class ParquetTupleSerializer extends BaseTupleSerializer<Group, MessageTy
                     adapter.writeDate(out, group.getString(columnIndex, 0));
                     break;
                 case INT32:
-                    adapter.writeDate(out, group.getInteger(columnIndex, 0));
+                    // The underlying integer represents the number of days
+                    // since epoch
+                    adapter.writeDate(out, group.getInteger(columnIndex, 0));//LocalDate.ofEpochDay(date));
                     break;
                 default:
                     raiseConversionException(primitiveType, DataType.DATE, columnIndex);

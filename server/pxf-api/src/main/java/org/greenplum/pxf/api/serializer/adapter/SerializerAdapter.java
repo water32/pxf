@@ -5,6 +5,7 @@ import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.sql.Date;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public interface SerializerAdapter {
@@ -20,7 +21,7 @@ public interface SerializerAdapter {
     void endField(OutputStream out) throws IOException;
 
     void endRow(OutputStream out) throws IOException;
-    
+
     void writeNull(OutputStream out) throws IOException;
 
     void writeLong(OutputStream out, long value) throws IOException;
@@ -43,9 +44,11 @@ public interface SerializerAdapter {
 
     void writeDate(OutputStream out, Date date) throws IOException;
 
+    void writeDate(OutputStream out, LocalDate date) throws IOException;
+
     void writeDate(OutputStream out, String date) throws IOException;
 
-    void writeDate(OutputStream out, int date) throws IOException;
+    void writeDate(OutputStream out, int numberOfDaysSinceEpoch) throws IOException;
 
     void writeTimestamp(OutputStream out, String localDateTime) throws IOException;
 
