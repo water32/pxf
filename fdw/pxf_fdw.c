@@ -605,8 +605,7 @@ pxfIterateForeignScan(ForeignScanState *node)
 						 slot->tts_isnull
 #else
 						 slot_get_values(slot),
-						 slot_get_isnull(slot),
-						 NULL
+						 slot_get_isnull(slot)
 #endif
 						 );
 

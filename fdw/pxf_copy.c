@@ -126,39 +126,39 @@ static const char BinarySignature[8] = "PXF\n\377\r\n\0";
 
 /* non-export function prototypes */
 static void PxfEndCopy(PxfCopyState cstate);
-static bool CopyReadLine(PxfCopyState cstate);
-static bool CopyReadLineText(PxfCopyState cstate);
-static int	CopyReadAttributesText(PxfCopyState cstate, int stop_processing_at_field);
-static int	CopyReadAttributesCSV(PxfCopyState cstate, int stop_processing_at_field);
-static Datum CopyReadBinaryAttribute(PxfCopyState cstate,
-									 int column_no, FmgrInfo *flinfo,
-									 Oid typioparam, int32 typmod,
-									 bool *isnull);
-static void CopyAttributeOutText(PxfCopyState cstate, char *string);
-static void CopyAttributeOutCSV(PxfCopyState cstate, char *string,
-								bool use_quote, bool single_attr);
+static bool PxfCopyReadLine(PxfCopyState cstate);
+static bool PxfCopyReadLineText(PxfCopyState cstate);
+static int	PxfCopyReadAttributesText(PxfCopyState cstate, int stop_processing_at_field);
+static int	PxfCopyReadAttributesCSV(PxfCopyState cstate, int stop_processing_at_field);
+static Datum PxfCopyReadBinaryAttribute(PxfCopyState cstate,
+										int column_no, FmgrInfo *flinfo,
+										Oid typioparam, int32 typmod,
+										bool *isnull);
+static void PxfCopyAttributeOutText(PxfCopyState cstate, char *string);
+static void PxfCopyAttributeOutCSV(PxfCopyState cstate, char *string,
+								   bool use_quote, bool single_attr);
 
 /* Low-level communications functions */
-static void CopySendData(PxfCopyState cstate, const void *databuf, int datasize);
+static void PxfCopySendData(PxfCopyState cstate, const void *databuf, int datasize);
 static void PxfCopySendString(PxfCopyState cstate, const char *str);
 static void PxfCopySendChar(PxfCopyState cstate, char c);
-static int	CopyGetData(PxfCopyState cstate, void *databuf, int datasize);
-static void CopySendInt32(PxfCopyState cstate, int32 val);
-static bool CopyGetInt32(PxfCopyState cstate, int32 *val);
-static void CopySendInt16(PxfCopyState cstate, int16 val);
+static int	PxfCopyGetData(PxfCopyState cstate, void *databuf, int datasize);
+static void PxfCopySendInt32(PxfCopyState cstate, int32 val);
+static bool PxfCopyGetInt32(PxfCopyState cstate, int32 *val);
+static void PxfCopySendInt16(PxfCopyState cstate, int16 val);
 //static bool CopyGetInt16(PxfCopyState cstate, int16 *val);
 
-static void SendCopyFromForwardedError(PxfCopyState cstate, CdbCopy *cdbCopy, char *errormsg);
+static void PxfSendCopyFromForwardedError(PxfCopyState cstate, CdbCopy *cdbCopy, char *errormsg);
 
-static bool NextCopyFromRawFieldsX(PxfCopyState cstate, char ***fields, int *nfields,
-								   int stop_processing_at_field);
-static bool NextCopyFromX(PxfCopyState cstate, ExprContext *econtext,
-						  Datum *values, bool *nulls);
-static void HandleCopyError(PxfCopyState cstate);
+static bool PxfNextCopyFromRawFieldsX(PxfCopyState cstate, char ***fields, int *nfields,
+									  int stop_processing_at_field);
+static bool PxfNextCopyFromX(PxfCopyState cstate, ExprContext *econtext,
+							 Datum *values, bool *nulls);
+static void PxfHandleCopyError(PxfCopyState cstate);
 
-static void setEncodingConversionProc(PxfCopyState cstate, int encoding, bool iswritable);
+static void PxfSetEncodingConversionProc(PxfCopyState cstate, int encoding, bool iswritable);
 
-static List *parse_joined_option_list(char *str, char *delimiter);
+static List *PxfParseJoinedOptionList(char *str, char *delimiter);
 
 /* ==========================================================================
  * The following macros aid in major refactoring of data processing code (in
@@ -188,7 +188,7 @@ typedef struct
 #define SizeOfCopyFromDispatchError (offsetof(copy_from_dispatch_error, line_buf_converted) + sizeof(bool))
 
 /*----------
- * CopySendData sends output data to the destination (file or frontend)
+ * PxfCopySendData sends output data to the destination (file or frontend)
  * CopySendString does the same for null-terminated strings
  * CopySendChar does the same for single characters
  * CopySendEndOfRow does the appropriate thing at end of each data row
@@ -198,7 +198,7 @@ typedef struct
  *----------
  */
 static void
-CopySendData(PxfCopyState cstate, const void *databuf, int datasize)
+PxfCopySendData(PxfCopyState cstate, const void *databuf, int datasize)
 {
 	appendBinaryStringInfo(cstate->fe_msgbuf, databuf, datasize);
 }
@@ -232,7 +232,7 @@ PxfCopySendEndOfRow(PxfCopyState cstate)
 }
 
 /*
- * CopyGetData reads data from the source (file or frontend)
+ * PxfCopyGetData reads data from the source (file or frontend)
  *
  * Note: when copying from the frontend, we expect a proper EOF mark per
  * protocol; if the frontend simply drops the connection, we raise error.
@@ -244,7 +244,7 @@ PxfCopySendEndOfRow(PxfCopyState cstate)
  * into the data buffer.
  */
 static int
-CopyGetData(PxfCopyState cstate, void *databuf, int datasize)
+PxfCopyGetData(PxfCopyState cstate, void *databuf, int datasize)
 {
 	size_t		bytesread;
 
@@ -260,28 +260,28 @@ CopyGetData(PxfCopyState cstate, void *databuf, int datasize)
  */
 
 /*
- * CopySendInt32 sends an int32 in network byte order
+ * PxfCopySendInt32 sends an int32 in network byte order
  */
 static void
-CopySendInt32(PxfCopyState cstate, int32 val)
+PxfCopySendInt32(PxfCopyState cstate, int32 val)
 {
 	uint32		buf;
 
 	buf = pg_hton32((uint32) val);
-	CopySendData(cstate, &buf, sizeof(buf));
+	PxfCopySendData(cstate, &buf, sizeof(buf));
 }
 
 /*
- * CopyGetInt32 reads an int32 that appears in network byte order
+ * PxfCopyGetInt32 reads an int32 that appears in network byte order
  *
  * Returns true if OK, false if EOF
  */
 static bool
-CopyGetInt32(PxfCopyState cstate, int32 *val)
+PxfCopyGetInt32(PxfCopyState cstate, int32 *val)
 {
 	uint32		buf;
 
-	if (CopyGetData(cstate, &buf, sizeof(buf)) != sizeof(buf))
+	if (PxfCopyGetData(cstate, &buf, sizeof(buf)) != sizeof(buf))
 	{
 		*val = 0;				/* suppress compiler warning */
 		return false;
@@ -291,15 +291,15 @@ CopyGetInt32(PxfCopyState cstate, int32 *val)
 }
 
 /*
- * CopySendInt16 sends an int16 in network byte order
+ * PxfCopySendInt16 sends an int16 in network byte order
  */
 static void
-CopySendInt16(PxfCopyState cstate, int16 val)
+PxfCopySendInt16(PxfCopyState cstate, int16 val)
 {
 	uint16		buf;
 
 	buf = pg_hton16((uint16) val);
-	CopySendData(cstate, &buf, sizeof(buf));
+	PxfCopySendData(cstate, &buf, sizeof(buf));
 }
 
 ///*
@@ -310,7 +310,7 @@ CopySendInt16(PxfCopyState cstate, int16 val)
 //{
 //	uint16		buf;
 //
-//	if (CopyGetData(cstate, &buf, sizeof(buf)) != sizeof(buf))
+//	if (PxfCopyGetData(cstate, &buf, sizeof(buf)) != sizeof(buf))
 //	{
 //		*val = 0;				/* suppress compiler warning */
 //		return false;
@@ -346,8 +346,8 @@ CopyLoadRawBuf(PxfCopyState cstate)
 	else
 		nbytes = 0;				/* no data need be saved */
 
-	inbytes = CopyGetData(cstate, cstate->raw_buf + nbytes,
-						  RAW_BUF_SIZE - nbytes);
+	inbytes = PxfCopyGetData(cstate, cstate->raw_buf + nbytes,
+							 RAW_BUF_SIZE - nbytes);
 	nbytes += inbytes;
 	cstate->raw_buf[nbytes] = '\0';
 	cstate->raw_buf_index = 0;
@@ -504,7 +504,7 @@ PxfProcessCopyOptions(ParseState *pstate,
 				else
 				{
 					/* OPTIONS (force_quote 'c1,c2') */
-					cstate->force_quote = parse_joined_option_list(strVal(defel->arg), ",");
+					cstate->force_quote = PxfParseJoinedOptionList(strVal(defel->arg), ",");
 				}
 			}
 			else
@@ -526,7 +526,7 @@ PxfProcessCopyOptions(ParseState *pstate,
 			else if (defel->arg && IsA(defel->arg, String))
 			{
 				/* OPTIONS (force_not_null 'c1,c2') */
-				cstate->force_notnull = parse_joined_option_list(strVal(defel->arg), ",");
+				cstate->force_notnull = PxfParseJoinedOptionList(strVal(defel->arg), ",");
 			}
 			else
 				ereport(ERROR,
@@ -1055,27 +1055,12 @@ PxfBeginCopy(ParseState *pstate,
 	if (cstate->file_encoding < 0)
 		cstate->file_encoding = pg_get_client_encoding();
 
-//	/*
-//	 * Set up encoding conversion info.  Even if the file and server encodings
-//	 * are the same, we must apply pg_any_to_server() to validate data in
-//	 * multibyte encodings.
-//	 *
-//	 * In COPY_EXECUTE mode, the dispatcher has already done the conversion.
-//	 */
-//	if (cstate->dispatch_mode != COPY_DISPATCH)
-//	{
 	cstate->need_transcoding =
 		((cstate->file_encoding != GetDatabaseEncoding() ||
 		  pg_database_encoding_max_length() > 1));
 	/* See Multibyte encoding comment above */
 	cstate->encoding_embeds_ascii = PG_ENCODING_IS_CLIENT_ONLY(cstate->file_encoding);
-	setEncodingConversionProc(cstate, cstate->file_encoding, !is_from);
-//	}
-//	else
-//	{
-//		cstate->need_transcoding = false;
-//		cstate->encoding_embeds_ascii = PG_ENCODING_IS_CLIENT_ONLY(cstate->file_encoding);
-//	}
+	PxfSetEncodingConversionProc(cstate, cstate->file_encoding, !is_from);
 
 	MemoryContextSwitchTo(oldcontext);
 
@@ -1088,19 +1073,6 @@ PxfBeginCopy(ParseState *pstate,
 static void
 PxfEndCopy(PxfCopyState cstate)
 {
-//	if (cstate->is_program)
-//	{
-//		close_program_pipes(cstate, true);
-//	}
-//	else
-//	{
-//	if (cstate->filename != NULL && FreeFile(cstate->copy_file))
-//		ereport(ERROR,
-//				(errcode_for_file_access(),
-//				 errmsg("could not close file \"%s\": %m",
-//						cstate->filename)));
-//	}
-
 	/* Clean up single row error handling related memory */
 	if (cstate->cdbsreh)
 		destroyCdbSreh(cstate->cdbsreh);
@@ -1123,13 +1095,6 @@ PxfBeginCopyToForeignTable(Relation forrel, List *options)
 					   InvalidOid,
 					   NIL, options,
 					   RelationGetDescr(forrel));
-//	cstate->dispatch_mode = COPY_DIRECT;
-//
-//	/*
-//	 * We use COPY_CALLBACK to mean that the each line should be
-//	 * left in fe_msgbuf. There is no actual callback!
-//	 */
-//	cstate->copy_dest = COPY_CALLBACK;
 
 	/*
 	 * Some more initialization, that in the normal COPY TO codepath, is done
@@ -1163,7 +1128,7 @@ PxfCopyOneRowTo(PxfCopyState cstate, TupleTableSlot *slot)
 	if (cstate->binary)
 	{
 		/* Binary per-tuple header */
-		CopySendInt16(cstate, list_length(cstate->attnumlist));
+		PxfCopySendInt16(cstate, list_length(cstate->attnumlist));
 	}
 
 	/* Make sure the tuple is fully deconstructed */
@@ -1187,7 +1152,7 @@ PxfCopyOneRowTo(PxfCopyState cstate, TupleTableSlot *slot)
 			if (!cstate->binary)
 				PxfCopySendString(cstate, cstate->null_print_client);
 			else
-				CopySendInt32(cstate, -1);
+				PxfCopySendInt32(cstate, -1);
 		}
 		else
 		{
@@ -1217,7 +1182,7 @@ PxfCopyOneRowTo(PxfCopyState cstate, TupleTableSlot *slot)
 					 */
 					if (cstate->force_quote_flags[attnum - 1])
 						PxfCopySendChar(cstate, quotec);
-					CopySendData(cstate, tmp, strlen(tmp));
+					PxfCopySendData(cstate, tmp, strlen(tmp));
 					if (cstate->force_quote_flags[attnum - 1])
 						PxfCopySendChar(cstate, quotec);
 				}
@@ -1231,7 +1196,7 @@ PxfCopyOneRowTo(PxfCopyState cstate, TupleTableSlot *slot)
 					 */
 					if (cstate->force_quote_flags[attnum - 1])
 						PxfCopySendChar(cstate, quotec);
-					CopySendData(cstate, string, strlen(string));
+					PxfCopySendData(cstate, string, strlen(string));
 					if (cstate->force_quote_flags[attnum - 1])
 						PxfCopySendChar(cstate, quotec);
 				}
@@ -1240,11 +1205,11 @@ PxfCopyOneRowTo(PxfCopyState cstate, TupleTableSlot *slot)
 					string = OutputFunctionCall(&out_functions[attnum - 1],
 												value);
 					if (cstate->csv_mode)
-						CopyAttributeOutCSV(cstate, string,
-											cstate->force_quote_flags[attnum - 1],
-											list_length(cstate->attnumlist) == 1);
+						PxfCopyAttributeOutCSV(cstate, string,
+											   cstate->force_quote_flags[attnum - 1],
+											   list_length(cstate->attnumlist) == 1);
 					else
-						CopyAttributeOutText(cstate, string);
+						PxfCopyAttributeOutText(cstate, string);
 				}
 			}
 			else
@@ -1253,8 +1218,8 @@ PxfCopyOneRowTo(PxfCopyState cstate, TupleTableSlot *slot)
 
 				outputbytes = SendFunctionCall(&out_functions[attnum - 1],
 											   value);
-				CopySendInt32(cstate, VARSIZE(outputbytes) - VARHDRSZ);
-				CopySendData(cstate, VARDATA(outputbytes),
+				PxfCopySendInt32(cstate, VARSIZE(outputbytes) - VARHDRSZ);
+				PxfCopySendData(cstate, VARDATA(outputbytes),
 							 VARSIZE(outputbytes) - VARHDRSZ);
 			}
 		}
@@ -1538,13 +1503,13 @@ PxfBeginCopyFrom(ParseState *pstate,
 		int32		tmp;
 
 		/* Signature */
-		if (CopyGetData(cstate, readSig, 8) != 8 ||
+		if (PxfCopyGetData(cstate, readSig, 8) != 8 ||
 			memcmp(readSig, BinarySignature, 8) != 0)
 			ereport(ERROR,
 					(errcode(ERRCODE_BAD_COPY_FILE_FORMAT),
 					errmsg("PXF file signature not recognized")));
 		/* Flags field */
-		if (!CopyGetInt32(cstate, &tmp))
+		if (!PxfCopyGetInt32(cstate, &tmp))
 			ereport(ERROR,
 					(errcode(ERRCODE_BAD_COPY_FILE_FORMAT),
 					 errmsg("invalid PXF file header (missing flags)")));
@@ -1558,7 +1523,7 @@ PxfBeginCopyFrom(ParseState *pstate,
 					(errcode(ERRCODE_BAD_COPY_FILE_FORMAT),
 					 errmsg("unrecognized critical flags in PXF file header")));
 		/* Header extension length */
-		if (!CopyGetInt32(cstate, &tmp) ||
+		if (!PxfCopyGetInt32(cstate, &tmp) ||
 			tmp < 0)
 			ereport(ERROR,
 					(errcode(ERRCODE_BAD_COPY_FILE_FORMAT),
@@ -1566,7 +1531,7 @@ PxfBeginCopyFrom(ParseState *pstate,
 		/* Skip extension header, if present */
 		while (tmp-- > 0)
 		{
-			if (CopyGetData(cstate, readSig, 1) != 1)
+			if (PxfCopyGetData(cstate, readSig, 1) != 1)
 				ereport(ERROR,
 						(errcode(ERRCODE_BAD_COPY_FILE_FORMAT),
 						 errmsg("invalid PXF file header (wrong length)")));
@@ -1588,8 +1553,8 @@ PxfBeginCopyFrom(ParseState *pstate,
 }
 
 static bool
-NextCopyFromRawFieldsX(PxfCopyState cstate, char ***fields, int *nfields,
-					   int stop_processing_at_field)
+PxfNextCopyFromRawFieldsX(PxfCopyState cstate, char ***fields, int *nfields,
+						  int stop_processing_at_field)
 {
 	int			fldct;
 	bool		done;
@@ -1601,14 +1566,14 @@ NextCopyFromRawFieldsX(PxfCopyState cstate, char ***fields, int *nfields,
 	if (cstate->cur_lineno == 0 && cstate->header_line)
 	{
 		cstate->cur_lineno++;
-		if (CopyReadLine(cstate))
+		if (PxfCopyReadLine(cstate))
 			return false;		/* done */
 	}
 
 	cstate->cur_lineno++;
 
 	/* Actually read the line into memory here */
-	done = CopyReadLine(cstate);
+	done = PxfCopyReadLine(cstate);
 
 	/*
 	 * EOF at start of line means we're done.  If we see EOF after some
@@ -1620,9 +1585,9 @@ NextCopyFromRawFieldsX(PxfCopyState cstate, char ***fields, int *nfields,
 
 	/* Parse the line into de-escaped field values */
 	if (cstate->csv_mode)
-		fldct = CopyReadAttributesCSV(cstate, stop_processing_at_field);
+		fldct = PxfCopyReadAttributesCSV(cstate, stop_processing_at_field);
 	else
-		fldct = CopyReadAttributesText(cstate, stop_processing_at_field);
+		fldct = PxfCopyReadAttributesText(cstate, stop_processing_at_field);
 
 	*fields = cstate->raw_fields;
 	*nfields = fldct;
@@ -1634,7 +1599,7 @@ PxfNextCopyFrom(PxfCopyState cstate, ExprContext *econtext,
 			   Datum *values, bool *nulls)
 {
 	if (!cstate->cdbsreh)
-		return NextCopyFromX(cstate, econtext, values, nulls);
+		return PxfNextCopyFromX(cstate, econtext, values, nulls);
 	else
 	{
 		MemoryContext oldcontext = CurrentMemoryContext;
@@ -1646,11 +1611,11 @@ PxfNextCopyFrom(PxfCopyState cstate, ExprContext *econtext,
 
 			PG_TRY();
 			{
-				result = NextCopyFromX(cstate, econtext, values, nulls);
+				result = PxfNextCopyFromX(cstate, econtext, values, nulls);
 			}
 			PG_CATCH();
 			{
-				HandleCopyError(cstate); /* cdbsreh->processed is updated inside here */
+				PxfHandleCopyError(cstate); /* cdbsreh->processed is updated inside here */
 				got_error = true;
 				MemoryContextSwitchTo(oldcontext);
 			}
@@ -1676,7 +1641,7 @@ PxfNextCopyFrom(PxfCopyState cstate, ExprContext *econtext,
  * changing me? take a look at FILEAM_HANDLE_ERROR in fileam.c as well.
  */
 static void
-HandleCopyError(PxfCopyState cstate)
+PxfHandleCopyError(PxfCopyState cstate)
 {
 	if (cstate->errMode == PXF_ALL_OR_NOTHING)
 	{
@@ -1733,7 +1698,7 @@ HandleCopyError(PxfCopyState cstate)
 			{
 				cstate->cdbsreh->rejectcount++;
 
-				SendCopyFromForwardedError(cstate, cstate->cdbCopy, errormsg);
+				PxfSendCopyFromForwardedError(cstate, cstate->cdbCopy, errormsg);
 			}
 			else
 			{
@@ -1770,8 +1735,8 @@ HandleCopyError(PxfCopyState cstate)
  * relation passed to BeginCopyFrom. This function fills the arrays.
  */
 bool
-NextCopyFromX(PxfCopyState cstate, ExprContext *econtext,
-			 Datum *values, bool *nulls)
+PxfNextCopyFromX(PxfCopyState cstate, ExprContext *econtext,
+				 Datum *values, bool *nulls)
 {
 	TupleDesc	tupDesc;
 	AttrNumber	num_phys_attrs,
@@ -1831,8 +1796,8 @@ NextCopyFromX(PxfCopyState cstate, ExprContext *econtext,
 //		/* read raw fields in the next line */
 //		if (cstate->dispatch_mode != COPY_EXECUTOR)
 //		{
-			if (!NextCopyFromRawFieldsX(cstate, &field_strings, &fldct,
-										stop_processing_at_field))
+			if (!PxfNextCopyFromRawFieldsX(cstate, &field_strings, &fldct,
+										   stop_processing_at_field))
 				return false;
 //		}
 //		else
@@ -1845,9 +1810,9 @@ NextCopyFromX(PxfCopyState cstate, ExprContext *econtext,
 //				cstate->line_buf.cursor <= cstate->line_buf.len)
 //			{
 //				if (cstate->csv_mode)
-//					fldct = CopyReadAttributesCSV(cstate, -1);
+//					fldct = PxfCopyReadAttributesCSV(cstate, -1);
 //				else
-//					fldct = CopyReadAttributesText(cstate, -1);
+//					fldct = PxfCopyReadAttributesText(cstate, -1);
 //			}
 //			else
 //				fldct = 0;
@@ -1955,7 +1920,7 @@ NextCopyFromX(PxfCopyState cstate, ExprContext *econtext,
 
 		cstate->cur_lineno++;
 
-		if (CopyGetData(cstate, readSig, 1) != 1)
+		if (PxfCopyGetData(cstate, readSig, 1) != 1)
 		{
 			/* EOF detected (end of file, or protocol-level EOF) */
 			return false;
@@ -1978,7 +1943,7 @@ NextCopyFromX(PxfCopyState cstate, ExprContext *econtext,
 			char		dummy;
 
 			if (/*cstate->copy_dest != COPY_OLD_FE &&*/
-				CopyGetData(cstate, &dummy, 1) > 0)
+					PxfCopyGetData(cstate, &dummy, 1) > 0)
 				ereport(ERROR,
 						(errcode(ERRCODE_BAD_COPY_FILE_FORMAT),
 						 errmsg("received copy data after EOF marker")));
@@ -1998,12 +1963,12 @@ NextCopyFromX(PxfCopyState cstate, ExprContext *econtext,
 
 			cstate->cur_attname = NameStr(att->attname);
 			i++;
-			values[m] = CopyReadBinaryAttribute(cstate,
-												i,
-												&in_functions[m],
-												typioparams[m],
-												att->atttypmod,
-												&nulls[m]);
+			values[m] = PxfCopyReadBinaryAttribute(cstate,
+												   i,
+												   &in_functions[m],
+												   typioparams[m],
+												   att->atttypmod,
+												   &nulls[m]);
 			cstate->cur_attname = NULL;
 		}
 	}
@@ -2039,7 +2004,7 @@ NextCopyFromX(PxfCopyState cstate, ExprContext *econtext,
 }
 
 static void
-SendCopyFromForwardedError(PxfCopyState cstate, CdbCopy *cdbCopy, char *errormsg)
+PxfSendCopyFromForwardedError(PxfCopyState cstate, CdbCopy *cdbCopy, char *errormsg)
 {
 	copy_from_dispatch_error *errframe;
 	StringInfo	msgbuf;
@@ -2092,7 +2057,7 @@ PxfEndCopyFrom(PxfCopyState cstate)
  * in the final value of line_buf.
  */
 static bool
-CopyReadLine(PxfCopyState cstate)
+PxfCopyReadLine(PxfCopyState cstate)
 {
 	bool		result;
 
@@ -2103,7 +2068,7 @@ CopyReadLine(PxfCopyState cstate)
 	cstate->line_buf_converted = false;
 
 	/* Parse data and transfer into line_buf */
-	result = CopyReadLineText(cstate);
+	result = PxfCopyReadLineText(cstate);
 
 	if (!result)
 	{
@@ -2163,10 +2128,10 @@ CopyReadLine(PxfCopyState cstate)
 }
 
 /*
- * CopyReadLineText - inner loop of CopyReadLine for text mode
+ * PxfCopyReadLineText - inner loop of PxfCopyReadLine for text mode
  */
 static bool
-CopyReadLineText(PxfCopyState cstate)
+PxfCopyReadLineText(PxfCopyState cstate)
 {
 	char	   *copy_raw_buf;
 	int			raw_buf_ptr;
@@ -2605,7 +2570,7 @@ GetDecimalFromHex(char hex)
  * The return value is the number of fields actually read.
  */
 static int
-CopyReadAttributesText(PxfCopyState cstate, int stop_processing_at_field)
+PxfCopyReadAttributesText(PxfCopyState cstate, int stop_processing_at_field)
 {
 	char		delimc = cstate->delim[0];
 	char		escapec = cstate->escape_off ? delimc : cstate->escape[0];
@@ -2849,11 +2814,11 @@ CopyReadAttributesText(PxfCopyState cstate, int stop_processing_at_field)
 /*
  * Parse the current line into separate attributes (fields),
  * performing de-escaping as needed.  This has exactly the same API as
- * CopyReadAttributesText, except we parse the fields according to
+ * PxfCopyReadAttributesText, except we parse the fields according to
  * "standard" (i.e. common) CSV usage.
  */
 static int
-CopyReadAttributesCSV(PxfCopyState cstate, int stop_processing_at_field)
+PxfCopyReadAttributesCSV(PxfCopyState cstate, int stop_processing_at_field)
 {
 	char		delimc = cstate->delim[0];
 	bool		delim_off = cstate->delim_off;
@@ -3040,15 +3005,15 @@ endfield:
  * Read a binary attribute
  */
 static Datum
-CopyReadBinaryAttribute(PxfCopyState cstate,
-						int column_no, FmgrInfo *flinfo,
-						Oid typioparam, int32 typmod,
-						bool *isnull)
+PxfCopyReadBinaryAttribute(PxfCopyState cstate,
+						   int column_no, FmgrInfo *flinfo,
+						   Oid typioparam, int32 typmod,
+						   bool *isnull)
 {
 	int32		fld_size;
 	Datum		result;
 
-	if (!CopyGetInt32(cstate, &fld_size))
+	if (!PxfCopyGetInt32(cstate, &fld_size))
 		ereport(ERROR,
 				(errcode(ERRCODE_BAD_COPY_FILE_FORMAT),
 				 errmsg("unexpected EOF in COPY data")));
@@ -3066,8 +3031,8 @@ CopyReadBinaryAttribute(PxfCopyState cstate,
 	resetStringInfo(&cstate->attribute_buf);
 
 	enlargeStringInfo(&cstate->attribute_buf, fld_size);
-	if (CopyGetData(cstate, cstate->attribute_buf.data,
-					fld_size) != fld_size)
+	if (PxfCopyGetData(cstate, cstate->attribute_buf.data,
+					   fld_size) != fld_size)
 		ereport(ERROR,
 				(errcode(ERRCODE_BAD_COPY_FILE_FORMAT),
 				 errmsg("unexpected EOF in COPY data")));
@@ -3104,11 +3069,11 @@ CopyReadBinaryAttribute(PxfCopyState cstate,
 #define PXFDUMPSOFAR() \
 	do { \
 		if (ptr > start) \
-			CopySendData(cstate, start, ptr - start); \
+			PxfCopySendData(cstate, start, ptr - start); \
 	} while (0)
 
 static void
-CopyAttributeOutText(PxfCopyState cstate, char *string)
+PxfCopyAttributeOutText(PxfCopyState cstate, char *string)
 {
 	char	   *ptr;
 	char	   *start;
@@ -3127,14 +3092,14 @@ CopyAttributeOutText(PxfCopyState cstate, char *string)
 
 	if (cstate->escape_off)
 	{
-		CopySendData(cstate, ptr, strlen(ptr));
+		PxfCopySendData(cstate, ptr, strlen(ptr));
 		return;
 	}
 
 	/*
 	 * We have to grovel through the string searching for control characters
 	 * and instances of the delimiter character.  In most cases, though, these
-	 * are infrequent.  To avoid overhead from calling CopySendData once per
+	 * are infrequent.  To avoid overhead from calling PxfCopySendData once per
 	 * character, we dump out all characters between escaped characters in a
 	 * single call.  The loop invariant is that the data from "start" to "ptr"
 	 * can be sent literally, but hasn't yet been.
@@ -3272,8 +3237,8 @@ CopyAttributeOutText(PxfCopyState cstate, char *string)
  * CSV-style escaping
  */
 static void
-CopyAttributeOutCSV(PxfCopyState cstate, char *string,
-					bool use_quote, bool single_attr)
+PxfCopyAttributeOutCSV(PxfCopyState cstate, char *string,
+					   bool use_quote, bool single_attr)
 {
 	char	   *ptr;
 	char	   *start;
@@ -3341,7 +3306,7 @@ CopyAttributeOutCSV(PxfCopyState cstate, char *string,
 		PxfCopySendChar(cstate, quotec);
 
 		/*
-		 * We adopt the same optimization strategy as in CopyAttributeOutText
+		 * We adopt the same optimization strategy as in PxfCopyAttributeOutText
 		 */
 		start = ptr;
 		while ((c = *ptr) != '\0')
@@ -3460,7 +3425,7 @@ CopyGetAttnums(TupleDesc tupDesc, Relation rel, List *attnamelist)
 }
 
 /*
- * setEncodingConversionProc
+ * PxfSetEncodingConversionProc
  *
  * COPY and External tables use a custom path to the encoding conversion
  * API because external tables have their own encoding (which is not
@@ -3471,7 +3436,7 @@ CopyGetAttnums(TupleDesc tupDesc, Relation rel, List *attnamelist)
  * The code here mimics a part of SetClientEncoding() in mbutils.c
  */
 static void
-setEncodingConversionProc(PxfCopyState cstate, int encoding, bool iswritable)
+PxfSetEncodingConversionProc(PxfCopyState cstate, int encoding, bool iswritable)
 {
 	Oid		conversion_proc;
 	
@@ -3498,7 +3463,7 @@ setEncodingConversionProc(PxfCopyState cstate, int encoding, bool iswritable)
 }
 
 static List *
-parse_joined_option_list(char *str, char *delimiter)
+PxfParseJoinedOptionList(char *str, char *delimiter)
 {
 	char	   *token;
 	char	   *comma;
