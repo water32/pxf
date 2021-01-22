@@ -25,6 +25,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -440,67 +441,73 @@ public class QuerySession<T, M> {
         }
     }
 
-    private double stdv = -1;
+    private double mean;
 
-    private AtomicBoolean canAddWorker = new AtomicBoolean(false);
+    private final AtomicBoolean canAddWorker = new AtomicBoolean(false);
+    private final AtomicBoolean canRemoveWorker = new AtomicBoolean(false);
 
     private Instant lastUpdateOfCondition = Instant.now();
 
-    public void reportConsumptionStats(int segmentId, long tupleCount, long durationMs) {
-        // get a copy of the table of consumption
-        double rateMs = durationMs == 0 ? 0 : ((double) tupleCount / (double) durationMs);
-//        double mean, stdv, variance;
-        double mean;
+    private volatile boolean changedInLastWindow = false;
 
-        double oldStdv = -1;
-        long n;
+    private long count = 0;
+
+    public void reportConsumptionStats(int segmentId, long tupleCount, long durationNanos) {
+        if (durationNanos == 0)
+            return;
+
+        long c = 0;
+        double rateMs = (double) (tupleCount * 1_000_000) / (double) (durationNanos);
+        double oldMean = 0;
+        boolean hasSignificantIncrease = false;
+        long timeSinceLastUpdate;
 
         synchronized (stats) {
-//            rateTableInMs[segmentId] = rateMs;
-//
-//            int totalCount = 0;
-//            double totalRate = 0;
-//            for (double rate : rateTableInMs) {
-//                if (rate >= 0) {
-//                    totalRate += rate;
-//                    totalCount++;
-//                }
-//            }
-//            avgRateMs = totalRate / totalCount;
+            count++;
             stats.addValue(rateMs);
 
-            n = stats.getN();
-            if (n == 1000) {
-                oldStdv = stdv;
-                stdv = stats.getStandardDeviation();
-            }
-            mean = stats.getMean();
-
-//            mean = stats.getMean();
-//            stdv = stats.getStandardDeviation();
-//            variance = stats.getVariance();
-//            stats.getN();
-        }
-
-        long timeSinceLastUpdate = Duration.between(lastUpdateOfCondition, Instant.now()).toMillis();
-        if (oldStdv != -1 && Math.abs((stdv - oldStdv) / oldStdv) < 0.1 &&
-                timeSinceLastUpdate > 5000) {
-            // multiple threads can set it to true
-            if (canAddWorker.compareAndSet(false, true)) {
+            // When enough time has elapsed, we make some decision about flipping
+            // the boolean for allowing additional workers
+            timeSinceLastUpdate = Duration.between(lastUpdateOfCondition, Instant.now()).toMillis();
+            if (timeSinceLastUpdate > 5000) {
+                oldMean = mean;
+                mean = stats.getMean();
                 lastUpdateOfCondition = Instant.now();
+
+                hasSignificantIncrease = (mean - oldMean) / oldMean >= 0.2;
+
+                if (hasSignificantIncrease) {
+                    canAddWorker.set(true);
+                } else if (changedInLastWindow) {
+                    canRemoveWorker.set(true);
+                }
+                changedInLastWindow = false;
+                c = count;
+                count = 0;
+                stats.clear();
             }
         }
-//        LOG.error("Segment {} reported {} tuples in {}ms with a rate of {} tuples/msec, average rate {} tuples/msec",
-//                segmentId,
-//                tupleCount,
-//                durationMs,
-//                rateMs,
-//                avgRateMs);
-//        LOG.error("Segment {}. old stdv {}, stdv {}, n {}, mean {}, timeSinceLastUpdate {}", segmentId, oldStdv, stdv, n, mean, timeSinceLastUpdate);
+
+        if (timeSinceLastUpdate > 5000) {
+            LOG.error("{}: oldMean {}, mean {}, hasSignificantIncrease {}, called {} times",
+                    queryId,
+                    oldMean,
+                    mean,
+                    hasSignificantIncrease,
+                    c);
+        }
     }
 
     public boolean shouldAddProcessorThread() {
         // single thread calls this method
-        return canAddWorker.compareAndSet(true, false);
+        if (canAddWorker.compareAndSet(true, false)) {
+            changedInLastWindow = true;
+            return true;
+        }
+        return false;
+    }
+
+    public boolean shouldRemoveProcessorThread() {
+        return canRemoveWorker.compareAndSet(true, false);
     }
 }

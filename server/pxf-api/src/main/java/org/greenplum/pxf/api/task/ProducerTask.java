@@ -100,10 +100,19 @@ public class ProducerTask<T, M> implements Runnable {
                         if (currentThreads < maxThreads && querySession.shouldAddProcessorThread()) {
                             currentThreads++;
 
-                            LOG.error("Increased the number of workers to {}", currentThreads);
-                            
+                            LOG.error("Increased the number of processor threads to {}", currentThreads);
+
                             processorExecutorService.setMaximumPoolSize(currentThreads);
                             processorExecutorService.setCorePoolSize(currentThreads);
+                        }
+
+                        if (currentThreads > 1 && querySession.shouldRemoveProcessorThread()) {
+                            currentThreads--;
+
+                            LOG.error("Decreased the number of processor threads to {}", currentThreads);
+
+                            processorExecutorService.setCorePoolSize(currentThreads);
+                            processorExecutorService.setMaximumPoolSize(currentThreads);
                         }
                     }
 

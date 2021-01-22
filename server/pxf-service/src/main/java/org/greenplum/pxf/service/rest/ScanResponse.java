@@ -97,15 +97,15 @@ public class ScanResponse<T, M> implements StreamingResponseBody {
 
                 // serialize a batch of tuples to the output stream using the
                 // adapter for the query
-                
+
                 serializer.serialize(output, columnDescriptors, batch, adapter);
                 tupleCount += batch.size();
                 tupleCountForStats += batch.size();
 
                 batch.clear();
 
-                if (tupleCountForStats >= 1_000) {
-                    querySession.reportConsumptionStats(segmentId, tupleCountForStats, Duration.between(start, Instant.now()).toMillis());
+                if (tupleCountForStats >= 2_000) {
+                    querySession.reportConsumptionStats(segmentId, tupleCountForStats, Duration.between(start, Instant.now()).toNanos());
                     tupleCountForStats = 0;
                     start = Instant.now();
                 }
