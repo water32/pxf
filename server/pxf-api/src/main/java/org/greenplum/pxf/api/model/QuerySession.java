@@ -322,7 +322,7 @@ public class QuerySession<T, M> {
      * @throws Exception the error
      */
     public void ensureErrorReported() throws Exception {
-        if (errorReported.compareAndSet(false, true)) {
+        if (errorReported.compareAndSet(false, true) && !errors.isEmpty()) {
             throw errors.getFirst();
         }
     }
