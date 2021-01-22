@@ -2,9 +2,12 @@ package org.greenplum.pxf.api.model;
 
 import com.google.common.cache.Cache;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
+import org.apache.commons.math3.stat.descriptive.SynchronizedDescriptiveStatistics;
 import org.greenplum.pxf.api.serializer.adapter.BinarySerializerAdapter;
 import org.greenplum.pxf.api.serializer.adapter.SerializerAdapter;
 import org.greenplum.pxf.api.utilities.SpringContext;
@@ -160,6 +163,11 @@ public class QuerySession<T, M> {
      */
     private final Cache<String, QuerySession<T, M>> querySessionCache;
 
+    /**
+     *
+     */
+    private final DescriptiveStatistics stats;
+
     public QuerySession(
             RequestContext context,
             Cache<String, QuerySession<T, M>> querySessionCache,
@@ -188,8 +196,11 @@ public class QuerySession<T, M> {
         this.createdProcessorTaskCount = new AtomicInteger(0);
         this.completedProcessorTaskCount = new AtomicInteger(0);
         this.totalTupleCount = 0;
-        this.rateTableInMs = new double[context.getTotalSegments()];
-        Arrays.fill(rateTableInMs, -1);
+//        this.rateTableInMs = new double[context.getTotalSegments()];
+//        Arrays.fill(rateTableInMs, -1);
+
+        // Create a DescriptiveStats instance and set the window size to 1000
+        stats = new DescriptiveStatistics(1000);
     }
 
     /**
@@ -382,6 +393,8 @@ public class QuerySession<T, M> {
      */
     public void close() {
 
+        Instant endTime = Instant.now();
+
         // Clear the output queue in case of error or cancellation
         outputQueue.clear();
 
@@ -389,8 +402,6 @@ public class QuerySession<T, M> {
         registeredSegmentQueue.clear();
 
         // TODO: Close UGI
-
-        Instant endTime = Instant.now();
 
         if (cancelTime != null) {
 
@@ -429,34 +440,67 @@ public class QuerySession<T, M> {
         }
     }
 
-    private final double[] rateTableInMs;
+    private double stdv = -1;
 
-    private volatile double avgRateMs;
+    private AtomicBoolean canAddWorker = new AtomicBoolean(false);
 
-    public void reportConsumptionStats(int segmentId, int tupleCount, long durationMs) {
+    private Instant lastUpdateOfCondition = Instant.now();
+
+    public void reportConsumptionStats(int segmentId, long tupleCount, long durationMs) {
         // get a copy of the table of consumption
         double rateMs = durationMs == 0 ? 0 : ((double) tupleCount / (double) durationMs);
+//        double mean, stdv, variance;
+        double mean;
 
-        synchronized (rateTableInMs) {
-            rateTableInMs[segmentId] = rateMs;
+        double oldStdv = -1;
+        long n;
 
-            int totalCount = 0;
-            double totalRate = 0;
-            for (double rate : rateTableInMs) {
-                if (rate >= 0) {
-                    totalRate += rate;
-                    totalCount++;
-                }
+        synchronized (stats) {
+//            rateTableInMs[segmentId] = rateMs;
+//
+//            int totalCount = 0;
+//            double totalRate = 0;
+//            for (double rate : rateTableInMs) {
+//                if (rate >= 0) {
+//                    totalRate += rate;
+//                    totalCount++;
+//                }
+//            }
+//            avgRateMs = totalRate / totalCount;
+            stats.addValue(rateMs);
+
+            n = stats.getN();
+            if (n == 1000) {
+                oldStdv = stdv;
+                stdv = stats.getStandardDeviation();
             }
-            avgRateMs = totalRate / totalCount;
+            mean = stats.getMean();
+
+//            mean = stats.getMean();
+//            stdv = stats.getStandardDeviation();
+//            variance = stats.getVariance();
+//            stats.getN();
         }
-    //        LOG.error("Segment {} reported rate of {} tuples/msec, average rate {} tuples/msec",
-    //                segmentId,
-    //                rateMs,
-    //                avgRateMs);
+
+        long timeSinceLastUpdate = Duration.between(lastUpdateOfCondition, Instant.now()).toMillis();
+        if (oldStdv != -1 && Math.abs((stdv - oldStdv) / oldStdv) < 0.1 &&
+                timeSinceLastUpdate > 5000) {
+            // multiple threads can set it to true
+            if (canAddWorker.compareAndSet(false, true)) {
+                lastUpdateOfCondition = Instant.now();
+            }
+        }
+//        LOG.error("Segment {} reported {} tuples in {}ms with a rate of {} tuples/msec, average rate {} tuples/msec",
+//                segmentId,
+//                tupleCount,
+//                durationMs,
+//                rateMs,
+//                avgRateMs);
+//        LOG.error("Segment {}. old stdv {}, stdv {}, n {}, mean {}, timeSinceLastUpdate {}", segmentId, oldStdv, stdv, n, mean, timeSinceLastUpdate);
     }
 
-    public double getAvgRateMs() {
-        return avgRateMs;
+    public boolean shouldAddProcessorThread() {
+        // single thread calls this method
+        return canAddWorker.compareAndSet(true, false);
     }
 }

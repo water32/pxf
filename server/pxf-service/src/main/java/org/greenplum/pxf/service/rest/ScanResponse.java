@@ -62,7 +62,7 @@ public class ScanResponse<T, M> implements StreamingResponseBody {
         LOG.debug("{}-{}-- Starting streaming for {}", context.getTransactionId(),
                 segmentId, querySession);
 
-        int recordCount = 0;
+        int tupleCount = 0;
         SerializerAdapter adapter = querySession.getAdapter();
         TupleSerializer<T, M> serializer = querySession.getProcessor().tupleSerializer(querySession);
         BlockingQueue<TupleBatch<T, M>> outputQueue = querySession.getOutputQueue();
@@ -74,9 +74,13 @@ public class ScanResponse<T, M> implements StreamingResponseBody {
         int pollTimeout = context.getConfiguration()
                 .getInt("pxf.response.poll-timeout", 5);
 
+        Instant start;
+        long tupleCountForStats = 0;
+
         try {
             serializer.open(output, adapter);
 
+            start = Instant.now();
             while (querySession.isActive()) {
                 TupleBatch<T, M> batch = outputQueue.poll(pollTimeout, TimeUnit.MILLISECONDS);
 
@@ -93,14 +97,18 @@ public class ScanResponse<T, M> implements StreamingResponseBody {
 
                 // serialize a batch of tuples to the output stream using the
                 // adapter for the query
-                Instant start = Instant.now();
+                
                 serializer.serialize(output, columnDescriptors, batch, adapter);
-                long durationMs = Duration.between(start, Instant.now()).toMillis();
-                recordCount += batch.size();
-
-                querySession.reportConsumptionStats(segmentId, batch.size(), durationMs);
+                tupleCount += batch.size();
+                tupleCountForStats += batch.size();
 
                 batch.clear();
+
+                if (tupleCountForStats >= 1_000) {
+                    querySession.reportConsumptionStats(segmentId, tupleCountForStats, Duration.between(start, Instant.now()).toMillis());
+                    tupleCountForStats = 0;
+                    start = Instant.now();
+                }
             }
 
             if (!querySession.isQueryErrored() && !querySession.isQueryCancelled()) {
@@ -135,10 +143,10 @@ public class ScanResponse<T, M> implements StreamingResponseBody {
             LOG.error("Error while writing data for segment {}", segmentId, e);
             throw new IOException(e.getMessage(), e);
         } finally {
-            querySession.deregisterSegment(recordCount);
+            querySession.deregisterSegment(tupleCount);
             LOG.debug("{}-{}-- Stopped streaming {} record{} for {}",
                     context.getTransactionId(), segmentId,
-                    recordCount, recordCount == 1 ? "" : "s", querySession);
+                    tupleCount, tupleCount == 1 ? "" : "s", querySession);
         }
     }
 }

@@ -23,8 +23,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import static java.util.Objects.requireNonNull;
-import static org.greenplum.pxf.api.configuration.PxfServerProperties.DEFAULT_SCALE_FACTOR;
-import static org.greenplum.pxf.api.factory.ConfigurationFactory.PXF_PROCESSOR_SCALE_FACTOR_PROPERTY;
 import static org.greenplum.pxf.api.factory.ConfigurationFactory.PXF_PROCESSOR_THREADS;
 
 public class ProducerTask<T, M> implements Runnable {
@@ -33,8 +31,10 @@ public class ProducerTask<T, M> implements Runnable {
 
     private final QuerySession<T, M> querySession;
     private final ThreadPoolExecutor processorExecutorService;
-    private int currentScaleFactor = 1;
-    private final int maximumScaleFactor;
+    //    private int currentScaleFactor = 1;
+//    private final int maximumScaleFactor;
+    private final int maxThreads;
+    private int currentThreads;
 
     public ProducerTask(QuerySession<T, M> querySession) {
         this.querySession = requireNonNull(querySession, "querySession cannot be null");
@@ -43,13 +43,17 @@ public class ProducerTask<T, M> implements Runnable {
         // in the server configuration
         String poolId = querySession.getContext().getUser() + ":" + querySession.getContext().getTransactionId();
 
-        maximumScaleFactor = querySession.getContext().getConfiguration()
-                .getInt(PXF_PROCESSOR_SCALE_FACTOR_PROPERTY, DEFAULT_SCALE_FACTOR);
+        maxThreads = 10;
+
+//        maximumScaleFactor = querySession.getContext().getConfiguration()
+//                .getInt(PXF_PROCESSOR_SCALE_FACTOR_PROPERTY, DEFAULT_SCALE_FACTOR);
         int maxProcessorThreads = Utilities.getProcessorMaxThreadsPerSession(1);
 
 
         int threads = querySession.getContext().getConfiguration()
-                .getInt(PXF_PROCESSOR_THREADS, 6);
+                .getInt(PXF_PROCESSOR_THREADS, 2);
+
+        currentThreads = threads;
 
         // We create a new ExecutorService with a fixed amount of threads.
         // We create one ExecutorService per query so we don't need to build
@@ -92,6 +96,15 @@ public class ProducerTask<T, M> implements Runnable {
                         // still remaining to process, this operation will be
                         // a no-op
                         querySession.tryMarkInactive();
+                    } else {
+                        if (currentThreads < maxThreads && querySession.shouldAddProcessorThread()) {
+                            currentThreads++;
+
+                            LOG.error("Increased the number of workers to {}", currentThreads);
+                            
+                            processorExecutorService.setMaximumPoolSize(currentThreads);
+                            processorExecutorService.setCorePoolSize(currentThreads);
+                        }
                     }
 
 //                    int outputQueueSize = outputQueue.size();
