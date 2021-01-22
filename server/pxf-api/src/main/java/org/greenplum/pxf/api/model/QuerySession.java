@@ -2,12 +2,10 @@ package org.greenplum.pxf.api.model;
 
 import com.google.common.cache.Cache;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
-import org.apache.commons.math3.stat.descriptive.SynchronizedDescriptiveStatistics;
 import org.greenplum.pxf.api.serializer.adapter.BinarySerializerAdapter;
 import org.greenplum.pxf.api.serializer.adapter.SerializerAdapter;
 import org.greenplum.pxf.api.utilities.SpringContext;
@@ -16,7 +14,6 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.Deque;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.BlockingQueue;
@@ -25,7 +22,6 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
