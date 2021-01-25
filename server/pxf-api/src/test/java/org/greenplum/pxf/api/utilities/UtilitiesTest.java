@@ -398,8 +398,5 @@ public class UtilitiesTest {
         assertEquals("0.0.0.0", Utilities.getHost("hdfs://0.0.0.0?PROFILE=foo"));
         assertEquals("www.example.com", Utilities.getHost("www.example.com"));
         assertEquals("10.0.0.15", Utilities.getHost("10.0.0.15"));
-
-
-        assertEquals("0:0:0:0:0:0:0:1", Utilities.getHost("0:0:0:0:0:0:0:1"));
     }
 }

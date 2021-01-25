@@ -7,7 +7,6 @@ import org.greenplum.pxf.api.model.DataSplit;
 import org.greenplum.pxf.api.model.Processor;
 import org.greenplum.pxf.api.model.QuerySession;
 import org.greenplum.pxf.api.model.RequestContext;
-import org.greenplum.pxf.api.serializer.adapter.BinarySerializerAdapter;
 import org.greenplum.pxf.api.utilities.ColumnDescriptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,7 +49,7 @@ class DemoProcessorTest {
         MeterRegistry mockMeterRegistry = mock(MeterRegistry.class);
 
         processor = new DemoProcessor(null);
-        querySession = new QuerySession<>(context, mockCache, mockMeterRegistry, new BinarySerializerAdapter());
+        querySession = new QuerySession<>(context, mockCache, mockMeterRegistry);
         querySession.setProcessor(processor);
     }
 

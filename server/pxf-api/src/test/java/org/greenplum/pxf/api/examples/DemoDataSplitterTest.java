@@ -1,6 +1,7 @@
 package org.greenplum.pxf.api.examples;
 
 import org.greenplum.pxf.api.model.DataSplit;
+import org.greenplum.pxf.api.model.OutputFormat;
 import org.greenplum.pxf.api.model.QuerySession;
 import org.greenplum.pxf.api.model.RequestContext;
 import org.junit.jupiter.api.Test;
@@ -19,7 +20,8 @@ class DemoDataSplitterTest {
     void testIterator() {
         RequestContext context = new RequestContext();
         context.setDataSource("demo-datasource");
-        QuerySession<String, Void> querySession = new QuerySession<>(context, null, null, null);
+        context.setOutputFormat(OutputFormat.BINARY);
+        QuerySession<String, Void> querySession = new QuerySession<>(context, null, null);
 
         DemoDataSplitter splitter = new DemoDataSplitter(querySession);
 
