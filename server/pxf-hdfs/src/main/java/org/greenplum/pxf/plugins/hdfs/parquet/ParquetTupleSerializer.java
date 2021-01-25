@@ -57,7 +57,8 @@ public class ParquetTupleSerializer extends BaseTupleSerializer<Group, MessageTy
         if (repetitionCount == 0) {
             adapter.writeNull(out);
         } else if (repetitionCount == 1) {
-            adapter.writeText(out, group.getString(columnIndex, 0));
+            // The string is already stored as a UTF-8 byte[]
+            adapter.writeBytes(out, group.getBinary(columnIndex, 0).getBytesUnsafe());
         } else {
             // TODO: build the json. Refer to ParquetResolver#235
             raiseNotSupportedException();

@@ -97,8 +97,9 @@ public class ProducerTask<T, M> implements Runnable {
                         // a no-op
                         querySession.tryMarkInactive();
                     } else {
-                        if (currentThreads < maxThreads && querySession.shouldAddProcessorThread()) {
-                            currentThreads++;
+                        int threadDelta = querySession.markWindow();
+                        if (currentThreads < maxThreads && threadDelta > 0) {
+                            currentThreads += threadDelta;
 
                             LOG.error("Increased the number of processor threads to {}", currentThreads);
 
@@ -106,8 +107,8 @@ public class ProducerTask<T, M> implements Runnable {
                             processorExecutorService.setCorePoolSize(currentThreads);
                         }
 
-                        if (currentThreads > 1 && querySession.shouldRemoveProcessorThread()) {
-                            currentThreads--;
+                        if (currentThreads > 1 && threadDelta < 0) {
+                            currentThreads += threadDelta;
 
                             LOG.error("Decreased the number of processor threads to {}", currentThreads);
 
@@ -115,31 +116,6 @@ public class ProducerTask<T, M> implements Runnable {
                             processorExecutorService.setMaximumPoolSize(currentThreads);
                         }
                     }
-
-//                    int outputQueueSize = outputQueue.size();
-//                    int executorQueueSize = processorExecutorService.getQueue().size();
-//
-//                    // We increase the executor pool size if all of these
-//                    // conditions are met:
-//                    // - We are consuming tuples from the output queue
-//                    //   fast enough to keep the output queue almost empty.
-//                    // - There is more work left to increase the
-//                    //   number of threads.
-//                    // - We have not reached the maximum scale factor.
-//
-//                    if (outputQueueSize <= 5
-//                            && executorQueueSize > 0
-//                            && currentScaleFactor < maximumScaleFactor) {
-//                        currentScaleFactor++;
-//                        // calculate the number of threads for the next scale factor
-//                        int threads = Utilities.getProcessorMaxThreadsPerSession(currentScaleFactor);
-//
-//                        LOG.debug("{}: New scale factor is {}, output queue size is {} with {} tasks queued to be processed",
-//                                querySession, currentScaleFactor, outputQueueSize, executorQueueSize);
-//
-//                        processorExecutorService.setMaximumPoolSize(threads);
-//                        processorExecutorService.setCorePoolSize(threads);
-//                    }
                 } else {
                     // Add all the segment ids that are available
                     segmentIds = new HashSet<>();

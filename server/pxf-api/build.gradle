@@ -48,8 +48,6 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind") { transitive = false }
     implementation("com.esotericsoftware:kryo:3.0.3") { transitive = false }
 
-    implementation("org.apache.commons:commons-math3:3.6.1")
-
     /*******************************
      * Test Dependencies
      *******************************/

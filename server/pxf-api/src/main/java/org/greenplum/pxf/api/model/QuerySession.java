@@ -5,7 +5,6 @@ import io.micrometer.core.instrument.MeterRegistry;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
-import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.greenplum.pxf.api.serializer.adapter.BinarySerializerAdapter;
 import org.greenplum.pxf.api.serializer.adapter.SerializerAdapter;
 import org.greenplum.pxf.api.utilities.SpringContext;
@@ -70,7 +69,7 @@ public class QuerySession<T, M> {
      * The binary serializer adapter
      */
     @Getter
-    private final SerializerAdapter adapter;
+    private SerializerAdapter adapter;
 
     /**
      * The processor used for this query session
@@ -160,19 +159,23 @@ public class QuerySession<T, M> {
      */
     private final Cache<String, QuerySession<T, M>> querySessionCache;
 
-    /**
-     *
-     */
-    private final DescriptiveStatistics stats;
-
     public QuerySession(
             RequestContext context,
             Cache<String, QuerySession<T, M>> querySessionCache,
             MeterRegistry meterRegistry) {
+        this(context, querySessionCache, meterRegistry, null);
+        this.adapter = resolveSerializationAdapter(context);
+    }
+
+    public QuerySession(
+            RequestContext context,
+            Cache<String, QuerySession<T, M>> querySessionCache,
+            MeterRegistry meterRegistry,
+            SerializerAdapter adapter) {
         this.context = context;
         this.querySessionCache = querySessionCache;
         this.meterRegistry = meterRegistry;
-        this.adapter = resolveSerializationAdapter(context);
+        this.adapter = adapter;
         this.registrationLock = new ReentrantLock();
         this.noActiveSegments = registrationLock.newCondition();
         this.queryId = String.format("%s:%s:%s:%s", context.getServerName(),
@@ -193,11 +196,6 @@ public class QuerySession<T, M> {
         this.createdProcessorTaskCount = new AtomicInteger(0);
         this.completedProcessorTaskCount = new AtomicInteger(0);
         this.totalTupleCount = 0;
-//        this.rateTableInMs = new double[context.getTotalSegments()];
-//        Arrays.fill(rateTableInMs, -1);
-
-        // Create a DescriptiveStats instance and set the window size to 1000
-        stats = new DescriptiveStatistics(1000);
     }
 
     /**
@@ -437,73 +435,82 @@ public class QuerySession<T, M> {
         }
     }
 
-    private double mean;
+    private final Object reportingLock = new Object();
 
-    private final AtomicBoolean canAddWorker = new AtomicBoolean(false);
-    private final AtomicBoolean canRemoveWorker = new AtomicBoolean(false);
-
+    private double referencePoint;
+//    private WindowState currentState;
+    private double accumulatedRateOfConsumption = 0;
+    private int countOfConsumptionReports = 0;
+    private boolean changedInLastWindow = false;
     private Instant lastUpdateOfCondition = Instant.now();
-
-    private volatile boolean changedInLastWindow = false;
-
-    private long count = 0;
+    
+//    enum WindowState {
+//        GREEN,
+//        YELLOW,
+//        RED
+//    }
 
     public void reportConsumptionStats(int segmentId, long tupleCount, long durationNanos) {
-        if (durationNanos == 0)
-            return;
-
-        long c = 0;
-        double rateMs = (double) (tupleCount * 1_000_000) / (double) (durationNanos);
-        double oldMean = 0;
-        boolean hasSignificantIncrease = false;
-        long timeSinceLastUpdate;
-
-        synchronized (stats) {
-            count++;
-            stats.addValue(rateMs);
-
-            // When enough time has elapsed, we make some decision about flipping
-            // the boolean for allowing additional workers
-            timeSinceLastUpdate = Duration.between(lastUpdateOfCondition, Instant.now()).toMillis();
-            if (timeSinceLastUpdate > 5000) {
-                oldMean = mean;
-                mean = stats.getMean();
-                lastUpdateOfCondition = Instant.now();
-
-                hasSignificantIncrease = (mean - oldMean) / oldMean >= 0.2;
-
-                if (hasSignificantIncrease) {
-                    canAddWorker.set(true);
-                } else if (changedInLastWindow) {
-                    canRemoveWorker.set(true);
-                }
-                changedInLastWindow = false;
-                c = count;
-                count = 0;
-                stats.clear();
+        if (durationNanos > 0) {
+            double rateMs = (double) (tupleCount * 1_000_000) / (double) (durationNanos);
+            synchronized (reportingLock) {
+                accumulatedRateOfConsumption += rateMs;
+                countOfConsumptionReports++;
             }
         }
+    }
 
+    public int markWindow() {
+        // single thread calls this method
+        int returnValue = 0, count;
+        long timeSinceLastUpdate = Duration.between(lastUpdateOfCondition, Instant.now()).toMillis();
         if (timeSinceLastUpdate > 5000) {
-            LOG.error("{}: oldMean {}, mean {}, hasSignificantIncrease {}, called {} times",
+            double oldMean = referencePoint;
+            boolean hasSignificantIncrease;
+            lastUpdateOfCondition = Instant.now();
+            synchronized (reportingLock) {
+                count = countOfConsumptionReports;
+                referencePoint = accumulatedRateOfConsumption / countOfConsumptionReports;
+                accumulatedRateOfConsumption = 0;
+                countOfConsumptionReports = 0;
+            }
+            
+            
+            
+//            switch (currentState) {
+//                case GREEN:
+//                    break;
+//                    
+//                case YELLOW:
+//                    break;
+//                    
+//                case RED:
+//                    break;
+//            }
+            
+            
+            
+            
+            
+            
+            hasSignificantIncrease = oldMean == 0 || ((referencePoint - oldMean) / oldMean >= 0.2);
+//            hasSignificantDecrease = oldMean!= 0 && ((mean - oldMean) / oldMean < -0.2);
+
+            if (hasSignificantIncrease) {
+                returnValue = 1;
+            } else if (changedInLastWindow) {
+                returnValue = -1;
+            }
+            changedInLastWindow = returnValue == 1;
+
+            LOG.error("{}: oldMean {}, mean {}, hasSignificantIncrease {}, returnValue {}, called {} times",
                     queryId,
                     oldMean,
-                    mean,
+                    referencePoint,
                     hasSignificantIncrease,
-                    c);
+                    returnValue,
+                    count);
         }
-    }
-
-    public boolean shouldAddProcessorThread() {
-        // single thread calls this method
-        if (canAddWorker.compareAndSet(true, false)) {
-            changedInLastWindow = true;
-            return true;
-        }
-        return false;
-    }
-
-    public boolean shouldRemoveProcessorThread() {
-        return canRemoveWorker.compareAndSet(true, false);
+        return returnValue;
     }
 }

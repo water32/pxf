@@ -106,7 +106,7 @@ public class ParquetProcessor implements Processor<Group, MessageType> {
                 HcfsType.fromString(context.getProtocol().toUpperCase()) != HcfsType.CUSTOM;
     }
 
-    private static class ParquetTupleItr implements TupleIterator<Group, MessageType> {
+    static class ParquetTupleItr implements TupleIterator<Group, MessageType> {
 
         protected Logger LOG = LoggerFactory.getLogger(this.getClass());
 

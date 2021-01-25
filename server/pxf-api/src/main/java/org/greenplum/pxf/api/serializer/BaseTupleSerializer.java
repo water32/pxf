@@ -30,7 +30,6 @@ public abstract class BaseTupleSerializer<T, M> implements TupleSerializer<T, M>
                 ColumnDescriptor columnDescriptor = columnDescriptors[columnIndex];
 
                 if (!columnDescriptor.isProjected()) {
-//                    adapter.writeNull(out);
                     continue;
                 }
 
