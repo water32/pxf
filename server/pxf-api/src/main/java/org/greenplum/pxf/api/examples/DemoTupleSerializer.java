@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.charset.Charset;
 
 @Component
 public class DemoTupleSerializer extends BaseTupleSerializer<String[], Void> {
@@ -19,8 +20,8 @@ public class DemoTupleSerializer extends BaseTupleSerializer<String[], Void> {
     } // DO NOTHING
 
     @Override
-    protected void writeText(OutputStream out, String[] tuple, int columnIndex, Void metadata, SerializerAdapter adapter) throws IOException {
-        adapter.writeText(out, tuple[columnIndex]);
+    protected void writeText(OutputStream out, String[] tuple, int columnIndex, Void metadata, SerializerAdapter adapter, Charset encoding) throws IOException {
+        adapter.writeText(out, tuple[columnIndex], encoding);
     }
 
     @Override

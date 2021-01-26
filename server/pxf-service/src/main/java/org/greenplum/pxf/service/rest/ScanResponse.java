@@ -14,6 +14,7 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.charset.Charset;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -63,6 +64,7 @@ public class ScanResponse<T, M> implements StreamingResponseBody {
                 segmentId, querySession);
 
         int tupleCount = 0;
+        Charset targetEncoding = context.getTargetEncoding();
         SerializerAdapter adapter = querySession.getAdapter();
         TupleSerializer<T, M> serializer = querySession.getProcessor().tupleSerializer(querySession);
         BlockingQueue<TupleBatch<T, M>> outputQueue = querySession.getOutputQueue();
@@ -98,7 +100,7 @@ public class ScanResponse<T, M> implements StreamingResponseBody {
                 // serialize a batch of tuples to the output stream using the
                 // adapter for the query
 
-                serializer.serialize(output, columnDescriptors, batch, adapter);
+                serializer.serialize(output, columnDescriptors, batch, adapter, targetEncoding);
                 tupleCount += batch.size();
                 tupleCountForStats += batch.size();
 

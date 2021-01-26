@@ -5,6 +5,7 @@ import org.greenplum.pxf.api.model.OutputFormat;
 import org.greenplum.pxf.api.model.PluginConf;
 import org.greenplum.pxf.api.model.ProtocolHandler;
 import org.greenplum.pxf.api.model.RequestContext;
+import org.greenplum.pxf.api.utilities.CharsetUtils;
 import org.greenplum.pxf.api.utilities.ColumnDescriptor;
 import org.greenplum.pxf.api.utilities.EnumAggregationType;
 import org.greenplum.pxf.api.utilities.FragmentMetadata;
@@ -39,6 +40,7 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
     private static final String FALSE_LCASE = "false";
     private static final String PROFILE_SCHEME = "PROFILE-SCHEME";
 
+    private final CharsetUtils charsetUtils;
     private final PluginConf pluginConf;
     private final FragmentMetadataSerDe metadataSerDe;
 
@@ -49,9 +51,10 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
      * @param pluginConf    the plugin conf
      * @param metadataSerDe the metadata serializer/deserializer
      */
-    public HttpRequestParser(PluginConf pluginConf, FragmentMetadataSerDe metadataSerDe) {
+    public HttpRequestParser(PluginConf pluginConf, FragmentMetadataSerDe metadataSerDe, CharsetUtils charsetUtils) {
         this.pluginConf = pluginConf;
         this.metadataSerDe = metadataSerDe;
+        this.charsetUtils = charsetUtils;
     }
 
     @Override
@@ -117,6 +120,16 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
             context.setFilterString(filterString);
         } else if ("1".equals(hasFilter)) {
             LOG.info("Original query has filter, but it was not propagated to PXF");
+        }
+
+        String sourceEncoding = params.removeOptionalProperty("SOURCE-ENCODING");
+        if (StringUtils.isNotBlank(sourceEncoding)) {
+            context.setSourceEncoding(charsetUtils.forName(sourceEncoding));
+        }
+
+        String targetEncoding = params.removeOptionalProperty("TARGET-ENCODING");
+        if (StringUtils.isNotBlank(targetEncoding)) {
+            context.setTargetEncoding(charsetUtils.forName(targetEncoding));
         }
 
         context.setFragmenter(params.removeUserProperty("FRAGMENTER"));

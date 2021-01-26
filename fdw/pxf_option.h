@@ -56,6 +56,10 @@ typedef struct PxfOptions
 								 * resource, format, wire_format, pxf_port,
 								 * pxf_host, and pxf_protocol */
 
+	/* Encoding options */
+	char	   *source_encoding;	/* The encoding of the data on the external system */
+	char	   *target_encoding;	/* The target encoding for PXF-Greenplum communication */
+
 	/* SSL options */
 	PxfSSLOptions	 *ssl_options; /* SSL options for CURL */
 } PxfOptions;

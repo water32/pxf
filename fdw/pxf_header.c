@@ -104,6 +104,10 @@ BuildHttpHeaders(PXF_CURL_HEADERS headers,
 	PxfCurlHeadersAppend(headers, "X-GP-PROTOCOL", options->protocol);
 	PxfCurlHeadersAppend(headers, "X-GP-FORMAT", options->format);
 
+	/* encoding options */
+	PxfCurlHeadersAppend(headers, "X-GP-SOURCE-ENCODING", options->source_encoding);
+	PxfCurlHeadersAppend(headers, "X-GP-TARGET-ENCODING", options->target_encoding);
+
 	/* extra options */
 	AddOptionsToHttpHeader(headers, options->options);
 

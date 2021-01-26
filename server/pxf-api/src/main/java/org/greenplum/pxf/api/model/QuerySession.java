@@ -5,6 +5,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 import org.greenplum.pxf.api.serializer.adapter.BinarySerializerAdapter;
 import org.greenplum.pxf.api.serializer.adapter.SerializerAdapter;
 import org.greenplum.pxf.api.utilities.SpringContext;
@@ -31,6 +32,7 @@ import static org.greenplum.pxf.api.factory.ConfigurationFactory.PXF_PROCESSOR_Q
  * for the same query slice.
  */
 @EqualsAndHashCode(of = {"queryId"})
+@ToString(of = {"queryId"})
 public class QuerySession<T, M> {
 
     private static final int DEFAULT_PROCESSOR_QUEUE_SIZE = 20;

@@ -490,20 +490,21 @@ ValidateCopyOptions(List *options_list, Oid catalog)
 PxfOptions *
 PxfGetOptions(Oid foreigntableid)
 {
-	char			*port_str = NULL,
-				*host_str = NULL,
-				*ssl_version = NULL;
-	Node			*wireFormat;
-	UserMapping		*user;
+	char				*encoding = NULL;
+	char				*port_str = NULL,
+						*host_str = NULL,
+						*ssl_version = NULL;
+	Node				*wireFormat;
+	UserMapping			*user;
 	ForeignTable		*table;
 	ForeignServer		*server;
 	ForeignDataWrapper	*wrapper;
-	List			*options;
-	PxfOptions		*opt;
-	ListCell		*lc;
-	List			*copy_options,
-				*other_options,
-				*other_option_name_strings = NULL;
+	List				*options;
+	PxfOptions			*opt;
+	ListCell			*lc;
+	List				*copy_options,
+						*other_options,
+						*other_option_name_strings = NULL;
 
 	opt = (PxfOptions *) palloc(sizeof(PxfOptions));
 	memset(opt, 0, sizeof(PxfOptions));
@@ -587,6 +588,14 @@ PxfGetOptions(Oid foreigntableid)
 			opt->ssl_options->trusted_ca_path = defGetString(def);
 		else if (strcmp(def->defname, FDW_OPTION_SSL_VERSION) == 0)
 			ssl_version = defGetString(def);
+		else if (strcmp(def->defname, FDW_COPY_OPTION_ENCODING) == 0)
+		{
+			/*
+			 * Encoding is a copy option, but we need to get the value of the encoding
+			 */
+			encoding = defGetString(def);
+			copy_options = lappend(copy_options, def);
+		}
 		else if (IsCopyOption(def->defname))
 			copy_options = lappend(copy_options, def);
 		else
@@ -605,6 +614,12 @@ PxfGetOptions(Oid foreigntableid)
 		}
 	}							/* foreach */
 
+	/*
+	 * The source/target encoding is the same for TEXT/CSV wire format
+	 */
+	opt->source_encoding = encoding;
+	opt->target_encoding = encoding;
+
 	opt->wire_format = "TEXT";
 
 	if (opt->format && pg_strcasecmp(opt->format, FDW_OPTION_WIRE_FORMAT_TEXT) == 0)
@@ -616,6 +631,9 @@ PxfGetOptions(Oid foreigntableid)
 		/* default wire_format is binary */
 		wireFormat = (Node *) makeString(FDW_OPTION_WIRE_FORMAT_BINARY);
 		opt->wire_format = "BINARY";
+
+		/* set the client encoding only for binary format */
+		opt->target_encoding = GetDatabaseEncodingName();
 	}
 
 #if PG_VERSION_NUM >= 90600

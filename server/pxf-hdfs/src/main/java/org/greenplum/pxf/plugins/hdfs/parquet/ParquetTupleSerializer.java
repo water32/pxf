@@ -15,6 +15,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 import static org.greenplum.pxf.plugins.hdfs.parquet.ParquetTypeConverter.bytesToTimestamp;
 
@@ -50,15 +52,19 @@ public class ParquetTupleSerializer extends BaseTupleSerializer<Group, MessageTy
     }
 
     @Override
-    protected void writeText(OutputStream out, Group group, int columnIndex, MessageType metadata, SerializerAdapter adapter) throws IOException {
+    protected void writeText(OutputStream out, Group group, int columnIndex, MessageType metadata, SerializerAdapter adapter, Charset encoding) throws IOException {
         // determine how many values for the primitive are present in the column
         int repetitionCount = group.getFieldRepetitionCount(columnIndex);
 
         if (repetitionCount == 0) {
             adapter.writeNull(out);
         } else if (repetitionCount == 1) {
-            // The string is already stored as a UTF-8 byte[]
-            adapter.writeBytes(out, group.getBinary(columnIndex, 0).getBytesUnsafe());
+            if (encoding == StandardCharsets.UTF_8) {
+                // The string is already stored as a UTF-8 byte[]
+                adapter.writeBytes(out, group.getBinary(columnIndex, 0).getBytesUnsafe());
+            } else {
+                adapter.writeText(out, group.getString(columnIndex, 0), encoding);
+            }
         } else {
             // TODO: build the json. Refer to ParquetResolver#235
             raiseNotSupportedException();

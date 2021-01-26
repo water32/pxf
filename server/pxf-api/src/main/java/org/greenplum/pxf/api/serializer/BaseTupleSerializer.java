@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.charset.Charset;
 
 public abstract class BaseTupleSerializer<T, M> implements TupleSerializer<T, M> {
 
@@ -21,7 +22,7 @@ public abstract class BaseTupleSerializer<T, M> implements TupleSerializer<T, M>
     }
 
     @Override
-    public void serialize(OutputStream out, ColumnDescriptor[] columnDescriptors, TupleBatch<T, M> batch, SerializerAdapter adapter) throws IOException {
+    public void serialize(OutputStream out, ColumnDescriptor[] columnDescriptors, TupleBatch<T, M> batch, SerializerAdapter adapter, Charset encoding) throws IOException {
         int numColumns = columnDescriptors.length;
         M metadata = batch.getMetadata();
         for (T tuple : batch) {
@@ -50,7 +51,7 @@ public abstract class BaseTupleSerializer<T, M> implements TupleSerializer<T, M>
                     case BPCHAR:
                     case TEXT:
                     case VARCHAR: {
-                        writeText(out, tuple, projectedIndex, metadata, adapter);
+                        writeText(out, tuple, projectedIndex, metadata, adapter, encoding);
                         break;
                     }
 
@@ -113,7 +114,7 @@ public abstract class BaseTupleSerializer<T, M> implements TupleSerializer<T, M>
 
     protected abstract void writeBoolean(OutputStream out, T tuple, int columnIndex, M metadata, SerializerAdapter adapter) throws IOException;
 
-    protected abstract void writeText(OutputStream out, T tuple, int columnIndex, M metadata, SerializerAdapter adapter) throws IOException;
+    protected abstract void writeText(OutputStream out, T tuple, int columnIndex, M metadata, SerializerAdapter adapter, Charset encoding) throws IOException;
 
     protected abstract void writeBytes(OutputStream out, T tuple, int columnIndex, M metadata, SerializerAdapter adapter) throws IOException;
 

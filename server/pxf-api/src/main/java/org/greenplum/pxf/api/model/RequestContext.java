@@ -29,6 +29,8 @@ import org.greenplum.pxf.api.utilities.EnumAggregationType;
 import org.greenplum.pxf.api.utilities.FragmentMetadata;
 import org.greenplum.pxf.api.utilities.Utilities;
 
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -262,6 +264,16 @@ public class RequestContext {
      * The identity of the end-user making the request.
      */
     private String user;
+
+    /**
+     * The encoding of the source data
+     */
+    private Charset sourceEncoding = StandardCharsets.UTF_8;
+
+    /**
+     * The encoding for the response on the wire
+     */
+    private Charset targetEncoding = StandardCharsets.UTF_8;
 
     /**
      * Additional Configuration Properties to be added to configuration for

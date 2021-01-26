@@ -77,7 +77,6 @@ public class ProducerTask<T, M> implements Runnable {
             List<DataSplit> splitList = Lists.newArrayList(splitter);
             // get the queue of segments IDs that have registered to this QuerySession
             BlockingDeque<Integer> registeredSegmentQueue = querySession.getRegisteredSegmentQueue();
-            BlockingQueue<TupleBatch<T, M>> outputQueue = querySession.getOutputQueue();
 
             while (querySession.isActive()) {
                 // In case this thread is interrupted, the poll call below will
@@ -101,7 +100,7 @@ public class ProducerTask<T, M> implements Runnable {
                         if (currentThreads < maxThreads && threadDelta > 0) {
                             currentThreads += threadDelta;
 
-                            LOG.error("Increased the number of processor threads to {}", currentThreads);
+                            LOG.error("{}: Increased the number of processor threads to {}", querySession.getQueryId(), currentThreads);
 
                             processorExecutorService.setMaximumPoolSize(currentThreads);
                             processorExecutorService.setCorePoolSize(currentThreads);
@@ -110,10 +109,10 @@ public class ProducerTask<T, M> implements Runnable {
                         if (currentThreads > 1 && threadDelta < 0) {
                             currentThreads += threadDelta;
 
-                            LOG.error("Decreased the number of processor threads to {}", currentThreads);
+                            LOG.error("{}: Decreased the number of processor threads to {}", querySession.getQueryId(), currentThreads);
 
                             processorExecutorService.setCorePoolSize(currentThreads);
-                            processorExecutorService.setMaximumPoolSize(currentThreads);
+//                            processorExecutorService.setMaximumPoolSize(currentThreads);
                         }
                     }
                 } else {
@@ -195,7 +194,7 @@ public class ProducerTask<T, M> implements Runnable {
                         .setNameFormat("pxf-processor-" + poolId + "-%d")
                         .build();
         return new ThreadPoolExecutor(nThreads, nThreads,
-                0L, TimeUnit.MILLISECONDS,
+                60L, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>(),
                 namedThreadFactory);
     }
