@@ -2,6 +2,8 @@ package org.greenplum.pxf.service;
 
 import org.apache.catalina.LifecycleListener;
 import org.apache.catalina.core.AprLifecycleListener;
+import org.apache.tomcat.jni.Library;
+import org.apache.tomcat.jni.LibraryNotFoundError;
 import org.greenplum.pxf.api.configuration.PxfServerProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,7 +110,21 @@ public class PxfConfiguration implements WebMvcConfigurer {
     @Bean
     public ServletWebServerFactory servletContainer(PxfServerProperties properties) {
         TomcatServletWebServerFactory container = new TomcatServletWebServerFactory();
-        if (properties.isAprEnabled()) {
+
+        if (!properties.isAprEnabled())
+            return container;
+
+        boolean nativeLibraryPresent = false;
+        try {
+            Library.initialize(null);
+            nativeLibraryPresent = true;
+        } catch (LibraryNotFoundError e) {
+            LOG.warn("Tomcat Native Library is not present", e);
+        } catch (Exception e) {
+            LOG.error("Error while loading Tomcat Native Library", e);
+        }
+        if (nativeLibraryPresent) {
+            LOG.debug("Using tomcat native library");
             LifecycleListener aprLifecycle = new AprLifecycleListener();
             container.setProtocol("org.apache.coyote.http11.Http11AprProtocol");
             container.addContextLifecycleListeners(aprLifecycle);
