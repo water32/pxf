@@ -64,7 +64,7 @@ openssl@1.1 is keg-only, which means it was not symlinked into /usr/local,
 because macOS provides LibreSSL.
 
 If you need to have openssl@1.1 first in your PATH, run:
-  echo 'export PATH="/usr/local/opt/openssl@1.1/bin:$PATH"' >> /Users/fguerrero/.bash_profile
+  echo 'export PATH="/usr/local/opt/openssl@1.1/bin:$PATH"' >> /Users/<username>/.bash_profile
 
 For compilers to find openssl@1.1 you may need to set:
   export LDFLAGS="-L/usr/local/opt/openssl@1.1/lib"
