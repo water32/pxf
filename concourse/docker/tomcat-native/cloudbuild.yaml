@@ -2,6 +2,10 @@
 # $ gcloud builds submit . --config=cloudbuild.yaml \
 #     --substitutions=_PXF_BUILD_BUCKET=<YOUR_BUCKET_NAME>
 
+# We build one artifact per OS + Greenplum combination. This is because in some
+# cases Greenplum vendors libraries for OpenSSL, so we prefer to build against
+# the dependency shipped inside Greenplum.
+
 steps:
   # This build step clones a remote public repository from Github; no
   # credentials are required.
