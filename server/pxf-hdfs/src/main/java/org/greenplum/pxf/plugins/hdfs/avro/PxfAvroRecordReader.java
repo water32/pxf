@@ -17,35 +17,58 @@ public class PxfAvroRecordReader<T>
 
     private final AvroRecordReader<T> reader;
 
+    /**
+     * Constructs a {@link PxfAvroRecordReader} from an {@link AvroRecordReader}
+     *
+     * @param reader the AvroRecord Reader
+     */
     public PxfAvroRecordReader(AvroRecordReader<T> reader) {
         this.reader = reader;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean next(NullWritable ignore, AvroWrapper<T> wrapper) throws IOException {
         return reader.next(wrapper, ignore);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public NullWritable createKey() {
         return reader.createValue();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public AvroWrapper<T> createValue() {
         return reader.createKey();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public long getPos() throws IOException {
         return reader.getPos();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void close() throws IOException {
         reader.close();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public float getProgress() throws IOException {
         return reader.getProgress();

@@ -68,8 +68,8 @@ public abstract class HcfsRecordTupleIterator<K, V, M> implements TupleIterator<
     /**
      * {@inheritDoc}
      */
-    @Override
     @SneakyThrows
+    @Override
     public boolean hasNext() {
         if (result == null) {
             readNext();
