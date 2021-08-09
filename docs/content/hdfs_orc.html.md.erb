@@ -9,7 +9,8 @@ The `hdfs:orc` profile:
 - Reads 1024 rows of data at a time.
 - Supports column projection.
 - Supports filter pushdown based on file-level, stripe-level, and row-level ORC statistics.
-- Does not support complex types.
+- Supports the compound list type for a subset of ORC scalar types.
+- Does not support the map, union or struct compound types.
 
 The `hdfs:orc` profile currently supports reading scalar data types from ORC files. If the data resides in a Hive table, and you want to read complex types or the Hive table is partitioned, use the [`hive:orc`](hive_pxf.html#hive_orc) profile.
 
@@ -51,6 +52,19 @@ To read ORC scalar data types in Greenplum Database, map ORC data values to Gree
 | Integer | bigint (64 bit) | Bigint |
 | Integer | date | Date |
 
+Lists are the only supported compound type and only for a subset of the ORC scalar types. The supported compound mapping is as follows:
+
+| ORC Compound Type | PXF/Greenplum Data Type |
+|-------------------|-------------------------|
+| array<string> | Text[] |
+| array<binary> | Bytea[] |
+| array<float> | Real[] |
+| array<double> | Float8[] |
+| array<boolean> | Boolean[] |
+| array<tinyint> | Smallint[] |
+| array<smallint> | Smallint[] |
+| array<int> | Integer[] |
+| array<bigint> | Bigint[] |
 
 ## <a id="createexttbl"></a>Creating the External Table
 
@@ -93,10 +107,11 @@ This example operates on a simple data set that models a retail sales operation.
 | month | text |
 | num\_orders | integer |
 | total\_sales | numeric(10,2) |
+| items\_sold | text[] |
 
 In this example, you:
 
-- Create a sample data set in CSV format, use the `orc-tools` JAR utilities to convert the CSV file into an ORC-format file, and then copy the ORC file to HDFS.
+- Create a sample data set in JSON format, use the `orc-tools` JAR utilities to convert the JSON file into an ORC-format file, and then copy the ORC file to HDFS.
 - Create a Greenplum Database readable external table that references the ORC file and that specifies the `hdfs:orc` profile.
 - Query the external table.
 
@@ -105,22 +120,24 @@ You must have administrative privileges to both a Hadoop cluster and a Greenplum
 
 Procedure:
 
-1. Create a CSV file named `sampledata.csv` in the `/tmp` directory:
+1. Create a JSON file named `sampledata.json` in the `/tmp` directory:
 
     ``` shell
-    hdfsclient$ echo 'Prague,Jan,101,4875.33
-Rome,Mar,87,1557.39
-Bangalore,May,317,8936.99
-Beijing,Jul,411,11600.67' > /tmp/sampledata.csv
+    hdfsclient$ echo '{"location": "Prague", "month": "Jan","num_orders": 101, "total_sales": 4875.33, "items_sold": ["boots", "hats"]}
+  {"location": "Rome", "month": "Mar","num_orders": 87, "total_sales": 1557.39, "items_sold": ["coats"]}
+  {"location": "Bangalore", "month": "May","num_orders": 317, "total_sales": 8936.99, "items_sold": ["winter socks", "long-sleeved shirts", "boots"]}
+  {"location": "Beijing", "month": "Jul","num_orders": 411, "total_sales": 11600.67, "items_sold": ["hoodies/sweaters", "pants"]}
+  {"location": "Los Angeles", "month": "Dec","num_orders": 0, "total_sales": 0.00, "items_sold": null}
+' > /tmp/sampledata.json
     ```
 
 1. [Download](https://repo1.maven.org/maven2/org/apache/orc/orc-tools/1.6.2/orc-tools-1.6.2-uber.jar) the `orc-tools` JAR.
 
-1. Run the `orc-tools` `convert` command to convert `sampledata.csv` to the ORC file `/tmp/sampledata.orc`; provide the schema to the command:
+1. Run the `orc-tools` `convert` command to convert `sampledata.json` to the ORC file `/tmp/sampledata.orc`; provide the schema to the command:
 
     ``` shell
-    hdfsclient$ java -jar orc-tools-1.6.2-uber.jar convert /tmp/sampledata.csv \
-      --schema 'struct<location:string,month:string,num_orders:int,total_sales:decimal(10,2)>' \
+    hdfsclient$ java -jar orc-tools-1.6.2-uber.jar convert /tmp/sampledata.json \
+      --schema 'struct<location:string,month:string,num_orders:int,total_sales:decimal(10,2),items_sold:array<string>>' \
       -o /tmp/sampledata.orc
     ```
 
@@ -139,7 +156,7 @@ Beijing,Jul,411,11600.67' > /tmp/sampledata.csv
 1. Create an external table named `sample_orc` that references the `/data/pxf_examples/sampledata.orc` file on HDFS. This command creates the table with the column names specified in the ORC schema, and uses the `default` PXF server:
 
     ``` sql
-    testdb=# CREATE EXTERNAL TABLE sample_orc(location text, month text, num_orders int, total_sales numeric(10,2))
+    testdb=# CREATE EXTERNAL TABLE sample_orc(location text, month text, num_orders int, total_sales numeric(10,2), items_sold text[])
                LOCATION ('pxf://data/pxf_examples/sampledata.orc?PROFILE=hdfs:orc')
              FORMAT 'CUSTOM' (FORMATTER='pxfwritable_import');
     ```
@@ -151,12 +168,27 @@ Beijing,Jul,411,11600.67' > /tmp/sampledata.csv
     ```
 
     ``` shell
-       location    | month | num_orders | total_sales 
-    ---------------+-------+------------+-------------
-     Prague        | Jan   |        101 |     4875.33
-     Rome          | Mar   |         87 |     1557.39
-     Bangalore     | May   |        317 |     8936.99
-     Beijing       | Jul   |        411 |    11600.67
-    (4 rows)
+      location   | month | num_orders | total_sales |                  items_sold
+    -------------+-------+------------+-------------+----------------------------------------------
+     Prague      | Jan   |        101 |     4875.33 | {boots,hats}
+     Rome        | Mar   |         87 |     1557.39 | {coats}
+     Bangalore   | May   |        317 |     8936.99 | {"winter socks","long-sleeved shirts",boots}
+     Beijing     | Jul   |        411 |    11600.67 | {hoodies/sweaters,pants}
+     Los Angeles | Dec   |          0 |        0.00 |
+    (5 rows)
     ```
 
+1. The data can be queried on any column including the array column. For example, this query returns the rows where the items sold include boots and/or pants:
+
+    ``` sql
+    testdb=# SELECT * FROM sample_orc WHERE items_sold && '{"boots", "pants"}';
+    ```
+
+    ``` shell
+     location  | month | num_orders | total_sales |                  items_sold
+    -----------+-------+------------+-------------+----------------------------------------------
+     Prague    | Jan   |        101 |     4875.33 | {boots,hats}
+     Bangalore | May   |        317 |     8936.99 | {"winter socks","long-sleeved shirts",boots}
+     Beijing   | Jul   |        411 |    11600.67 | {hoodies/sweaters,pants}
+    (3 rows)
+    ```
