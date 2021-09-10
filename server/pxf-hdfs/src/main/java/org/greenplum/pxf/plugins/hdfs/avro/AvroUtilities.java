@@ -7,6 +7,7 @@ import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.mapred.FsInput;
+import org.apache.avro.LogicalTypes;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -202,14 +203,27 @@ public final class AvroUtilities {
         List<Schema.Field> fields = new ArrayList<>();
 
         for (ColumnDescriptor cd : tupleDescription) {
-            fields.add(new Schema.Field(
-                    cd.columnName(),
-                    getFieldSchema(DataType.get(cd.columnTypeCode()), cd.columnName()),
-                    "",
-                    null
-            ));
+            Schema fieldSchema =  getFieldSchema(DataType.get(cd.columnTypeCode()), cd.columnName());
+            if(cd.columnTypeName().equalsIgnoreCase("uuid"))
+            {
+                // create a non-union schema and add logical type to it.
+                Schema sc = Schema.create(Schema.Type.STRING);
+                fields.add(new Schema.Field(
+                        cd.columnName(),
+                        LogicalTypes.uuid().addToSchema(sc),
+                        "",
+                        null
+                ));
+            }
+            else{
+                fields.add(new Schema.Field(
+                        cd.columnName(),
+                        fieldSchema,
+                        "",
+                        null
+                ));
+            }
         }
-
         schema.setFields(fields);
 
         return schema;
@@ -263,6 +277,9 @@ public final class AvroUtilities {
             case TEXTARRAY:
                 unionList.add(createArraySchema(Schema.Type.STRING));
                 break;
+            //TODO
+            // case UUID:
+            // Schema.createUnion creates a schema ["null", "string"] which fails when adding a Logical Type to it.
             default:
                 unionList.add(Schema.create(Schema.Type.STRING));
                 break;

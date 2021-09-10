@@ -57,6 +57,8 @@ public enum DataType {
     BYTEAARRAY(1001),
     BPCHARARRAY(1014),
     VARCHARARRAY(1015),
+    //TODO add UUID for AVRO Logical Types
+    //UUID(2950),
 
     UNSUPPORTED_TYPE(-1);
 
