@@ -28,6 +28,7 @@ import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.io.IOConstants;
 import org.apache.hadoop.mapred.FileInputFormat;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputFormat;
@@ -59,6 +60,8 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVE_TRANSACTIONAL_TABLE_SCAN;
 
 /**
  * Fragmenter class for HIVE tables. <br>
@@ -293,6 +296,14 @@ public class HiveDataFragmenter extends HdfsDataFragmenter {
     /* Fills a table partition */
     private void fetchMetaData(HiveTablePartition tablePartition, boolean hasComplexTypes)
             throws Exception {
+        // do we need to be worried about the fact that this is being done for all the config
+        if (StringUtils.equalsIgnoreCase(tablePartition.properties.getProperty("transactional"), "true")) {
+            configuration.setBoolean(HIVE_TRANSACTIONAL_TABLE_SCAN.toString(), true);
+            configuration.set(IOConstants.SCHEMA_EVOLUTION_COLUMNS, tablePartition.properties.getProperty("columns"));
+            configuration.set(IOConstants.SCHEMA_EVOLUTION_COLUMNS_TYPES, tablePartition.properties.getProperty("columns.types"));
+        }
+
+        // create a copy of the existing configuration to use for this fetch
         JobConf jobConf = getJobConf();
         InputFormat<?, ?> fformat = hiveUtilities.makeInputFormat(tablePartition.storageDesc.getInputFormat(), jobConf);
         String profile = null;

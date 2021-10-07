@@ -19,8 +19,10 @@ package org.greenplum.pxf.plugins.hive;
  * under the License.
  */
 
+import org.apache.hadoop.hive.ql.io.IOConstants;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
 import org.apache.hadoop.hive.ql.io.orc.Reader;
+import org.apache.hadoop.util.StringUtils;
 import org.greenplum.pxf.api.OneRow;
 import org.greenplum.pxf.api.StatsAccessor;
 import org.greenplum.pxf.api.filter.Operator;
@@ -32,6 +34,8 @@ import org.greenplum.pxf.api.utilities.Utilities;
 import org.greenplum.pxf.plugins.hive.utilities.HiveUtilities;
 
 import java.util.EnumSet;
+
+import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVE_TRANSACTIONAL_TABLE_SCAN;
 
 /**
  * Specialization of HiveAccessor for a Hive table that stores only ORC files.
