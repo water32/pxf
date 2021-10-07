@@ -14,8 +14,12 @@ public class HcfsFragmentMetadata implements FragmentMetadata {
     @Getter
     protected long length;
 
+    @Getter
+    protected FileSplit split;
+
     public HcfsFragmentMetadata(FileSplit fsp) {
         this(fsp.getStart(), fsp.getLength());
+        this.split = fsp;
     }
 
     public HcfsFragmentMetadata(long start, long length) {

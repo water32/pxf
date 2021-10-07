@@ -29,6 +29,7 @@ import org.apache.hadoop.hive.ql.io.IOConstants;
 import org.apache.hadoop.hive.ql.io.sarg.ConvertAstToSearchArg;
 import org.apache.hadoop.hive.ql.io.sarg.SearchArgument;
 import org.apache.hadoop.hive.serde.serdeConstants;
+import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
@@ -69,6 +70,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
+import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVE_TRANSACTIONAL_TABLE_SCAN;
 import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.FILE_INPUT_FORMAT;
 import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_TABLE_COLUMNS;
 import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_TABLE_COLUMN_TYPES;
@@ -238,9 +240,15 @@ public class HiveAccessor extends HdfsSplittableDataAccessor {
             // clone properties from the fragment metadata as they are shared across fragments and
             // properties for the current fragment will be modified by Hive Resolvers and SerDe classes
             properties = (Properties) metadata.getProperties().clone();
+            fileSplit = metadata.getSplit();
             if (inputFormat == null) {
                 String inputFormatClassName = properties.getProperty(FILE_INPUT_FORMAT);
                 this.inputFormat = hiveUtilities.makeInputFormat(inputFormatClassName, jobConf);
+            }
+            if (org.apache.hadoop.util.StringUtils.equalsIgnoreCase(metadata.getProperties().getProperty("transactional"), "true")) {
+                jobConf.setBoolean(HIVE_TRANSACTIONAL_TABLE_SCAN.toString(), true);
+                jobConf.set(IOConstants.SCHEMA_EVOLUTION_COLUMNS, metadata.getProperties().getProperty("columns"));
+                jobConf.set(IOConstants.SCHEMA_EVOLUTION_COLUMNS_TYPES, metadata.getProperties().getProperty("columns.types"));
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed to initialize HiveAccessor", e);
