@@ -1,5 +1,6 @@
 package org.apache.hadoop.hive.ql.io.orc;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.exec.vector.ColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.DateColumnVector;
 import org.apache.orc.Reader;
@@ -25,9 +26,9 @@ public class PxfRecordReaderImpl extends RecordReaderImpl
     /**
      * Constructs a PxfRecordReaderImpl given a file reader and options
      */
-    public PxfRecordReaderImpl(ReaderImpl fileReader, Reader.Options options)
+    public PxfRecordReaderImpl(ReaderImpl fileReader, Reader.Options options, Configuration configuration)
             throws IOException {
-        super(fileReader, options);
+        super(fileReader, options, configuration);
     }
 
     /**
