@@ -14,7 +14,7 @@ import org.greenplum.pxf.plugins.hive.utilities.HiveUtilities;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.sql.Date;
+import org.apache.hadoop.hive.common.type.Date;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -774,7 +774,8 @@ public class HiveParquetFilterPushDownTest {
         }
 
         if (columnDescriptors.get(2).isProjected() && COL3[row] != null) {
-            assertEquals(Date.valueOf(COL3[row]), fieldList.get(2).val, "Row " + row);
+            Date expectedDate = Date.valueOf(COL3[row]);
+            assertEquals(expectedDate, fieldList.get(2).val, "Row " + row);
         } else {
             assertNull(fieldList.get(2).val, "Row " + row);
         }
@@ -801,7 +802,7 @@ public class HiveParquetFilterPushDownTest {
 
             Instant timestamp = Instant.parse(COL7[row]); // UTC
             ZonedDateTime localTime = timestamp.atZone(ZoneId.systemDefault());
-            String localTimestampString = localTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.S"));
+            String localTimestampString = localTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
 
             assertEquals(localTimestampString, fieldList.get(6).val.toString(), "Row " + row);
         } else {

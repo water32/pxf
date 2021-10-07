@@ -21,9 +21,8 @@ package org.greenplum.pxf.plugins.hive;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
-import org.apache.hadoop.hive.metastore.MetaStoreUtils;
+import org.apache.hadoop.hive.metastore.utils.MetaStoreUtils;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
@@ -60,6 +59,7 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.hadoop.hive.metastore.conf.MetastoreConf.ConfVars.INTEGER_JDO_PUSHDOWN;
 /**
  * Fragmenter class for HIVE tables. <br>
  * Given a Hive table and its partitions divide the data into fragments (here a
@@ -165,7 +165,7 @@ public class HiveDataFragmenter extends HdfsDataFragmenter {
 
             // canPushDownIntegral represents hive.metastore.integral.jdo.pushdown property in hive-site.xml
             boolean canPushDownIntegral = configuration
-                    .getBoolean(HiveConf.ConfVars.METASTORE_INTEGER_JDO_PUSHDOWN.varname, false);
+                    .getBoolean(INTEGER_JDO_PUSHDOWN.getVarname(), false);
 
             List<ColumnDescriptor> columnDescriptors = context.getTupleDescription();
 

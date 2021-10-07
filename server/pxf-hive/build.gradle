@@ -13,7 +13,7 @@ dependencies {
      * Compile Only Dependencies
      *******************************/
 
-    compileOnly("org.apache.hadoop:hadoop-annotations")              { transitive = false }
+    compileOnly("org.apache.hadoop:hadoop-annotations")                { transitive = false }
 
     /*******************************
      * Implementation Dependencies
@@ -38,28 +38,30 @@ dependencies {
      * other tests to fail.
      *******************************/
 
-    implementation("org.apache.hive:hive-common")                    { transitive = false }
-    implementation("org.apache.hive.shims:hive-shims-common")        { transitive = false }
-    implementation("org.apache.hive.shims:hive-shims-0.23")          { transitive = false }
-    implementation("org.apache.commons:commons-lang3")               { transitive = false }
-    implementation("org.apache.hive:hive-storage-api")               { transitive = false }
-    implementation("org.apache.orc:orc-core")                        { transitive = false }
-    implementation("io.airlift:aircompressor")                       { transitive = false }
-    implementation("joda-time:joda-time")                            { transitive = false }
-    implementation("org.objenesis:objenesis")                        { transitive = false }
-    implementation("com.esotericsoftware:kryo")                      { transitive = false }
-    implementation("com.esotericsoftware:minlog")                    { transitive = false }
-    implementation("com.esotericsoftware:reflectasm")                { transitive = false }
-    implementation("org.apache.thrift:libfb303")                     { transitive = false }
-    implementation("org.apache.thrift:libthrift")                    { transitive = false }
-    implementation("org.antlr:antlr-runtime")                        { transitive = false }
-    implementation("org.datanucleus:datanucleus-api-jdo")            { transitive = false }
-    implementation("org.datanucleus:datanucleus-core")               { transitive = false }
-    implementation("org.xerial.snappy:snappy-java")                  { transitive = false }
-    implementation("javax.jdo:jdo-api")                              { transitive = false }
-    implementation("org.codehaus.jackson:jackson-core-asl")          { transitive = false }
-    implementation("org.codehaus.jackson:jackson-mapper-asl")        { transitive = false }
-    implementation("org.jodd:jodd-core")                             { transitive = false }
+    implementation("org.apache.hive:hive-common")                      { transitive = false }
+    implementation("org.apache.hive:hive-standalone-metastore:3.1.2")  { transitive = false }
+    implementation("org.apache.hive:hive-classification:3.1.2")        { transitive = false }
+    implementation("org.apache.hive.shims:hive-shims-common")          { transitive = false }
+    implementation("org.apache.hive.shims:hive-shims-0.23")            { transitive = false }
+    implementation("org.apache.commons:commons-lang3")                 { transitive = false }
+    implementation("org.apache.hive:hive-storage-api")                 { transitive = false }
+    implementation("org.apache.orc:orc-core")                          { transitive = false }
+    implementation("io.airlift:aircompressor")                         { transitive = false }
+    implementation("joda-time:joda-time")                              { transitive = false }
+    implementation("org.objenesis:objenesis")                          { transitive = false }
+    implementation("com.esotericsoftware:kryo")                        { transitive = false }
+    implementation("com.esotericsoftware:minlog")                      { transitive = false }
+    implementation("com.esotericsoftware:reflectasm")                  { transitive = false }
+    implementation("org.apache.thrift:libfb303")                       { transitive = false }
+    implementation("org.apache.thrift:libthrift")                      { transitive = false }
+    implementation("org.antlr:antlr-runtime")                          { transitive = false }
+    implementation("org.datanucleus:datanucleus-api-jdo")              { transitive = false }
+    implementation("org.datanucleus:datanucleus-core")                 { transitive = false }
+    implementation("org.xerial.snappy:snappy-java")                    { transitive = false }
+    implementation("javax.jdo:jdo-api")                                { transitive = false }
+    implementation("org.codehaus.jackson:jackson-core-asl")            { transitive = false }
+    implementation("org.codehaus.jackson:jackson-mapper-asl")          { transitive = false }
+    implementation("org.jodd:jodd-core")                               { transitive = false }
 
     // transitive dependency for reading Hive tables with SerDe 'org.apache.hadoop.hive.serde2.OpenCSVSerde'
     implementation("net.sf.opencsv:opencsv")                         { transitive = false }
@@ -73,6 +75,7 @@ dependencies {
 
     testImplementation('org.springframework.boot:spring-boot-starter-test')
     testImplementation('org.mockito:mockito-inline')
+    testImplementation("org.apache.hadoop:hadoop-annotations")       { transitive = false }
 }
 
 test {

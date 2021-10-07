@@ -216,7 +216,7 @@ public class HiveUtilities {
             // similar to OrcFile.createReader(path.getFileSystem(context.getConfiguration()), path);
             OrcFile.ReaderOptions opts = new OrcFile.ReaderOptions(configuration);
             opts.filesystem(path.getFileSystem(configuration));
-            return new PxfReaderImpl(path, opts);
+            return new PxfReaderImpl(path, opts, configuration);
         } catch (Exception e) {
             throw new RuntimeException("Exception while getting orc reader", e);
         }

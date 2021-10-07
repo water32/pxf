@@ -1,5 +1,6 @@
 package org.greenplum.pxf.plugins.hive.orc;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.io.orc.OrcFile;
 import org.apache.hadoop.hive.ql.io.orc.PxfRecordReaderImpl;
@@ -19,12 +20,14 @@ public class PxfReaderImpl extends ReaderImpl
         implements Reader {
 
     private static final Logger LOG = LoggerFactory.getLogger(PxfReaderImpl.class);
+    private Configuration configuration;
 
     /**
      * Constructor that let's the user specify additional options.
      */
-    public PxfReaderImpl(Path path, OrcFile.ReaderOptions options) throws IOException {
+    public PxfReaderImpl(Path path, OrcFile.ReaderOptions options, Configuration configuration) throws IOException {
         super(path, options);
+        this.configuration = configuration;
     }
 
     /**
@@ -33,6 +36,6 @@ public class PxfReaderImpl extends ReaderImpl
     @Override
     public RecordReader rowsOptions(Options options) throws IOException {
         LOG.info("Reading ORC rows from {} with {}", path, options);
-        return new PxfRecordReaderImpl(this, options);
+        return new PxfRecordReaderImpl(this, options, configuration);
     }
 }
