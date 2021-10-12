@@ -297,13 +297,25 @@ public class HiveDataFragmenter extends HdfsDataFragmenter {
             throws Exception {
         // do we need to be worried about the fact that this is being done for all the config
         if (StringUtils.equalsIgnoreCase(tablePartition.properties.getProperty("transactional"), "true")) {
+            // set the appropriate files to enable ACID scans used by AcidUtils.java
             configuration.setBoolean(HIVE_TRANSACTIONAL_TABLE_SCAN.toString(), true);
             configuration.set(IOConstants.SCHEMA_EVOLUTION_COLUMNS, tablePartition.properties.getProperty("columns"));
             configuration.set(IOConstants.SCHEMA_EVOLUTION_COLUMNS_TYPES, tablePartition.properties.getProperty("columns.types"));
+            // pass along hive table properties as well to properly handle deltas used by OrcInputFormat.java
+//            configuration.setBoolean(hive_metastoreConstants.TABLE_IS_TRANSACTIONAL, true);
+//            configuration.set(hive_metastoreConstants.TABLE_TRANSACTIONAL_PROPERTIES, tablePartition.properties.getProperty("transactional_properties"));
         }
 
         // create a copy of the existing configuration to use for this fetch
         JobConf jobConf = getJobConf();
+        // pass along hive table properties as well to properly handle deltas used by OrcInputFormat.java
+        // taken from Utilities.copyTablePropertiesToConf()
+        for(String name: tablePartition.properties.stringPropertyNames()) {
+            String val = tablePartition.properties.getProperty(name);
+            if (val != null) {
+                jobConf.set(name, val);
+            }
+        }
         InputFormat<?, ?> fformat = hiveUtilities.makeInputFormat(tablePartition.storageDesc.getInputFormat(), jobConf);
         String profile = null;
         String userProfile = context.getProfile();
