@@ -18,6 +18,8 @@ public class HiveFragmentMetadata extends HcfsFragmentMetadata {
      */
     @Getter
     private Properties properties;
+    @Getter
+    private String  txnValidWriteIds;
 
     /**
      * Default constructor for JSON serialization
@@ -35,7 +37,20 @@ public class HiveFragmentMetadata extends HcfsFragmentMetadata {
      * @param properties the properties
      */
     public HiveFragmentMetadata(FileSplit fileSplit, Properties properties) {
+        this(fileSplit, properties, null);
+    }
+
+    /**
+     * Constructs a {@link HiveFragmentMetadata} object with the given
+     * {@code fileSplit} and the {@code properties}.
+     *
+     * @param fileSplit  the {@link FileSplit} object.
+     * @param properties the properties
+     * @param txnValidWriteIds list of valid transaction ids for a table
+     */
+    public HiveFragmentMetadata(FileSplit fileSplit, Properties properties, String txnValidWriteIds) {
         super(fileSplit);
         this.properties = properties;
+        this.txnValidWriteIds = txnValidWriteIds;
     }
 }

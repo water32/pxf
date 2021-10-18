@@ -2,6 +2,8 @@ package org.greenplum.pxf.plugins.hive;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hive.common.ValidReaderWriteIdList;
+import org.apache.hadoop.hive.common.ValidTxnList;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaHookLoader;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClientCompatibility1xx;
@@ -12,6 +14,8 @@ import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.io.AcidUtils;
+import org.apache.hadoop.hive.metastore.api.TableValidWriteIds;
+import org.apache.hadoop.hive.metastore.txn.TxnUtils;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.thrift.TException;
 import org.greenplum.pxf.api.error.UnsupportedTypeException;
@@ -125,6 +129,17 @@ public class HiveClientWrapper {
         }
 
         return tbl;
+    }
+
+    public ValidReaderWriteIdList getValidWriteIds(IMetaStoreClient client, Metadata.Item itemName, ValidTxnList validTxnList) throws Exception {
+        List<TableValidWriteIds> validWriteIdList = client.getValidWriteIds(Arrays.asList(itemName.toString()), validTxnList.writeToString());
+        TableValidWriteIds tableValidWriteIds = validWriteIdList.get(0);
+
+        ValidReaderWriteIdList validReaderWriteIdList = TxnUtils.createValidReaderWriteIdList(tableValidWriteIds);
+
+        LOG.debug ("itemL {}.{}, valid write id list: {}", itemName.getPath(), itemName.getName(), validReaderWriteIdList.writeToString());
+
+        return validReaderWriteIdList;
     }
 
     /**

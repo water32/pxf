@@ -21,6 +21,7 @@ package org.greenplum.pxf.plugins.hive;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.common.ValidWriteIdList;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.utils.MetaStoreUtils;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
@@ -142,7 +143,9 @@ public class HiveDataFragmenter extends HdfsDataFragmenter {
     private void fetchTableMetaData(Metadata.Item tblDesc, IMetaStoreClient client) throws Exception {
 
         Table tbl = hiveClientWrapper.getHiveTable(client, tblDesc);
+        ValidWriteIdList validWriteIdList = hiveClientWrapper.getValidWriteIds(client, tblDesc, client.getValidTxns());
 
+        configuration.set(ValidWriteIdList.VALID_WRITEIDS_KEY, validWriteIdList.writeToString());
         Metadata metadata = new Metadata(tblDesc);
         hiveClientWrapper.getSchema(tbl, metadata);
         boolean hasComplexTypes = hiveClientWrapper.hasComplexTypes(metadata);
@@ -350,7 +353,7 @@ public class HiveDataFragmenter extends HdfsDataFragmenter {
             FileSplit fileSplit = (FileSplit) split;
             String filepath = fileSplit.getPath().toString();
 
-            HiveFragmentMetadata metadata = new HiveFragmentMetadata(fileSplit, properties);
+            HiveFragmentMetadata metadata = new HiveFragmentMetadata(fileSplit, properties, jobConf.get(ValidWriteIdList.VALID_WRITEIDS_KEY));
             Fragment fragment = new Fragment(filepath, metadata, profile);
             fragments.add(fragment);
         }

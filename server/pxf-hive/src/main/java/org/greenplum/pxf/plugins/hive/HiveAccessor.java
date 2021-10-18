@@ -23,6 +23,7 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.hive.common.ValidWriteIdList;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.io.IOConstants;
@@ -249,6 +250,14 @@ public class HiveAccessor extends HdfsSplittableDataAccessor {
                 jobConf.setBoolean(HIVE_TRANSACTIONAL_TABLE_SCAN.toString(), true);
                 jobConf.set(IOConstants.SCHEMA_EVOLUTION_COLUMNS, metadata.getProperties().getProperty("columns"));
                 jobConf.set(IOConstants.SCHEMA_EVOLUTION_COLUMNS_TYPES, metadata.getProperties().getProperty("columns.types"));
+                jobConf.set(ValidWriteIdList.VALID_WRITEIDS_KEY, metadata.getTxnValidWriteIds());
+
+                for(String name: metadata.getProperties().stringPropertyNames()) {
+                    String val = metadata.getProperties().getProperty(name);
+                    if (val != null) {
+                        jobConf.set(name, val);
+                    }
+                }
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed to initialize HiveAccessor", e);
