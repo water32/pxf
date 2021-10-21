@@ -144,6 +144,15 @@ public class HiveDataFragmenter extends HdfsDataFragmenter {
 
         Table tbl = hiveClientWrapper.getHiveTable(client, tblDesc);
 
+        configuration.set(IOConstants.SCHEMA_EVOLUTION_COLUMNS, MetaStoreUtils.getColumnNamesFromFieldSchema(tbl.getSd().getCols()));
+        configuration.set(IOConstants.SCHEMA_EVOLUTION_COLUMNS_TYPES, MetaStoreUtils.getColumnTypesFromFieldSchema(tbl.getSd().getCols()));
+
+        if (StringUtils.equalsIgnoreCase(tbl.getParameters().get("transactional"), "true")) {
+            // set the appropriate files to enable ACID scans used by AcidUtils.java
+            configuration.setBoolean(HIVE_TRANSACTIONAL_TABLE_SCAN.toString(), true);
+
+        }
+
         Metadata metadata = new Metadata(tblDesc);
         hiveClientWrapper.getSchema(tbl, metadata);
         boolean hasComplexTypes = hiveClientWrapper.hasComplexTypes(metadata);
@@ -296,16 +305,6 @@ public class HiveDataFragmenter extends HdfsDataFragmenter {
     /* Fills a table partition */
     private void fetchMetaData(HiveTablePartition tablePartition, boolean hasComplexTypes)
             throws Exception {
-        // do we need to be worried about the fact that this is being done for all the config
-        if (StringUtils.equalsIgnoreCase(tablePartition.properties.getProperty("transactional"), "true")) {
-            // set the appropriate files to enable ACID scans used by AcidUtils.java
-            configuration.setBoolean(HIVE_TRANSACTIONAL_TABLE_SCAN.toString(), true);
-            configuration.set(IOConstants.SCHEMA_EVOLUTION_COLUMNS, tablePartition.properties.getProperty("columns"));
-            configuration.set(IOConstants.SCHEMA_EVOLUTION_COLUMNS_TYPES, tablePartition.properties.getProperty("columns.types"));
-            // pass along hive table properties as well to properly handle deltas used by OrcInputFormat.java
-//            configuration.setBoolean(hive_metastoreConstants.TABLE_IS_TRANSACTIONAL, true);
-//            configuration.set(hive_metastoreConstants.TABLE_TRANSACTIONAL_PROPERTIES, tablePartition.properties.getProperty("transactional_properties"));
-        }
 
         // create a copy of the existing configuration to use for this fetch
         JobConf jobConf = getJobConf();
@@ -351,7 +350,10 @@ public class HiveDataFragmenter extends HdfsDataFragmenter {
             FileSplit fileSplit = (FileSplit) split;
             String filepath = fileSplit.getPath().toString();
 
-            HiveFragmentMetadata metadata = new HiveFragmentMetadata(fileSplit, properties);
+            HiveFragmentMetadata metadata = new HiveFragmentMetadata(fileSplit,
+                                                                     properties,
+                                                                     jobConf.get(IOConstants.SCHEMA_EVOLUTION_COLUMNS),
+                                                                     jobConf.get(IOConstants.SCHEMA_EVOLUTION_COLUMNS_TYPES));
             Fragment fragment = new Fragment(filepath, metadata, profile);
             fragments.add(fragment);
         }

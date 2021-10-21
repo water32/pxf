@@ -18,6 +18,10 @@ public class HiveFragmentMetadata extends HcfsFragmentMetadata {
      */
     @Getter
     private Properties properties;
+    @Getter
+    private String  schemaEvolutionColumns;
+    @Getter
+    private String  schemaEvolutionColumnTypes;
 
     /**
      * Default constructor for JSON serialization
@@ -35,7 +39,20 @@ public class HiveFragmentMetadata extends HcfsFragmentMetadata {
      * @param properties the properties
      */
     public HiveFragmentMetadata(FileSplit fileSplit, Properties properties) {
+        this(fileSplit, properties, null, null);
+    }
+
+    /**
+     * Constructs a {@link HiveFragmentMetadata} object with the given
+     * {@code fileSplit} and the {@code properties}.
+     *
+     * @param fileSplit  the {@link FileSplit} object.
+     * @param properties the properties
+     */
+    public HiveFragmentMetadata(FileSplit fileSplit, Properties properties, String schemaEvolutionColumns, String schemaEvolutionColumnTypes) {
         super(fileSplit);
         this.properties = properties;
+        this.schemaEvolutionColumns = schemaEvolutionColumns;
+        this.schemaEvolutionColumnTypes = schemaEvolutionColumnTypes;
     }
 }

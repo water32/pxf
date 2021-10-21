@@ -247,8 +247,15 @@ public class HiveAccessor extends HdfsSplittableDataAccessor {
             }
             if (org.apache.hadoop.util.StringUtils.equalsIgnoreCase(metadata.getProperties().getProperty("transactional"), "true")) {
                 jobConf.setBoolean(HIVE_TRANSACTIONAL_TABLE_SCAN.toString(), true);
-                jobConf.set(IOConstants.SCHEMA_EVOLUTION_COLUMNS, metadata.getProperties().getProperty("columns"));
-                jobConf.set(IOConstants.SCHEMA_EVOLUTION_COLUMNS_TYPES, metadata.getProperties().getProperty("columns.types"));
+                jobConf.set(IOConstants.SCHEMA_EVOLUTION_COLUMNS, metadata.getSchemaEvolutionColumns());
+                jobConf.set(IOConstants.SCHEMA_EVOLUTION_COLUMNS_TYPES, metadata.getSchemaEvolutionColumnTypes());
+
+                for(String name: metadata.getProperties().stringPropertyNames()) {
+                    String val = metadata.getProperties().getProperty(name);
+                    if (val != null) {
+                        jobConf.set(name, val);
+                    }
+                }
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed to initialize HiveAccessor", e);
