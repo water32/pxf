@@ -19,6 +19,10 @@ public class HiveFragmentMetadata extends HcfsFragmentMetadata {
     @Getter
     private Properties properties;
     @Getter
+    private String  schemaEvolutionColumns;
+    @Getter
+    private String  schemaEvolutionColumnTypes;
+    @Getter
     private String  txnValidWriteIds;
 
     /**
@@ -37,7 +41,7 @@ public class HiveFragmentMetadata extends HcfsFragmentMetadata {
      * @param properties the properties
      */
     public HiveFragmentMetadata(FileSplit fileSplit, Properties properties) {
-        this(fileSplit, properties, null);
+        this(fileSplit, properties, null, null, null);
     }
 
     /**
@@ -48,9 +52,11 @@ public class HiveFragmentMetadata extends HcfsFragmentMetadata {
      * @param properties the properties
      * @param txnValidWriteIds list of valid transaction ids for a table
      */
-    public HiveFragmentMetadata(FileSplit fileSplit, Properties properties, String txnValidWriteIds) {
+    public HiveFragmentMetadata(FileSplit fileSplit, Properties properties, String schemaEvolutionColumns, String schemaEvolutionColumnTypes, String txnValidWriteIds) {
         super(fileSplit);
         this.properties = properties;
+        this.schemaEvolutionColumns = schemaEvolutionColumns;
+        this.schemaEvolutionColumnTypes = schemaEvolutionColumnTypes;
         this.txnValidWriteIds = txnValidWriteIds;
     }
 }
