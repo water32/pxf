@@ -63,6 +63,7 @@ import java.util.stream.Stream;
 
 import static org.apache.hadoop.hive.metastore.conf.MetastoreConf.ConfVars.INTEGER_JDO_PUSHDOWN;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVE_TRANSACTIONAL_TABLE_SCAN;
+import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.TABLE_IS_TRANSACTIONAL;
 /**
  * Fragmenter class for HIVE tables. <br>
  * Given a Hive table and its partitions divide the data into fragments (here a
@@ -146,7 +147,7 @@ public class HiveDataFragmenter extends HdfsDataFragmenter {
         configuration.set(IOConstants.SCHEMA_EVOLUTION_COLUMNS, MetaStoreUtils.getColumnNamesFromFieldSchema(tbl.getSd().getCols()));
         configuration.set(IOConstants.SCHEMA_EVOLUTION_COLUMNS_TYPES, MetaStoreUtils.getColumnTypesFromFieldSchema(tbl.getSd().getCols()));
 
-        if (StringUtils.equalsIgnoreCase(tbl.getParameters().get("transactional"), "true")) {
+        if (StringUtils.equalsIgnoreCase(tbl.getParameters().get(TABLE_IS_TRANSACTIONAL), "true")) {
             // set the appropriate files to enable ACID scans used by AcidUtils.java
             configuration.setBoolean(HIVE_TRANSACTIONAL_TABLE_SCAN.toString(), true);
 
@@ -236,8 +237,11 @@ public class HiveDataFragmenter extends HdfsDataFragmenter {
 
             for (Partition partition : partitions) {
                 StorageDescriptor descPartition = partition.getSd();
+                Map<String,String> parameters = new HashMap<>();
+                parameters.putAll(tbl.getParameters());
+//                parameters.putAll(partition.getParameters());
                 props = MetaStoreUtils.getSchema(descPartition, descTable,
-                        null,
+                        parameters,
                         tblDesc.getPath(), tblDesc.getName(),
                         partitionKeys);
                 fetchMetaDataForPartitionedTable(descPartition, props, partition,
