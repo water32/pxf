@@ -29,7 +29,6 @@ import org.apache.hadoop.hive.ql.io.IOConstants;
 import org.apache.hadoop.hive.ql.io.sarg.ConvertAstToSearchArg;
 import org.apache.hadoop.hive.ql.io.sarg.SearchArgument;
 import org.apache.hadoop.hive.serde.serdeConstants;
-import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
@@ -240,12 +239,12 @@ public class HiveAccessor extends HdfsSplittableDataAccessor {
             // clone properties from the fragment metadata as they are shared across fragments and
             // properties for the current fragment will be modified by Hive Resolvers and SerDe classes
             properties = (Properties) metadata.getProperties().clone();
-            fileSplit = metadata.getSplit();
             if (inputFormat == null) {
                 String inputFormatClassName = properties.getProperty(FILE_INPUT_FORMAT);
                 this.inputFormat = hiveUtilities.makeInputFormat(inputFormatClassName, jobConf);
             }
-            if (org.apache.hadoop.util.StringUtils.equalsIgnoreCase(metadata.getProperties().getProperty("transactional"), "true")) {
+            if (StringUtils.equalsIgnoreCase(metadata.getProperties().getProperty("transactional"), "true")) {
+                fileSplit = metadata.getSplit();
                 jobConf.setBoolean(HIVE_TRANSACTIONAL_TABLE_SCAN.toString(), true);
                 jobConf.set(IOConstants.SCHEMA_EVOLUTION_COLUMNS, metadata.getSchemaEvolutionColumns());
                 jobConf.set(IOConstants.SCHEMA_EVOLUTION_COLUMNS_TYPES, metadata.getSchemaEvolutionColumnTypes());
