@@ -13,6 +13,8 @@ dependencies {
      * Compile Only Dependencies
      *******************************/
 
+    compileOnly("org.apache.hadoop:hadoop-annotations:3.1.0")       { transitive = false }
+
     /*******************************
      * Implementation Dependencies
      *******************************/
@@ -39,7 +41,6 @@ dependencies {
     implementation("org.apache.hive:hive-common")                      { transitive = false }
     implementation("org.apache.hive:hive-standalone-metastore:3.1.0")  { transitive = false }
     implementation("org.apache.hive:hive-classification:3.1.0")        { transitive = false }
-    implementation("org.apache.hadoop:hadoop-annotations:3.1.0")       { transitive = false }
     implementation("org.apache.hive.shims:hive-shims-common")          { transitive = false }
     implementation("org.apache.hive.shims:hive-shims-0.23")            { transitive = false }
     implementation("org.apache.commons:commons-lang3")                 { transitive = false }
@@ -74,6 +75,7 @@ dependencies {
 
     testImplementation('org.springframework.boot:spring-boot-starter-test')
     testImplementation('org.mockito:mockito-inline')
+    testImplementation("org.apache.hadoop:hadoop-annotations:3.1.0")       { transitive = false }
 }
 
 test {
