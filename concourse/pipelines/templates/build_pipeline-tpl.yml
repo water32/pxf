@@ -932,7 +932,7 @@ jobs:
     params:
       ACCESS_KEY_ID: ((tf-machine-access-key-id))
       GP_VER: [[gp_ver]]
-      GROUP: gpdb,proxy,profile
+      GROUP: cloud-access-and-hdfs,hbase,hcfs,jdbc,profile,pushdown
       RUN_JDK_VERSION: 11
       SECRET_ACCESS_KEY: ((tf-machine-secret-access-key))
 
