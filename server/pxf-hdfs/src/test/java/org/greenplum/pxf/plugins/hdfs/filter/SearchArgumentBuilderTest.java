@@ -44,7 +44,7 @@ public class SearchArgumentBuilderTest {
         SearchArgument.Builder filterBuilder = helper(filterString, columnDescriptors);
 
         assertNotNull(filterBuilder);
-        assertEquals("(not leaf-(IS_NULL cdate))", filterBuilder.build().toString());
+        assertEquals("leaf-0 = (IS_NULL cdate), expr = (not leaf-0)", filterBuilder.build().toString());
     }
 
     @Test
@@ -55,7 +55,7 @@ public class SearchArgumentBuilderTest {
         SearchArgument.Builder filterBuilder = helper(filterString, columnDescriptors);
         assertNotNull(filterBuilder);
         // single filters are wrapped in and
-        assertEquals("leaf-(EQUALS id 1)", filterBuilder.build().toString());
+        assertEquals("leaf-0 = (EQUALS id 1), expr = leaf-0", filterBuilder.build().toString());
     }
 
     @Test
@@ -65,7 +65,7 @@ public class SearchArgumentBuilderTest {
 
         SearchArgument.Builder filterBuilder = helper(filterString, columnDescriptors);
         assertNotNull(filterBuilder);
-        assertEquals("(and (not leaf-(LESS_THAN_EQUALS cdate 2008-02-01)) leaf-(LESS_THAN cdate 2008-12-01) (not leaf-(LESS_THAN_EQUALS amt 1200)))", filterBuilder.build().toString());
+        assertEquals("leaf-0 = (LESS_THAN_EQUALS cdate 2008-02-01), leaf-1 = (LESS_THAN cdate 2008-12-01), leaf-2 = (LESS_THAN_EQUALS amt 1200), expr = (and (not leaf-0) leaf-1 (not leaf-2))", filterBuilder.build().toString());
     }
 
     @Test
@@ -75,7 +75,7 @@ public class SearchArgumentBuilderTest {
 
         SearchArgument.Builder filterBuilder = helper(filterString, columnDescriptors);
         assertNotNull(filterBuilder);
-        assertEquals("(and (or (not leaf-(LESS_THAN_EQUALS cdate 2008-02-01)) leaf-(LESS_THAN cdate 2008-12-01)) (or (not leaf-(LESS_THAN_EQUALS cdate 2008-02-01)) (not leaf-(LESS_THAN_EQUALS id 1200))))", filterBuilder.build().toString());
+        assertEquals("leaf-0 = (LESS_THAN_EQUALS cdate 2008-02-01), leaf-1 = (LESS_THAN cdate 2008-12-01), leaf-2 = (LESS_THAN_EQUALS id 1200), expr = (and (or (not leaf-0) leaf-1) (or (not leaf-0) (not leaf-2)))", filterBuilder.build().toString());
     }
 
     @Test
@@ -85,7 +85,7 @@ public class SearchArgumentBuilderTest {
 
         SearchArgument.Builder filterBuilder = helper(filterString, columnDescriptors);
         assertNotNull(filterBuilder);
-        assertEquals("(or (not leaf-(LESS_THAN_EQUALS cdate 2008-02-01)) (not leaf-(LESS_THAN_EQUALS amt 1200)))", filterBuilder.build().toString());
+        assertEquals("leaf-0 = (LESS_THAN_EQUALS cdate 2008-02-01), leaf-1 = (LESS_THAN_EQUALS amt 1200), expr = (or (not leaf-0) (not leaf-1))", filterBuilder.build().toString());
     }
 
     @Test
@@ -95,7 +95,7 @@ public class SearchArgumentBuilderTest {
 
         SearchArgument.Builder filterBuilder = helper(filterString, columnDescriptors);
         assertNotNull(filterBuilder);
-        assertEquals("(not leaf-(IS_NULL grade))", filterBuilder.build().toString());
+        assertEquals("leaf-0 = (IS_NULL grade), expr = (not leaf-0)", filterBuilder.build().toString());
     }
 
     @Test
@@ -115,7 +115,7 @@ public class SearchArgumentBuilderTest {
 
         SearchArgument.Builder filterBuilder = helper(filterString, columnDescriptors);
         assertNotNull(filterBuilder);
-        assertEquals("leaf-(IN id 194 82756)", filterBuilder.build().toString());
+        assertEquals("leaf-0 = (IN id 194 82756), expr = leaf-0", filterBuilder.build().toString());
     }
 
     @Test
@@ -125,7 +125,7 @@ public class SearchArgumentBuilderTest {
 
         SearchArgument.Builder filterBuilder = helper(filterString, columnDescriptors);
         assertNotNull(filterBuilder);
-        assertEquals("(not leaf-(EQUALS b true))", filterBuilder.build().toString());
+        assertEquals("leaf-0 = (EQUALS b true), expr = (not leaf-0)", filterBuilder.build().toString());
     }
 
     @Test
@@ -135,7 +135,7 @@ public class SearchArgumentBuilderTest {
 
         SearchArgument.Builder filterBuilder = helper(filterString, columnDescriptors);
         assertNotNull(filterBuilder);
-        assertEquals("leaf-(EQUALS b true)", filterBuilder.build().toString());
+        assertEquals("leaf-0 = (EQUALS b true), expr = leaf-0", filterBuilder.build().toString());
     }
 
     @Test
@@ -145,7 +145,7 @@ public class SearchArgumentBuilderTest {
 
         SearchArgument.Builder filterBuilder = helper(filterString, columnDescriptors);
         assertNotNull(filterBuilder);
-        assertEquals("(not leaf-(EQUALS id 5))", filterBuilder.build().toString());
+        assertEquals("leaf-0 = (EQUALS id 5), expr = (not leaf-0)", filterBuilder.build().toString());
     }
 
     private SearchArgument.Builder helper(String filterString, List<ColumnDescriptor> columnDescriptors) throws Exception {
