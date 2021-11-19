@@ -492,13 +492,15 @@ function configure_pxf_server() {
 	fi
 
 	# update runtime JDK value based on CI parameter
-	if [[ $RUN_JDK_VERSION == 11 ]]; then
-		echo 'JDK 11 requested for runtime, setting PXF JAVA_HOME=/usr/lib/jvm/jdk-11 in pxf-env.sh'
-		su gpadmin -c "echo 'export JAVA_HOME=/usr/lib/jvm/jdk-11' >> ${BASE_DIR}/conf/pxf-env.sh"
-	elif [[ $RUN_JDK_VERSION == 8 ]]; then
-		echo 'JDK 8 requested for runtime, setting PXF JAVA_HOME=/usr/lib/jvm/jre-1.8.0-openjdk in pxf-env.sh'
-		su gpadmin -c "echo 'export JAVA_HOME=/usr/lib/jvm/jre-1.8.0-openjdk' >> ${BASE_DIR}/conf/pxf-env.sh"
-	fi
+	if [[ -n $RUN_JDK_VERSION ]]; then
+    if [[ $RUN_JDK_VERSION == 11 ]]; then
+      echo 'JDK 11 requested for runtime, setting PXF JAVA_HOME=/usr/lib/jvm/jdk-11 in pxf-env.sh'
+      su gpadmin -c "echo 'export JAVA_HOME=/usr/lib/jvm/jdk-11' >> ${BASE_DIR}/conf/pxf-env.sh"
+    elif [[ $RUN_JDK_VERSION == 8 ]]; then
+      echo 'JDK 8 requested for runtime, setting PXF JAVA_HOME=/usr/lib/jvm/jre-1.8.0-openjdk in pxf-env.sh'
+      su gpadmin -c "echo 'export JAVA_HOME=/usr/lib/jvm/jre-1.8.0-openjdk' >> ${BASE_DIR}/conf/pxf-env.sh"
+    fi
+  fi
 }
 
 function configure_hdfs_client_for_s3() {
