@@ -92,23 +92,21 @@ public class HiveMetaStoreClientCompatibility1xx extends HiveMetaStoreClient imp
      */
     @Override
     public List<Partition> listPartitions(String db_name, String tbl_name, short max_parts) throws TException {
+//        try {
+//            return super.listPartitions(db_name, tbl_name, max_parts);
+//        }
         try {
-            return super.listPartitions(db_name, tbl_name, max_parts);
+            LOG.debug("Couldn't invoke method listPartitions");
+//                if (e.getClass().isAssignableFrom(NoSuchObjectException.class)) {
+                LOG.debug("Attempting to fallback");
+                List<Partition> parts = this.client.get_partitions(db_name, tbl_name, max_parts);
+                return deepCopyPartitions(parts);
+//                }
+        } catch (MetaException | NoSuchObjectException ex) {
+//                LOG.debug("Original exception not re-thrown", e);
+            throw ex;
         } catch (TException e) {
-            try {
-                LOG.debug("Couldn't invoke method listPartitions");
-                if (e.getClass().isAssignableFrom(NoSuchObjectException.class)) {
-                    LOG.debug("Attempting to fallback");
-                    List<Partition> parts = this.client.get_partitions(db_name, tbl_name, max_parts);
-                    return deepCopyPartitions(parts);
-                }
-            } catch (MetaException | NoSuchObjectException ex) {
-                LOG.debug("Original exception not re-thrown", e);
-                throw ex;
-            } catch (Throwable t) {
-                LOG.warn("Unable to run compatibility for metastore client method listPartitions. Will rethrow original exception: ", t);
-            }
-        throw e;
+            throw e;
 
         }
     }
