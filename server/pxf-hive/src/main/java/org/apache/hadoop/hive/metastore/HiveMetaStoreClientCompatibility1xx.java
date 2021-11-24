@@ -88,7 +88,8 @@ public class HiveMetaStoreClientCompatibility1xx extends HiveMetaStoreClient imp
      *
      * As PXF does not currently have catalog support. In order to keep compatibility with older Hive versions,
      * PXF will maintain the older way of getting partitions that does not require the catalog version.
-     * method of
+     * A fix for backwards compatibility has been added but will most likely come with the next release
+     * (see https://issues.apache.org/jira/browse/HIVE-21739 for details).
      *
      * @param db_name     The database the table is located in.
      * @param tbl_name    Name of the table to fetch.
@@ -115,8 +116,9 @@ public class HiveMetaStoreClientCompatibility1xx extends HiveMetaStoreClient imp
      * contain the catalog information.
      *
      * As PXF does not currently have catalog support. In order to keep compatibility with older Hive versions,
-     * PXF will maintain the older way of getting partitions by filter that does not require the catalog version.
-     * method of
+     * PXF will maintain the older way of getting partitions that does not require the catalog version.
+     * A fix for backwards compatibility has been added but will most likely come with the next release
+     * (see https://issues.apache.org/jira/browse/HIVE-21739 for details).
      *
      * @param db_name     The database the table is located in.
      * @param tbl_name    Name of the table to fetch.
@@ -138,7 +140,7 @@ public class HiveMetaStoreClientCompatibility1xx extends HiveMetaStoreClient imp
     /**
      * Keeping with the existing functionality in HiveMetaStoreClient.java which deep copies
      * the list of partitions retrieved from the metastore. This function re-implements the
-     * function of the same name in HiveMetaStoreClient.java
+     * function of the same name in HiveMetaStoreClient.java.
      *
      * @param partitions    the list of partitions to copy
      * @return              A copy of the given list of partitions
