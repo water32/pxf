@@ -79,10 +79,16 @@ public class HiveMetaStoreClientCompatibility1xx extends HiveMetaStoreClient imp
     }
 
     /**
-     * With the upgrade to Hive Client 3.1.2, there is incompatibility with older Hive servers.
+     * With the upgrade to Hive Client 3.1.2, there is incompatibility with older Hive versions.
      * Specifically, a call using the newer hive client has a change in the HiveMetaStoreClient.java.
-     * Hive Client 3.1.2 now prepends the catalog name in front of the database name and causes errors
-     * with order hive clients. Ex: NoSuchObjectException(message:@hive#default.test_hive table not found)
+     * Starting with Hive 3.0.0, the Hive metastore began changing in preparation for catalog support
+     * (see https://issues.apache.org/jira/browse/HIVE-18755 for details). This change prepends the
+     * catalog to the db_name which is not backwards compatible with versions of Hive that do not
+     * contain the catalog information.
+     *
+     * As PXF does not currently have catalog support. In order to keep compatibility with older Hive versions,
+     * PXF will maintain the older way of getting partitions that does not require the catalog version.
+     * method of
      *
      * @param db_name     The database the table is located in.
      * @param tbl_name    Name of the table to fetch.
@@ -93,31 +99,24 @@ public class HiveMetaStoreClientCompatibility1xx extends HiveMetaStoreClient imp
     @Override
     public List<Partition> listPartitions(String db_name, String tbl_name, short max_parts) throws TException {
         try {
-            return super.listPartitions(db_name, tbl_name, max_parts);
+            List<Partition> parts = this.client.get_partitions(db_name, tbl_name, max_parts);
+            return deepCopyPartitions(parts);
         } catch (TException e) {
-            try {
-                LOG.debug("Couldn't invoke method listPartitions");
-                if (e.getClass().isAssignableFrom(NoSuchObjectException.class)) {
-                    LOG.debug("Attempting to fallback");
-                    List<Partition> parts = this.client.get_partitions(db_name, tbl_name, max_parts);
-                    return deepCopyPartitions(parts);
-                }
-            } catch (MetaException | NoSuchObjectException ex) {
-                LOG.debug("Original exception not re-thrown", e);
-                throw ex;
-            } catch (Throwable t) {
-                LOG.warn("Unable to run compatibility for metastore client method listPartitions. Will rethrow original exception: ", t);
-            }
-        throw e;
-
+            throw e;
         }
     }
 
     /**
-     * With the upgrade to Hive Client 3.1.2, there is incompatibility with older Hive servers.
+     * With the upgrade to Hive Client 3.1.2, there is incompatibility with older Hive versions.
      * Specifically, a call using the newer hive client has a change in the HiveMetaStoreClient.java.
-     * Hive Client 3.1.2 now prepends the catalog name in front of the database name and causes errors
-     * with order hive clients. Ex: NoSuchObjectException(message:@hive#default.test_hive table not found)
+     * Starting with Hive 3.0.0, the Hive metastore began changing in preparation for catalog support
+     * (see https://issues.apache.org/jira/browse/HIVE-18755 for details). This change prepends the
+     * catalog to the db_name which is not backwards compatible with versions of Hive that do not
+     * contain the catalog information.
+     *
+     * As PXF does not currently have catalog support. In order to keep compatibility with older Hive versions,
+     * PXF will maintain the older way of getting partitions by filter that does not require the catalog version.
+     * method of
      *
      * @param db_name     The database the table is located in.
      * @param tbl_name    Name of the table to fetch.
@@ -129,23 +128,10 @@ public class HiveMetaStoreClientCompatibility1xx extends HiveMetaStoreClient imp
     @Override
     public List<Partition> listPartitionsByFilter(String db_name, String tbl_name, String filter, short max_parts) throws TException {
         try {
-            return super.listPartitionsByFilter(db_name, tbl_name, filter, max_parts);
+            List<Partition> parts = this.client.get_partitions_by_filter(db_name, tbl_name, filter, max_parts);
+            return deepCopyPartitions(parts);
         } catch (TException e) {
-            try {
-                LOG.debug("Couldn't invoke method listPartitionsByFilter");
-                if (e.getClass().isAssignableFrom(NoSuchObjectException.class)) {
-                    LOG.debug("Attempting to fallback");
-                    List<Partition> parts = this.client.get_partitions_by_filter(db_name, tbl_name, filter, max_parts);
-                    return deepCopyPartitions(parts);
-                }
-            } catch (MetaException | NoSuchObjectException ex) {
-                LOG.debug("Original exception not re-thrown", e);
-                throw ex;
-            } catch (Throwable t) {
-                LOG.warn("Unable to run compatibility for metastore client method listPartitionsByFilter. Will rethrow original exception: ", t);
-            }
             throw e;
-
         }
     }
 
