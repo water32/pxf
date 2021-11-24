@@ -44,7 +44,6 @@ dependencies {
      *******************************/
 
     testImplementation("org.apache.parquet:parquet-pig")
-    testImplementation("org.apache.hive:hive-service:1.1.0")
     testImplementation('org.springframework.boot:spring-boot-starter-test')
 }
 
