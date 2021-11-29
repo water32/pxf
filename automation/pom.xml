@@ -445,7 +445,7 @@
         <dependency>
             <groupId>org.apache.hive</groupId>
             <artifactId>hive-jdbc</artifactId>
-            <version>${hdp.hive.jdbc.version}</version>
+            <version>${hdp.hive.version}</version>
         </dependency>
 
         <!-- 1.2.2 breaks on CDH-5.x -->
