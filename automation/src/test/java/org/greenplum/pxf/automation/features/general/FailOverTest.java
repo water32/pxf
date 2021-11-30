@@ -57,4 +57,9 @@ public class FailOverTest extends BaseFeature {
 
         runTincTest("pxf.features.general.outOfMemory.runTest");
     }
+
+    @Test(groups = "pxf-ha")
+    public void pxfRestartTest() throws Exception {
+        cluster.restart(PhdCluster.EnumClusterServices.pxf);
+    }
 }
