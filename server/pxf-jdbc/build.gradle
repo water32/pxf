@@ -36,7 +36,7 @@ dependencies {
     implementation("org.apache.thrift:libthrift")                    { transitive = false }
     implementation("org.apache.hive:hive-common")                    { transitive = false }
     implementation("org.apache.hive.shims:hive-shims-0.23")          { transitive = false }
-    implementation("org.apache.hive.shims:hive-shims-common")        { transitive = false }
+    implementation("org.apache.hive.shims:hive-shims-common:1.1.0")  { transitive = false }
     implementation("org.springframework.boot:spring-boot-starter-log4j2")
 
     /*******************************
