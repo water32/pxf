@@ -411,6 +411,7 @@
             <groupId>org.apache.hive</groupId>
             <artifactId>hive-exec</artifactId>
             <version>${hdp.hive.version}</version>
+            <classifier>core</classifier>
             <exclusions>
                 <exclusion>
                     <groupId>org.apache.calcite</groupId>
@@ -420,10 +421,6 @@
                     <groupId>org.apache.calcite</groupId>
                     <artifactId>calcite-avatica</artifactId>
                 </exclusion>
-                <exclusion>
-                    <groupId>org.apache.hive</groupId>
-                    <artifactId>hive-shims</artifactId>
-                </exclusion>
             </exclusions>
         </dependency>
 
@@ -431,36 +428,18 @@
             <groupId>org.apache.hive</groupId>
             <artifactId>hive-metastore</artifactId>
             <version>${hdp.hive.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.apache.hive</groupId>
-                    <artifactId>hive-shims</artifactId>
-                </exclusion>
-        </exclusions>
         </dependency>
 
         <dependency>
             <groupId>org.apache.hive</groupId>
             <artifactId>hive-common</artifactId>
             <version>${hdp.hive.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.apache.hive</groupId>
-                    <artifactId>hive-shims</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <dependency>
             <groupId>org.apache.hive</groupId>
             <artifactId>hive-serde</artifactId>
             <version>${hdp.hive.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.apache.hive</groupId>
-                    <artifactId>hive-shims</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <dependency>
