@@ -163,13 +163,9 @@ configure(javaProjects) {
             }
 
             // 1.2.2 breaks on CDH-5.x
-            dependencySet(group:"org.apache.hive", version:"1.1.0") {
+            dependencySet(group:"org.apache.hive", version:"${hiveVersion}") {
                 entry("hive-jdbc")
                 entry("hive-service")
-            }
-            dependencySet(group:"org.apache.hive.shims", version:"1.1.0") {
-                entry("hive-shims-common")
-                entry("hive-shims-0.23")
             }
 
             // Parquet dependencies
