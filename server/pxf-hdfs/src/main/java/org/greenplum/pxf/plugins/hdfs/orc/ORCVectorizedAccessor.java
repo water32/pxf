@@ -10,6 +10,7 @@ import org.apache.orc.OrcFile;
 import org.apache.orc.Reader;
 import org.apache.orc.RecordReader;
 import org.apache.orc.TypeDescription;
+import org.apache.orc.Writer;
 import org.greenplum.pxf.api.OneRow;
 import org.greenplum.pxf.api.filter.FilterParser;
 import org.greenplum.pxf.api.filter.Node;
@@ -20,6 +21,7 @@ import org.greenplum.pxf.api.filter.TreeVisitor;
 import org.greenplum.pxf.api.model.Accessor;
 import org.greenplum.pxf.api.model.BasePlugin;
 import org.greenplum.pxf.api.utilities.ColumnDescriptor;
+import org.greenplum.pxf.plugins.hdfs.HcfsType;
 import org.greenplum.pxf.plugins.hdfs.filter.BPCharOperatorTransformer;
 import org.greenplum.pxf.plugins.hdfs.filter.SearchArgumentBuilder;
 import org.greenplum.pxf.plugins.hdfs.utilities.HdfsUtilities;
@@ -71,6 +73,10 @@ public class ORCVectorizedAccessor extends BasePlugin implements Accessor {
     private RecordReader recordReader;
     private VectorizedRowBatch batch;
     private List<ColumnDescriptor> columnDescriptors;
+
+    // -- write properties
+    private ORCSchemaBuilder schemaBuilder;
+    private Writer fileWriter;
 
     @Override
     public void afterPropertiesSet() {
@@ -143,18 +149,39 @@ public class ORCVectorizedAccessor extends BasePlugin implements Accessor {
     }
 
     @Override
-    public boolean openForWrite() {
-        throw new UnsupportedOperationException();
+    public boolean openForWrite() throws IOException {
+        HcfsType hcfsType = HcfsType.getHcfsType(context);
+        // ORC does not use codec suffix in filenames
+        String fileName = hcfsType.getUriForWrite(context);
+        //TODO: figure out compression settings
+        //String compressCodec = context.getOption("COMPRESSION_CODEC");
+
+        // TODO: process any PXF options for ORC write
+
+        Path file = new Path(fileName);
+        schemaBuilder = new ORCSchemaBuilder();
+        TypeDescription writeSchema = schemaBuilder.buildSchema(context.getTupleDescription());
+        fileWriter = OrcFile.createWriter(file, OrcFile.writerOptions(configuration).setSchema(writeSchema));
+        // do this in resolver : batch = writeSchema.createRowBatch();
+
+        context.setMetadata(writeSchema);
+        return true;
     }
 
     @Override
-    public boolean writeNextObject(OneRow onerow) {
-        throw new UnsupportedOperationException();
+    public boolean writeNextObject(OneRow onerow) throws IOException {
+        // get a row batch produced by the resolver
+        VectorizedRowBatch rowBatch = (VectorizedRowBatch) onerow.getData();
+        fileWriter.addRowBatch(rowBatch);
+        batch.reset();
+        return true;
     }
 
     @Override
-    public void closeForWrite() {
-        throw new UnsupportedOperationException();
+    public void closeForWrite() throws IOException {
+        if (fileWriter != null) {
+            fileWriter.close();
+        }
     }
 
     /**
