@@ -163,7 +163,7 @@ configure(javaProjects) {
             }
 
             // 1.2.2 breaks on CDH-5.x
-            dependencySet(group:"org.apache.hive", version:"${hiveVersion}") {
+            dependencySet(group:"org.apache.hive", version:"${hiveJdbcVersion}") {
                 entry("hive-jdbc")
                 entry("hive-service")
             }
