@@ -206,7 +206,7 @@ public final class AvroUtilities {
                     cd.columnName(),
                     getFieldSchema(DataType.get(cd.columnTypeCode()), cd.columnName()),
                     "",
-                    null
+                    (Object)null
             ));
         }
 

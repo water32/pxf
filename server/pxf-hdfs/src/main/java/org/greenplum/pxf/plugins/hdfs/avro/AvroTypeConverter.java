@@ -17,23 +17,23 @@ import java.time.ZoneId;
 
 public class AvroTypeConverter {
     private final TimeConversions.DateConversion dateConversion;
-    private final TimeConversions.LocalTimestampMicrosConversion localTimestampMicrosConversion;
-    private final TimeConversions.LocalTimestampMillisConversion localTimestampMillisConversion;
-    private final TimeConversions.TimeMicrosConversion timeMicrosConversion;
-    private final TimeConversions.TimeMillisConversion timeMillisConversion;
-    private final TimeConversions.TimestampMicrosConversion timestampMicrosConversion;
-    private final TimeConversions.TimestampMillisConversion timestampMillisConversion;
+//    private final TimeConversions.LocalTimestampMicrosConversion localTimestampMicrosConversion;
+//    private final TimeConversions.LocalTimestampMillisConversion localTimestampMillisConversion;
+    // private final TimeConversions.TimeMicrosConversion timeMicrosConversion;
+    // private final TimeConversions.TimeMillisConversion timeMillisConversion;
+    // private final TimeConversions.TimestampMicrosConversion timestampMicrosConversion;
+    // private final TimeConversions.TimestampMillisConversion timestampMillisConversion;
     private final Conversions.DecimalConversion decimalConversion;
 
     private AvroTypeConverter() {
         // private constructor
         dateConversion = new TimeConversions.DateConversion();
-        localTimestampMicrosConversion = new TimeConversions.LocalTimestampMicrosConversion();
-        localTimestampMillisConversion = new TimeConversions.LocalTimestampMillisConversion();
-        timeMicrosConversion = new TimeConversions.TimeMicrosConversion();
-        timeMillisConversion = new TimeConversions.TimeMillisConversion();
-        timestampMicrosConversion = new TimeConversions.TimestampMicrosConversion();
-        timestampMillisConversion = new TimeConversions.TimestampMillisConversion();
+//        localTimestampMicrosConversion = new TimeConversions.LocalTimestampMicrosConversion();
+//        localTimestampMillisConversion = new TimeConversions.LocalTimestampMillisConversion();
+        // timeMicrosConversion = new TimeConversions.TimeMicrosConversion();
+        // timeMillisConversion = new TimeConversions.TimeMillisConversion();
+        // timestampMicrosConversion = new TimeConversions.TimestampMicrosConversion();
+        // timestampMillisConversion = new TimeConversions.TimestampMillisConversion();
         decimalConversion = new Conversions.DecimalConversion();
     }
 
@@ -48,8 +48,9 @@ public class AvroTypeConverter {
      * @return GPDB timestamp with time zone formatted value
      */
     public String timestampMillis(Long epochMillis, Schema schema, LogicalType type) {
-        Instant instant = timestampMillisConversion.fromLong(epochMillis, schema, type);
-        return instant.atZone(ZoneId.systemDefault()).format(GreenplumDateTime.DATETIME_WITH_TIMEZONE_FORMATTER);
+        // Instant instant = timestampMillisConversion.fromLong(epochMillis, schema, type);
+        // return instant.atZone(ZoneId.systemDefault()).format(GreenplumDateTime.DATETIME_WITH_TIMEZONE_FORMATTER);
+        return "";
     }
 
     /**
@@ -59,8 +60,9 @@ public class AvroTypeConverter {
      * @return GPDB timestamp with time zone formatted value
      */
     public String timestampMicros(Long epochMicros, Schema schema, LogicalType type) {
-        Instant instant = timestampMicrosConversion.fromLong(epochMicros, schema, type);
-        return instant.atZone(ZoneId.systemDefault()).format(GreenplumDateTime.DATETIME_WITH_TIMEZONE_FORMATTER);
+        // Instant instant = timestampMicrosConversion.fromLong(epochMicros, schema, type);
+        // return instant.atZone(ZoneId.systemDefault()).format(GreenplumDateTime.DATETIME_WITH_TIMEZONE_FORMATTER);
+        return "";
     }
 
     /**
@@ -70,8 +72,9 @@ public class AvroTypeConverter {
      * @return GPDB timestamp without time zone formatted value
      */
     public String localTimestampMillis(Long epochMillis, Schema schema, LogicalType type) {
-        LocalDateTime localDateTime = localTimestampMillisConversion.fromLong(epochMillis, schema, type);
-        return localDateTime.format(GreenplumDateTime.DATETIME_FORMATTER);
+//        LocalDateTime localDateTime = localTimestampMillisConversion.fromLong(epochMillis, schema, type);
+//        return localDateTime.format(GreenplumDateTime.DATETIME_FORMATTER);
+        return "";
     }
 
     /**
@@ -81,8 +84,9 @@ public class AvroTypeConverter {
      * @return GPDB timestamp without time zone formatted value
      */
     public String localTimestampMicros(Long epochMicros, Schema schema, LogicalType type) {
-        LocalDateTime localDateTime = localTimestampMicrosConversion.fromLong(epochMicros, schema, type);
-        return localDateTime.format(GreenplumDateTime.DATETIME_FORMATTER);
+//        LocalDateTime localDateTime = localTimestampMicrosConversion.fromLong(epochMicros, schema, type);
+//        return localDateTime.format(GreenplumDateTime.DATETIME_FORMATTER);
+        return "";
     }
 
     /**
@@ -92,7 +96,8 @@ public class AvroTypeConverter {
      * @return String representation of the time
      */
     public String timeMicros(Long microsFromMidnight, Schema schema, LogicalType type) {
-        return timeMicrosConversion.fromLong(microsFromMidnight, schema, type).toString();
+        // return timeMicrosConversion.fromLong(microsFromMidnight, schema, type).toString();
+        return "";
     }
 
     /**
@@ -102,8 +107,10 @@ public class AvroTypeConverter {
      * @return String representation of the time
      */
     public String timeMillis(Integer millisFromMidnight, Schema schema, LogicalType type) {
-        LocalTime localTime = timeMillisConversion.fromInt(millisFromMidnight, schema, type);
-        return localTime.toString();
+        //LocalTime localTime = timeMillisConversion.fromInt(millisFromMidnight, schema, type);
+        // return localTime.toString();
+
+        return "";
     }
 
     /**
@@ -113,8 +120,9 @@ public class AvroTypeConverter {
      * @return String representation of the date
      */
     public String dateFromInt(Integer daysFromEpoch, Schema schema, LogicalType type) {
-        LocalDate localDate = dateConversion.fromInt(daysFromEpoch, schema, type);
-        return localDate.toString();
+//        LocalDate localDate = dateConversion.fromInt(daysFromEpoch, schema, type);
+//        return localDate.toString();
+        return "";
     }
 
     /**

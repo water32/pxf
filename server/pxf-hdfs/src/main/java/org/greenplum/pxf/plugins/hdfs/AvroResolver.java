@@ -313,10 +313,10 @@ public class AvroResolver extends BasePlugin implements Resolver {
                     fieldValue = avroTypeConverter.timestampMillis((long) fieldValue, fieldSchema, logicalType);
                 } else if (logicalType == LogicalTypes.timestampMicros()) {
                     fieldValue = avroTypeConverter.timestampMicros((long) fieldValue,fieldSchema, logicalType);
-                } else if (logicalType == LogicalTypes.localTimestampMillis()) {
-                    fieldValue = avroTypeConverter.localTimestampMillis((long) fieldValue, fieldSchema, logicalType);
-                } else if (logicalType == LogicalTypes.localTimestampMicros()) {
-                    fieldValue = avroTypeConverter.localTimestampMicros((long) fieldValue, fieldSchema, logicalType);
+//                } else if (logicalType == LogicalTypes.localTimestampMillis()) {
+//                    fieldValue = avroTypeConverter.localTimestampMillis((long) fieldValue, fieldSchema, logicalType);
+//                } else if (logicalType == LogicalTypes.localTimestampMicros()) {
+//                    fieldValue = avroTypeConverter.localTimestampMicros((long) fieldValue, fieldSchema, logicalType);
                 }
                 ret = addOneFieldToRecord(record, gpdbWritableDataType, fieldValue);
                 break;
