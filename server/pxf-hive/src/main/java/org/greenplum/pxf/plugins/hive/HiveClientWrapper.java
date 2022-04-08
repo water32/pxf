@@ -12,7 +12,6 @@ import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
-import org.apache.hadoop.hive.ql.io.AcidUtils;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.thrift.TException;
 import org.greenplum.pxf.api.error.UnsupportedTypeException;
@@ -118,10 +117,6 @@ public class HiveClientWrapper {
 
         if (TableType.valueOf(tblType) == TableType.VIRTUAL_VIEW) {
             throw new UnsupportedOperationException("PXF does not support Hive views");
-        }
-
-        if (AcidUtils.isTablePropertyTransactional(tbl.getParameters())) {
-            throw new UnsupportedOperationException("PXF does not support Hive transactional tables");
         }
 
         return tbl;
