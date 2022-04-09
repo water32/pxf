@@ -1,7 +1,6 @@
 package org.apache.hadoop.hive.ql.io.orc;
 
 import org.apache.hadoop.hive.ql.exec.vector.ColumnVector;
-import org.apache.hadoop.hive.ql.exec.vector.DateColumnVector;
 import org.apache.orc.Reader;
 import org.apache.orc.TypeDescription;
 
@@ -41,10 +40,10 @@ public class PxfRecordReaderImpl extends RecordReaderImpl
      */
     @Override
     void copyColumn(ColumnVector destination, ColumnVector source, int sourceOffset, int length) {
-        if (source.getClass() == DateColumnVector.class) {
-            copyLongColumn(destination, source, sourceOffset, length);
-        } else {
+//        if (source.getClass() == DateColumnVector.class) {
+//            copyLongColumn(destination, source, sourceOffset, length);
+//        } else {
             super.copyColumn(destination, source, sourceOffset, length);
-        }
+//        }
     }
 }

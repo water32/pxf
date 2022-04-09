@@ -118,25 +118,22 @@ class ORCVectorizedMappingFunctions {
         pgArrayBuilder.startArray();
         for (int i = 0; i < length; i++) {
             int childRow = offset + i;
-
-            switch (columnVector.child.type) {
-                case LIST:
-                    pgArrayBuilder.addElementNoEscaping(serializeListRow((ListColumnVector) columnVector.child, childRow, oid));
-                    break;
-                case BYTES:
-                    // if the type of the column vector is BYTES, then the underlying datatype could be any
-                    // ORC string type. This could map to GPDB bytea array, text array or even varchar/bpchar.
-                    if (oid == DataType.BYTEAARRAY.getOID()) {
-                        // bytea arrays require special handling due to the encoding type. Handle that here.
-                        ByteBuffer byteBuffer = getByteBuffer((BytesColumnVector) columnVector.child, childRow);
-                        pgArrayBuilder.addElementNoEscaping(byteBuffer == null ? "NULL" : pgUtilities.encodeAndEscapeByteaHex(byteBuffer));
-                    } else {
-                        // the type here could be something like TEXT, BPCHAR, VARCHAR
-                        pgArrayBuilder.addElement(((BytesColumnVector) columnVector.child).toString(childRow));
-                    }
-                    break;
-                default:
-                    pgArrayBuilder.addElement(buf -> columnVector.child.stringifyValue(buf, childRow));
+            ColumnVector childCV = columnVector.child;
+            if (childCV instanceof ListColumnVector) {
+                pgArrayBuilder.addElementNoEscaping(serializeListRow((ListColumnVector) columnVector.child, childRow, oid));
+            } else if (childCV instanceof BytesColumnVector) {
+                // if the type of the column vector is BYTES, then the underlying datatype could be any
+                // ORC string type. This could map to GPDB bytea array, text array or even varchar/bpchar.
+                if (oid == DataType.BYTEAARRAY.getOID()) {
+                    // bytea arrays require special handling due to the encoding type. Handle that here.
+                    ByteBuffer byteBuffer = getByteBuffer((BytesColumnVector) columnVector.child, childRow);
+                    pgArrayBuilder.addElementNoEscaping(byteBuffer == null ? "NULL" : pgUtilities.encodeAndEscapeByteaHex(byteBuffer));
+                } else {
+                    // the type here could be something like TEXT, BPCHAR, VARCHAR
+                    pgArrayBuilder.addElement(((BytesColumnVector) columnVector.child).toString(childRow));
+                }
+            } else {
+                pgArrayBuilder.addElement(buf -> columnVector.child.stringifyValue(buf, childRow));
             }
         }
         pgArrayBuilder.endArray();

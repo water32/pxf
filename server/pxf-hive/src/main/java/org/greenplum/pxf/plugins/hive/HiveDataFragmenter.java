@@ -63,6 +63,7 @@ import java.util.stream.Stream;
 
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVE_TRANSACTIONAL_TABLE_SCAN;
 import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.TABLE_IS_TRANSACTIONAL;
+import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.TABLE_NO_AUTO_COMPACT;
 
 /**
  * Fragmenter class for HIVE tables. <br>
@@ -151,7 +152,6 @@ public class HiveDataFragmenter extends HdfsDataFragmenter {
         if (StringUtils.equalsIgnoreCase(tbl.getParameters().get(TABLE_IS_TRANSACTIONAL), "true")) {
             // set the appropriate files to enable ACID scans used by AcidUtils.java
             configuration.setBoolean(HIVE_TRANSACTIONAL_TABLE_SCAN.toString(), true);
-
         }
 
         Metadata metadata = new Metadata(tblDesc);
