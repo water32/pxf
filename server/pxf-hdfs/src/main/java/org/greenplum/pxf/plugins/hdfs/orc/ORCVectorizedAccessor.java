@@ -99,7 +99,7 @@ public class ORCVectorizedAccessor extends BasePlugin implements Accessor {
         Reader.Options options = fileReader
                 .options()
                 .schema(readSchema)
-                .positionalEvolutionLevel(0)
+//                .positionalEvolutionLevel(0)
                 .range(fileSplit.getStart(), fileSplit.getLength())
                 .searchArgument(searchArgument, new String[]{});
 
