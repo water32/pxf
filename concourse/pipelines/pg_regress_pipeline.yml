@@ -13,26 +13,26 @@ resources:
     uri: ((ud/pxf/common/git-remote))
     private_key: ((gp-concourse-cluster-provisioner-git-key))
 
-- name: gpdb6_rhel7_rpm_latest-0
+- name: gpdb7_rhel7_rpm_latest-0
   type: gcs
   icon: google-drive
   source:
-    bucket: data-gpdb-ud-pivnet-artifacts
-    json_key: ((pxf-storage-service-account-key))
-    regexp: latest-0_gpdb6/greenplum-db-(.*)-rhel7-x86_64.rpm
+    bucket: ((gp7-alpha-releng-drop-bucket))
+    json_key: ((concourse-gcs-resources-service-account-key))
+    regexp: server/published/master/greenplum-db-(7.*)-rhel7-x86_64.rpm
 
-- name: gpdb6-pxf-dev-centos7-image
+- name: gpdb7-pxf-dev-centos7-image
   type: registry-image
   source:
-    repository: gcr.io/data-gpdb-ud/gpdb-pxf-dev/gpdb6-centos7-test-pxf
+    repository: gcr.io/data-gpdb-ud/gpdb-pxf-dev/gpdb7-centos7-test-pxf
     tag: latest
     username: _json_key
     password: ((ud/pxf/secrets/pxf-cloudbuild-service-account-key))
 
-- name: gpdb6-pxf-dev-centos7-hdp2-server
+- name: gpdb7-pxf-dev-centos7-hdp2-server
   type: registry-image
   source:
-    repository: gcr.io/data-gpdb-ud/gpdb-pxf-dev/gpdb6-centos7-test-pxf-hdp2
+    repository: gcr.io/data-gpdb-ud/gpdb-pxf-dev/gpdb7-centos7-test-pxf-hdp2
     tag: latest
     username: _json_key
     password: ((ud/pxf/secrets/pxf-cloudbuild-service-account-key))
@@ -62,11 +62,11 @@ jobs:
     - get: pxf_src
       trigger: true
     - get: gpdb_package
-      resource: gpdb6_rhel7_rpm_latest-0
+      resource: gpdb7_rhel7_rpm_latest-0
     - get: pxf-build-dependencies
-    - get: gpdb6-pxf-dev-centos7-image
+    - get: gpdb7-pxf-dev-centos7-image
   - task: build_pxf
-    image: gpdb6-pxf-dev-centos7-image
+    image: gpdb7-pxf-dev-centos7-image
     file: pxf_src/concourse/tasks/build.yml
     params:
       LICENSE: ((pxf-rpm-license))
@@ -74,7 +74,7 @@ jobs:
       FDW: true
   - put: pxf_tarball
     params:
-      file: dist/pxf-gp*.el7.tar.gz
+      file: dist/pxf.tar.gz
 
 - name: test_pxf
   plan:
@@ -88,13 +88,13 @@ jobs:
       - compile_pxf
       trigger: true
     - get: gpdb_package
-      resource: gpdb6_rhel7_rpm_latest-0
+      resource: gpdb7_rhel7_rpm_latest-0
       passed:
         - compile_pxf
-    - get: gpdb6-pxf-dev-centos7-hdp2-server
+    - get: gpdb7-pxf-dev-centos7-hdp2-server
   - task: test_pxf
     file: pxf_src/concourse/tasks/test.yml
-    image: gpdb6-pxf-dev-centos7-hdp2-server
+    image: gpdb7-pxf-dev-centos7-hdp2-server
     config:
       platform: linux
       inputs:
@@ -121,14 +121,14 @@ jobs:
       - compile_pxf
       trigger: true
     - get: gpdb_package
-      resource: gpdb6_rhel7_rpm_latest-0
+      resource: gpdb7_rhel7_rpm_latest-0
       passed:
         - compile_pxf
-    - get: gpdb6-pxf-dev-centos7-hdp2-server
+    - get: gpdb7-pxf-dev-centos7-hdp2-server
   - task: test_pxf
     attempts: 2
     file: pxf_src/concourse/tasks/test.yml
-    image: gpdb6-pxf-dev-centos7-hdp2-server
+    image: gpdb7-pxf-dev-centos7-hdp2-server
     config:
       platform: linux
       inputs:
@@ -158,14 +158,14 @@ jobs:
       - compile_pxf
       trigger: true
     - get: gpdb_package
-      resource: gpdb6_rhel7_rpm_latest-0
+      resource: gpdb7_rhel7_rpm_latest-0
       passed:
         - compile_pxf
-    - get: gpdb6-pxf-dev-centos7-hdp2-server
+    - get: gpdb7-pxf-dev-centos7-hdp2-server
   - task: test_pxf
     attempts: 2
     file: pxf_src/concourse/tasks/test.yml
-    image: gpdb6-pxf-dev-centos7-hdp2-server
+    image: gpdb7-pxf-dev-centos7-hdp2-server
     config:
       platform: linux
       inputs:
@@ -195,14 +195,14 @@ jobs:
       - compile_pxf
       trigger: true
     - get: gpdb_package
-      resource: gpdb6_rhel7_rpm_latest-0
+      resource: gpdb7_rhel7_rpm_latest-0
       passed:
         - compile_pxf
-    - get: gpdb6-pxf-dev-centos7-hdp2-server
+    - get: gpdb7-pxf-dev-centos7-hdp2-server
   - task: test_pxf
     attempts: 2
     file: pxf_src/concourse/tasks/test.yml
-    image: gpdb6-pxf-dev-centos7-hdp2-server
+    image: gpdb7-pxf-dev-centos7-hdp2-server
     config:
       platform: linux
       inputs:
@@ -233,14 +233,14 @@ jobs:
       - compile_pxf
       trigger: true
     - get: gpdb_package
-      resource: gpdb6_rhel7_rpm_latest-0
+      resource: gpdb7_rhel7_rpm_latest-0
       passed:
         - compile_pxf
-    - get: gpdb6-pxf-dev-centos7-hdp2-server
+    - get: gpdb7-pxf-dev-centos7-hdp2-server
   - task: test_pxf
     attempts: 2
     file: pxf_src/concourse/tasks/test.yml
-    image: gpdb6-pxf-dev-centos7-hdp2-server
+    image: gpdb7-pxf-dev-centos7-hdp2-server
     config:
       platform: linux
       inputs:
@@ -272,17 +272,16 @@ jobs:
       - compile_pxf
       trigger: true
     - get: gpdb_package
-      resource: gpdb6_rhel7_rpm_latest-0
+      resource: gpdb7_rhel7_rpm_latest-0
       passed:
         - compile_pxf
-    - get: gpdb6-pxf-dev-centos7-hdp2-server
+    - get: gpdb7-pxf-dev-centos7-hdp2-server
   - task: test_pxf
     file: pxf_src/concourse/tasks/test.yml
-    image: gpdb6-pxf-dev-centos7-hdp2-server
+    image: gpdb7-pxf-dev-centos7-hdp2-server
     params:
       GROUP: fdw_hcfs_schedule
       IMPERSONATION: false
       PGPORT: ((pgport))
       PG_REGRESS: true
-      GP_VER: 6
       PROTOCOL: minio
