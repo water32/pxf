@@ -32,7 +32,7 @@ resources:
 - name: gpdb6-pxf-dev-centos7-hdp2-server
   type: registry-image
   source:
-    repository: gcr.io/data-gpdb-ud/gpdb-pxf-dev/gpdb7-centos7-test-pxf-hdp2
+    repository: gcr.io/data-gpdb-ud/gpdb-pxf-dev/gpdb6-centos7-test-pxf-hdp2
     tag: latest
     username: _json_key
     password: ((ud/pxf/secrets/pxf-cloudbuild-service-account-key))
