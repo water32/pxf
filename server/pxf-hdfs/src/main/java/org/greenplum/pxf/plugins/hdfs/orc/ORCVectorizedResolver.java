@@ -19,6 +19,7 @@ import org.greenplum.pxf.api.utilities.ColumnDescriptor;
 import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -136,6 +137,7 @@ public class ORCVectorizedResolver extends BasePlugin implements ReadVectorizedR
 
     private List<List<OneField>> cachedBatch;
     private VectorizedRowBatch vectorizedRowBatch;
+    private Object[] repeatedValues;
 
     /**
      * {@inheritDoc}
@@ -228,8 +230,12 @@ public class ORCVectorizedResolver extends BasePlugin implements ReadVectorizedR
         // reuse the batch object between iterations, create a new the first time and reset on subsequent calls
         if (vectorizedRowBatch == null) {
             vectorizedRowBatch = orcSchema.createRowBatch(getBatchSize());
+            repeatedValues = new Object[orcSchema.getFieldNames().size()];
+
         } else {
             vectorizedRowBatch.reset();
+            // reset internal cache of repeated values
+            Arrays.fill(repeatedValues, null);
         }
 
         // iterate over incoming rows
@@ -239,14 +245,73 @@ public class ORCVectorizedResolver extends BasePlugin implements ReadVectorizedR
             // fill up column vectors for the columns of the given row with record values using mapping functions
             for (OneField field : record) {
                 ColumnVector columnVector = vectorizedRowBatch.cols[columnIndex];
+                if (rowIndex == 0) {
+                    if (field.val == null) {
+                        // first row with a null value, no repeating will be possible, so it stays with default false
+                        columnVector.noNulls = false;
+                        columnVector.isNull[0] = true;
+                    } else {
+                        // first row with a non-null value, assume the values will be repeating
+                        columnVector.isRepeating = true;
+                        repeatedValues[columnIndex] = field.val;
+                        writeFunctions[columnIndex].accept(columnVector, rowIndex, field.val);
+                    }
+                } else {
+                    // not a first row, we need to worry about violating noNulls and isRepeating possible patterns
+                    if ((field.val == null && columnVector.noNulls) ||
+                            (columnVector.isRepeating && field.val != null && !repeatedValues[columnIndex].equals(field.val))) {
+                        // need to flatten the column vector values stored so far
+                        columnVector.flatten(false, null, rowIndex);
+                        repeatedValues[columnIndex] = null; // remove ref to a repeated object, no longer needed
+                    };
+                    // now store the current value
+                    if (field.val == null) {
+                        columnVector.isNull[rowIndex] = true;
+                    } else if (!columnVector.isRepeating) {
+                        // if the current value was different from a previously repeated values, flatten would unset isRepeated flag
+                        writeFunctions[columnIndex].accept(columnVector, rowIndex, field.val);
+                    }
+                }
+
+
+
+                /*
+
                 if (field.val == null) {
                     if (columnVector.noNulls) {
                         columnVector.noNulls = false; // write only if the value is different from what we need it to be
                     }
                     columnVector.isNull[rowIndex] = true;
+                    if (columnVector.isRepeating) {
+                        // we are setting isRepeating flag only for non-null values, so this breaks repetition
+                        columnVector.flatten(false, null, rowIndex); // will unset isRepeating
+                        repeatedValues[columnIndex] = null; // remove ref to a repeated object, no longer needed
+                    }
                 } else {
-                    writeFunctions[columnIndex].accept(columnVector, rowIndex, field.val);
+                    // not null value
+                    if (rowIndex == 0) {
+                        // first row with a non-null value, assume the values will be repeating
+                        columnVector.isRepeating = true;
+                        repeatedValues[columnIndex] = field.val;
+                        writeFunctions[columnIndex].accept(columnVector, rowIndex, field.val);
+                    } else {
+                        // not a first row, check if the value is repeated
+                        if (columnVector.isRepeating) {
+                            // the values have been repeating so far, let's see if the current value is als a repeated one
+                            if (!field.val.equals(repeatedValues[columnIndex])) {
+                                // current value is not the same as ll repeating values so far, repetition is now broken
+                                columnVector.flatten(false, null, rowIndex);  // will unset isRepeating
+                                repeatedValues[columnIndex] = null; // remove ref to a repeated object, no longer needed
+                                writeFunctions[columnIndex].accept(columnVector, rowIndex, field.val);
+                            }  // otherwise repetition continues, nothing to do, no need to call the function
+                        } else {
+                            // the value was not repeating, just add the row value to the column vector
+                            writeFunctions[columnIndex].accept(columnVector, rowIndex, field.val);
+                        }
+                    }
                 }
+
+                 */
                 columnIndex++;
             }
             rowIndex++;
