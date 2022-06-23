@@ -146,12 +146,11 @@ configure(javaProjects) {
                 entry("hive-common")
             }
             // 1.2.2 breaks on CDH-5.x
-            dependencySet(group:"org.apache.hive", version:"1.2.1000.2.5.3.0-37") {
+            dependencySet(group:"org.apache.hive", version:"2.0.1") {
                 entry("hive-jdbc")
-            }
-            dependencySet(group:"org.apache.hive", version:"1.1.0") {
                 entry("hive-service")
             }
+
             dependencySet(group:"org.apache.hive.shims", version:"${hiveVersion}") {
                 entry("hive-shims-common")
                 entry("hive-shims-0.23")
