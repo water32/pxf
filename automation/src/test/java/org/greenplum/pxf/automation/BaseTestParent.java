@@ -15,6 +15,7 @@ import org.greenplum.pxf.automation.components.cluster.PhdCluster;
 import org.greenplum.pxf.automation.components.cluster.installer.nodes.Node;
 import org.greenplum.pxf.automation.components.gpdb.Gpdb;
 import org.greenplum.pxf.automation.components.hdfs.Hdfs;
+import org.greenplum.pxf.automation.components.pg_regress.PgRegress;
 import org.greenplum.pxf.automation.components.tinc.Tinc;
 import org.greenplum.pxf.automation.structures.tables.pxf.ReadableExternalTable;
 import org.greenplum.pxf.automation.utils.system.ProtocolUtils;
@@ -39,6 +40,7 @@ public abstract class BaseTestParent {
     // Objects used in the tests
     protected PhdCluster cluster;
     protected Tinc tinc;
+    protected PgRegress pgRegress;
     protected Gpdb gpdb;
     protected Gpdb nonUtf8Gpdb;
     protected Hdfs hdfs;
@@ -90,6 +92,7 @@ public abstract class BaseTestParent {
             localDataTempFolder.mkdirs();
             // Initialize Tinc System Object
             tinc = (Tinc) systemManager.getSystemObject("tinc");
+            pgRegress = (PgRegress) systemManager.getSystemObject("pgRegress");
             // Initialize GPDB System Object
             gpdb = (Gpdb) systemManager.getSystemObject("gpdb");
             // Initialize GPDB2 System Object -- database with non-utf8 encoding
@@ -226,6 +229,14 @@ public abstract class BaseTestParent {
             tinc.runTest(tincTest);
         } catch (Exception e) {
             throw new Exception("Tinc Failure (" + e.getMessage() + ")");
+        }
+    }
+
+    protected void runPgRegressTest(String pgRegressTest, String ... tests) throws Exception {
+        try {
+            pgRegress.runTest(pgRegressTest, tests);
+        } catch (Exception e) {
+            throw new Exception("PgRegress Failure (" + e.getMessage() + ")");
         }
     }
 

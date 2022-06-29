@@ -1,8 +1,0 @@
-SELECT * FROM cars ORDER BY id;
- id | year |    make    |  model  | msrp  
-----+------+------------+---------+-------
-  1 | 2021 | Toyota     | Camry   | 25045
-  2 | 2021 | Chevrolate | Equinox | 23800
-  3 | 2021 | Kia        | Soul    | 17590
-(3 rows)
-
