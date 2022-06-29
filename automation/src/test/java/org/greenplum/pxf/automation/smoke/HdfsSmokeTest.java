@@ -32,7 +32,6 @@ public class HdfsSmokeTest extends BaseSmoke {
 
     @Override
     protected void queryResults() throws Exception {
-//        runTincTest("pxf.smoke.small_data.runTest");
         runPgRegressTest("smoke/small_data", "query01", "query02");
     }
 
