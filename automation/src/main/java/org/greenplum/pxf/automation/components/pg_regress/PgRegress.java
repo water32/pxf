@@ -11,7 +11,6 @@ import java.util.StringJoiner;
 public class PgRegress extends ShellSystemObject {
     private String dbName;
     private String pgRegress;
-    private String psqlDir;
     private String regressTestFolder;
 
     @Override
@@ -19,6 +18,13 @@ public class PgRegress extends ShellSystemObject {
         ReportUtils.startLevel(report, getClass(), "init");
         super.init();
         runCommand("source $GPHOME/greenplum_path.sh");
+
+        // logic for dynamically finding pg_regress path
+        runCommand("readlink --canonicalize-existing \"$(dirname $(pg_config --pgxs))/../test/regress/pg_regress\"");
+        String lastCmdResult = getLastCmdResult();
+        String[] tokens = lastCmdResult.split("\r\n", 3);
+        pgRegress = tokens[1];
+
         runCommand("cd " + new File(regressTestFolder).getAbsolutePath());
         ReportUtils.stopLevel(report);
     }
@@ -32,7 +38,7 @@ public class PgRegress extends ShellSystemObject {
         commandToRun.add(pgRegress);
         commandToRun.add("--use-existing");
         commandToRun.add("--inputdir=" + pgRegressTestPath);
-        commandToRun.add("--psqldir=" + psqlDir);
+        commandToRun.add("--outputdir=" + pgRegressTestPath);
         commandToRun.add("--dbname=" + dbName);
 
         for (String test : tests) {
@@ -47,28 +53,12 @@ public class PgRegress extends ShellSystemObject {
         runPgRegress(pgRegressTestPath, tests);
     }
 
-    public String getPgRegress() {
-        return pgRegress;
-    }
-
-    public void setPgRegress(String pgRegress) {
-        this.pgRegress = pgRegress;
-    }
-
     public String getDbName() {
         return dbName;
     }
 
     public void setDbName(String dbName) {
         this.dbName = dbName;
-    }
-
-    public String getPsqlDir() {
-        return psqlDir;
-    }
-
-    public void setPsqlDir(String psqlDir) {
-        this.psqlDir = psqlDir;
     }
 
     public String getRegressTestFolder() {

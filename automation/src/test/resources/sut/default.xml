@@ -86,10 +86,6 @@
     <pgRegress>
         <class>org.greenplum.pxf.automation.components.pg_regress.PgRegress</class>
         <dbName>pxfautomation</dbName>
-        <!-- TODO: find a better way to determine the location of pg_regress -->
-        <pgRegress>/usr/local/greenplum-db-6/lib/x86_64-linux-gnu/postgresql/pgxs/src/test/regress/pg_regress</pgRegress>
-        <!-- TODO: is this needed? We source $GPHOME/greenplum_path.sh so psql should be on the path-->
-        <psqlDir>/usr/local/greenplum-db-6/bin</psqlDir>
         <regressTestFolder>regress</regressTestFolder>
         <!-- TODO: Need to add configuration for host, port, and user for testing against remote GPDB cluster -->
     </pgRegress>
