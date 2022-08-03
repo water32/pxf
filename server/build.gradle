@@ -93,6 +93,7 @@ configure(javaProjects) {
             dependency("org.apache.commons:commons-compress:1.20")
             dependency("org.apache.htrace:htrace-core:3.1.0-incubating")
             dependency("org.apache.htrace:htrace-core4:4.0.1-incubating")
+            dependency("org.apache.commons:commons-configuration2:2.1.1")
 
             dependency("org.apache.zookeeper:zookeeper:3.4.6")
             dependency("org.codehaus.woodstox:stax2-api:3.1.4")
