@@ -66,6 +66,7 @@ public class HiveSmokeTest extends BaseSmoke {
     @Override
     protected void queryResults() throws Exception {
         runPgRegressTest("smoke/small_data", "query01", "query02");
+        runPgRegressTest("smoke/hcatalog_small_data", "query01");
     }
 
     @Test(groups = { "smoke", "gpdb", "security" })

@@ -59,4 +59,13 @@ public abstract class BaseFunctionality extends BaseTestParent {
             throw new Exception("Tinc Failure (" + e.getMessage() + ")");
         }
     }
+
+    @Override
+    protected void runPgRegressTest(String pgRegressTest, String ... tests) throws Exception {
+        if (pgRegressTest.contains("hcatalog")) {
+            return;
+        }
+
+        super.runPgRegressTest(pgRegressTest, tests);
+    }
 }
