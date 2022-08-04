@@ -307,13 +307,10 @@ public class S3SelectAccessor extends BasePlugin implements Accessor {
      * the configuration file
      */
     private AmazonS3 initS3Client() {
-        try {
-            DefaultS3ClientFactory factory = new DefaultS3ClientFactory();
-            factory.setConf(configuration);
-            return factory.createS3Client(name);
-        } catch (IOException e) {
-            throw new RuntimeException("Unable to create S3 Client connection", e);
-        }
+//        DefaultS3ClientFactory factory = new DefaultS3ClientFactory();
+//        factory.setConf(configuration);
+//            return factory.createS3Client(name);
+        return null;
     }
 
     @Override
