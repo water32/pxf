@@ -67,6 +67,10 @@ dependencies {
     implementation("com.fasterxml.woodstox:woodstox-core")           { transitive = false }
     implementation("org.codehaus.woodstox:stax2-api")                { transitive = false }
 
+    // Dependency in hadoop 3.2.4
+    implementation('com.google.re2j:re2j:1.6')
+    implementation("org.apache.commons:commons-configuration2")
+
     // ORC dependencies
     implementation("org.apache.orc:orc-core")                        { transitive = false }
     implementation("org.apache.orc:orc-shims")                       { transitive = false }

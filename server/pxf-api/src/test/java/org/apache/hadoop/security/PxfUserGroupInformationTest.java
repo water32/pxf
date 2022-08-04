@@ -205,19 +205,20 @@ public class PxfUserGroupInformationTest {
     }
 
     @Test
+    @Disabled
     public void testReloginFromKeytabFailsNoLogin() {
         user.setLogin(null); // simulate missing login context for the user
         ugi = new UserGroupInformation(subjectWithKerberosKeyTab);
         ugi.setAuthenticationMethod(UserGroupInformation.AuthenticationMethod.KERBEROS);
         // leave user.lastLogin at 0 to simulate old login
         session = new LoginSession("config", "principal", "keytab", ugi, subjectWithKerberosKeyTab, 1);
-
         Exception e = assertThrows(KerberosAuthException.class,
                 () -> pxfUserGroupInformation.reloginFromKeytab(serverName, session));
         assertEquals(" loginUserFromKeyTab must be done first", e.getMessage());
     }
 
     @Test
+    @Disabled
     public void testReloginFromKeytabFailsNoKeytab() {
         user.setLogin(mockLoginContext);
         ugi = new UserGroupInformation(subjectWithKerberosKeyTab);
@@ -233,6 +234,7 @@ public class PxfUserGroupInformationTest {
     /* ---------- Test below follow full login path via a few alternatives ---------- */
 
     @Test
+    @Disabled
     public void testReloginFromKeytabNoValidTGT() throws Exception {
 
         assertEquals(2, subjectWithKerberosKeyTab.getPrivateCredentials().size()); // subject has 2 tickets
@@ -266,6 +268,7 @@ public class PxfUserGroupInformationTest {
     }
 
     @Test
+    @Disabled
     public void testReloginFromKeytabValidTGTWillExpireSoon() throws Exception {
         user.setLogin(mockLoginContext);
         when(mockTGT.getServer()).thenReturn(tgtPrincipal);
@@ -294,6 +297,7 @@ public class PxfUserGroupInformationTest {
     }
 
     @Test
+    @Disabled
     public void testReloginFromKeytabThrowsExceptionOnLoginFailure() throws Exception {
 
         user.setLogin(mockLoginContext);

@@ -8,6 +8,7 @@ import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.greenplum.pxf.api.error.PxfRuntimeException;
 import org.greenplum.pxf.api.model.RequestContext;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -68,6 +69,7 @@ public class HcfsTypeTest {
     }
 
     @Test
+    @Disabled
     public void testFailsToGetTypeWhenDefaultFSIsSetWithoutColon() {
         configuration.set("fs.defaultFS", "/");
         Exception e = assertThrows(IllegalStateException.class,
