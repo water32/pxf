@@ -23,6 +23,7 @@
 #include "postgres.h"
 #include "fmgr.h"
 #include "utils/builtins.h"
+#include "nodes/pg_list.h"
 
 /*
  * Path constants for accessing PXF.

@@ -19,8 +19,9 @@
 
 #include "pxffilters.h"
 #include "pxfheaders.h"
-#include "access/fileam.h"
-#include "catalog/pg_exttable.h"
+//#include "access/fileam.h"
+#include "extaccess.h"
+#include "access/external.h"
 #include "commands/defrem.h"
 #if PG_VERSION_NUM >= 90400
 #include "utils/timestamp.h"
@@ -38,9 +39,217 @@ static void add_projection_desc_httpheader(CHURL_HEADERS headers, ProjectionInfo
 static bool add_attnums_from_targetList(Node *node, List *attnums);
 static void add_projection_index_header(CHURL_HEADERS pVoid, StringInfoData data, int attno, char number[32]);
 #if PG_VERSION_NUM < 90400
-static List *parseCopyFormatString(Relation rel, char *fmtstr, char fmttype);
-static List *appendCopyEncodingOption(List *copyFmtOpts, int encoding);
+static List *parseCopyFormatString(Relation rel, char *fmtstr, char fmttype); // try to find the replacement in GPDB but this is not present in GPDB
+static List *appendCopyEncodingOption(List *copyFmtOpts, int encoding);   // Same for this
 #endif
+
+
+#if PG_VERSION_NUM < 90400
+/*
+ * This function is copied from fileam.c in the 6X_STABLE branch.
+ * In version 6, this function is no longer required to be copied.
+ */
+static List *
+parseCopyFormatString(Relation rel, char *fmtstr, char fmttype)
+{
+	char	   *token;
+	const char *whitespace = " \t\n\r";
+	char		nonstd_backslash = 0;
+	int			encoding = GetDatabaseEncoding();
+	List	   *l = NIL;
+
+	token = strtokx2(fmtstr, whitespace, NULL, NULL,
+	                 0, false, true, encoding);
+
+	while (token)
+	{
+		bool		fetch_next;
+		DefElem	   *item = NULL;
+
+		fetch_next = true;
+
+		if (pg_strcasecmp(token, "header") == 0)
+		{
+			item = makeDefElem("header", (Node *)makeInteger(TRUE));
+		}
+		else if (pg_strcasecmp(token, "delimiter") == 0)
+		{
+			token = strtokx2(NULL, whitespace, NULL, "'",
+			                 nonstd_backslash, true, true, encoding);
+			if (!token)
+				goto error;
+
+			item = makeDefElem("delimiter", (Node *)makeString(pstrdup(token)));
+		}
+		else if (pg_strcasecmp(token, "null") == 0)
+		{
+			token = strtokx2(NULL, whitespace, NULL, "'",
+			                 nonstd_backslash, true, true, encoding);
+			if (!token)
+				goto error;
+
+			item = makeDefElem("null", (Node *)makeString(pstrdup(token)));
+		}
+		else if (pg_strcasecmp(token, "quote") == 0)
+		{
+			token = strtokx2(NULL, whitespace, NULL, "'",
+			                 nonstd_backslash, true, true, encoding);
+			if (!token)
+				goto error;
+
+			item = makeDefElem("quote", (Node *)makeString(pstrdup(token)));
+		}
+		else if (pg_strcasecmp(token, "escape") == 0)
+		{
+			token = strtokx2(NULL, whitespace, NULL, "'",
+			                 nonstd_backslash, true, true, encoding);
+			if (!token)
+				goto error;
+
+			item = makeDefElem("escape", (Node *)makeString(pstrdup(token)));
+		}
+		else if (pg_strcasecmp(token, "force") == 0)
+		{
+			List	   *cols = NIL;
+
+			token = strtokx2(NULL, whitespace, ",", "\"",
+			                 0, false, false, encoding);
+			if (pg_strcasecmp(token, "not") == 0)
+			{
+				token = strtokx2(NULL, whitespace, ",", "\"",
+				                 0, false, false, encoding);
+				if (pg_strcasecmp(token, "null") != 0)
+					goto error;
+				/* handle column list */
+				fetch_next = false;
+				for (;;)
+				{
+					token = strtokx2(NULL, whitespace, ",", "\"",
+					                 0, false, false, encoding);
+					if (!token || strchr(",", token[0]))
+						goto error;
+
+					cols = lappend(cols, makeString(pstrdup(token)));
+
+					/* consume the comma if any */
+					token = strtokx2(NULL, whitespace, ",", "\"",
+					                 0, false, false, encoding);
+					if (!token || token[0] != ',')
+						break;
+				}
+
+				item = makeDefElem("force_not_null", (Node *)cols);
+			}
+			else if (pg_strcasecmp(token, "quote") == 0)
+			{
+				fetch_next = false;
+				for (;;)
+				{
+					token = strtokx2(NULL, whitespace, ",", "\"",
+					                 0, false, false, encoding);
+					if (!token || strchr(",", token[0]))
+						goto error;
+
+					/*
+					 * For a '*' token the format option is force_quote_all
+					 * and we need to recreate the column list for the entire
+					 * relation.
+					 */
+					if (strcmp(token, "*") == 0)
+					{
+						int			i;
+						TupleDesc	tupdesc = RelationGetDescr(rel);
+
+						for (i = 0; i < tupdesc->natts; i++)
+						{
+							Form_pg_attribute att = tupdesc->attrs[i];
+
+							if (att->attisdropped)
+								continue;
+
+							cols = lappend(cols, makeString(NameStr(att->attname)));
+						}
+
+						/* consume the comma if any */
+						token = strtokx2(NULL, whitespace, ",", "\"",
+						                 0, false, false, encoding);
+						break;
+					}
+
+					cols = lappend(cols, makeString(pstrdup(token)));
+
+					/* consume the comma if any */
+					token = strtokx2(NULL, whitespace, ",", "\"",
+					                 0, false, false, encoding);
+					if (!token || token[0] != ',')
+						break;
+				}
+
+				item = makeDefElem("force_quote", (Node *)cols);
+			}
+			else
+				goto error;
+		}
+		else if (pg_strcasecmp(token, "fill") == 0)
+		{
+			token = strtokx2(NULL, whitespace, ",", "\"",
+			                 0, false, false, encoding);
+			if (pg_strcasecmp(token, "missing") != 0)
+				goto error;
+
+			token = strtokx2(NULL, whitespace, ",", "\"",
+			                 0, false, false, encoding);
+			if (pg_strcasecmp(token, "fields") != 0)
+				goto error;
+
+			item = makeDefElem("fill_missing_fields", (Node *)makeInteger(TRUE));
+		}
+		else if (pg_strcasecmp(token, "newline") == 0)
+		{
+			token = strtokx2(NULL, whitespace, NULL, "'",
+			                 nonstd_backslash, true, true, encoding);
+			if (!token)
+				goto error;
+
+			item = makeDefElem("newline", (Node *)makeString(pstrdup(token)));
+		}
+		else
+			goto error;
+
+		if (item)
+			l = lappend(l, item);
+
+		if (fetch_next)
+			token = strtokx2(NULL, whitespace, NULL, NULL,
+			                 0, false, false, encoding);
+	}
+
+	if (fmttype_is_text(fmttype))
+	{
+		/* TEXT is the default */
+	}
+	else if (fmttype_is_csv(fmttype))
+	{
+		/* Add FORMAT 'CSV' option to the beginning of the list */
+		l = lcons(makeDefElem("format", (Node *) makeString("csv")), l);
+	}
+	else
+		elog(ERROR, "unrecognized format type '%c'", fmttype);
+
+	return l;
+
+	error:
+	if (token)
+		ereport(ERROR,
+		        (errcode(ERRCODE_INTERNAL_ERROR),
+			        errmsg("external table internal parse error at \"%s\"",
+			               token)));
+	else
+		ereport(ERROR,
+		        (errcode(ERRCODE_INTERNAL_ERROR),
+			        errmsg("external table internal parse error at end of line")));
+}
+
 
 /*
  * Add key/value pairs to connection header.
@@ -596,212 +805,6 @@ add_attnums_from_targetList(Node *node, List *attnums)
 	return expression_tree_walker(node,
 								  add_attnums_from_targetList,
 								  (void *) attnums);
-}
-
-#if PG_VERSION_NUM < 90400
-/*
- * This function is copied from fileam.c in the 6X_STABLE branch.
- * In version 6, this function is no longer required to be copied.
- */
-static List *
-parseCopyFormatString(Relation rel, char *fmtstr, char fmttype)
-{
-	char	   *token;
-	const char *whitespace = " \t\n\r";
-	char		nonstd_backslash = 0;
-	int			encoding = GetDatabaseEncoding();
-	List	   *l = NIL;
-
-	token = strtokx2(fmtstr, whitespace, NULL, NULL,
-	                 0, false, true, encoding);
-
-	while (token)
-	{
-		bool		fetch_next;
-		DefElem	   *item = NULL;
-
-		fetch_next = true;
-
-		if (pg_strcasecmp(token, "header") == 0)
-		{
-			item = makeDefElem("header", (Node *)makeInteger(TRUE));
-		}
-		else if (pg_strcasecmp(token, "delimiter") == 0)
-		{
-			token = strtokx2(NULL, whitespace, NULL, "'",
-			                 nonstd_backslash, true, true, encoding);
-			if (!token)
-				goto error;
-
-			item = makeDefElem("delimiter", (Node *)makeString(pstrdup(token)));
-		}
-		else if (pg_strcasecmp(token, "null") == 0)
-		{
-			token = strtokx2(NULL, whitespace, NULL, "'",
-			                 nonstd_backslash, true, true, encoding);
-			if (!token)
-				goto error;
-
-			item = makeDefElem("null", (Node *)makeString(pstrdup(token)));
-		}
-		else if (pg_strcasecmp(token, "quote") == 0)
-		{
-			token = strtokx2(NULL, whitespace, NULL, "'",
-			                 nonstd_backslash, true, true, encoding);
-			if (!token)
-				goto error;
-
-			item = makeDefElem("quote", (Node *)makeString(pstrdup(token)));
-		}
-		else if (pg_strcasecmp(token, "escape") == 0)
-		{
-			token = strtokx2(NULL, whitespace, NULL, "'",
-			                 nonstd_backslash, true, true, encoding);
-			if (!token)
-				goto error;
-
-			item = makeDefElem("escape", (Node *)makeString(pstrdup(token)));
-		}
-		else if (pg_strcasecmp(token, "force") == 0)
-		{
-			List	   *cols = NIL;
-
-			token = strtokx2(NULL, whitespace, ",", "\"",
-			                 0, false, false, encoding);
-			if (pg_strcasecmp(token, "not") == 0)
-			{
-				token = strtokx2(NULL, whitespace, ",", "\"",
-				                 0, false, false, encoding);
-				if (pg_strcasecmp(token, "null") != 0)
-					goto error;
-				/* handle column list */
-				fetch_next = false;
-				for (;;)
-				{
-					token = strtokx2(NULL, whitespace, ",", "\"",
-					                 0, false, false, encoding);
-					if (!token || strchr(",", token[0]))
-						goto error;
-
-					cols = lappend(cols, makeString(pstrdup(token)));
-
-					/* consume the comma if any */
-					token = strtokx2(NULL, whitespace, ",", "\"",
-					                 0, false, false, encoding);
-					if (!token || token[0] != ',')
-						break;
-				}
-
-				item = makeDefElem("force_not_null", (Node *)cols);
-			}
-			else if (pg_strcasecmp(token, "quote") == 0)
-			{
-				fetch_next = false;
-				for (;;)
-				{
-					token = strtokx2(NULL, whitespace, ",", "\"",
-					                 0, false, false, encoding);
-					if (!token || strchr(",", token[0]))
-						goto error;
-
-					/*
-					 * For a '*' token the format option is force_quote_all
-					 * and we need to recreate the column list for the entire
-					 * relation.
-					 */
-					if (strcmp(token, "*") == 0)
-					{
-						int			i;
-						TupleDesc	tupdesc = RelationGetDescr(rel);
-
-						for (i = 0; i < tupdesc->natts; i++)
-						{
-							Form_pg_attribute att = tupdesc->attrs[i];
-
-							if (att->attisdropped)
-								continue;
-
-							cols = lappend(cols, makeString(NameStr(att->attname)));
-						}
-
-						/* consume the comma if any */
-						token = strtokx2(NULL, whitespace, ",", "\"",
-						                 0, false, false, encoding);
-						break;
-					}
-
-					cols = lappend(cols, makeString(pstrdup(token)));
-
-					/* consume the comma if any */
-					token = strtokx2(NULL, whitespace, ",", "\"",
-					                 0, false, false, encoding);
-					if (!token || token[0] != ',')
-						break;
-				}
-
-				item = makeDefElem("force_quote", (Node *)cols);
-			}
-			else
-				goto error;
-		}
-		else if (pg_strcasecmp(token, "fill") == 0)
-		{
-			token = strtokx2(NULL, whitespace, ",", "\"",
-			                 0, false, false, encoding);
-			if (pg_strcasecmp(token, "missing") != 0)
-				goto error;
-
-			token = strtokx2(NULL, whitespace, ",", "\"",
-			                 0, false, false, encoding);
-			if (pg_strcasecmp(token, "fields") != 0)
-				goto error;
-
-			item = makeDefElem("fill_missing_fields", (Node *)makeInteger(TRUE));
-		}
-		else if (pg_strcasecmp(token, "newline") == 0)
-		{
-			token = strtokx2(NULL, whitespace, NULL, "'",
-			                 nonstd_backslash, true, true, encoding);
-			if (!token)
-				goto error;
-
-			item = makeDefElem("newline", (Node *)makeString(pstrdup(token)));
-		}
-		else
-			goto error;
-
-		if (item)
-			l = lappend(l, item);
-
-		if (fetch_next)
-			token = strtokx2(NULL, whitespace, NULL, NULL,
-			                 0, false, false, encoding);
-	}
-
-	if (fmttype_is_text(fmttype))
-	{
-		/* TEXT is the default */
-	}
-	else if (fmttype_is_csv(fmttype))
-	{
-		/* Add FORMAT 'CSV' option to the beginning of the list */
-		l = lcons(makeDefElem("format", (Node *) makeString("csv")), l);
-	}
-	else
-		elog(ERROR, "unrecognized format type '%c'", fmttype);
-
-	return l;
-
-	error:
-	if (token)
-		ereport(ERROR,
-		        (errcode(ERRCODE_INTERNAL_ERROR),
-			        errmsg("external table internal parse error at \"%s\"",
-			               token)));
-	else
-		ereport(ERROR,
-		        (errcode(ERRCODE_INTERNAL_ERROR),
-			        errmsg("external table internal parse error at end of line")));
 }
 
 /*

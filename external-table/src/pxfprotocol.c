@@ -21,7 +21,9 @@
 #include "pxfbridge.h"
 #include "pxffilters.h"
 
-#include "access/fileam.h"
+/*#include "access/fileam.h"*/
+/*#include "access/extprotocol.h"*/
+#include "extaccess.h"
 #include "utils/elog.h"
 
 /* define magic module unless run as a part of test cases */

@@ -17,6 +17,7 @@
  * under the License.
  */
 
+#include "c.h"
 #include "libchurl.h"
 #include "miscadmin.h"
 #include "utils/builtins.h"
