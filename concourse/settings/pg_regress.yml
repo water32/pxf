@@ -2,3 +2,4 @@ gpdb-git-branch: master
 gpdb-branch: master
 pgport: 7000
 folder-prefix: pg_regress
+environment: prod

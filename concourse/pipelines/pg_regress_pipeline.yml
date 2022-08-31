@@ -17,7 +17,7 @@ resources:
   type: gcs
   icon: google-drive
   source:
-    bucket: ((gp7-alpha-releng-drop-bucket))
+    bucket: ((ud/pxf/((environment))/gp7-alpha-releng-drop-bucket-name))
     json_key: ((concourse-gcs-resources-service-account-key))
     regexp: server/published/master/greenplum-db-(7.*)-rhel7-x86_64.rpm
 
@@ -42,7 +42,7 @@ resources:
   icon: google-drive
   source:
     bucket: data-gpdb-ud-pxf-build-resources
-    json_key: ((pxf-storage-service-account-key))
+    json_key: ((ud/pxf/secrets/pxf-storage-service-account-key))
     versioned_file: build-dependencies/pxf-build-dependencies.tar.gz
 
 - name: pxf_tarball
@@ -69,8 +69,8 @@ jobs:
     image: gpdb7-pxf-dev-centos7-image
     file: pxf_src/concourse/tasks/build.yml
     params:
-      LICENSE: ((pxf-rpm-license))
-      VENDOR: ((pxf-rpm-vendor))
+      LICENSE: ((ud/pxf/common/rpm-license))
+      VENDOR: ((ud/pxf/common/rpm-vendor))
   - put: pxf_tarball
     params:
       file: dist/pxf-gp*.el7.tar.gz
@@ -92,7 +92,6 @@ jobs:
         - compile_pxf
     - get: gpdb6-pxf-dev-centos7-hdp2-server
   - task: test_pxf
-    file: pxf_src/concourse/tasks/test.yml
     image: gpdb6-pxf-dev-centos7-hdp2-server
     config:
       platform: linux
@@ -127,7 +126,6 @@ jobs:
     - get: gpdb6-pxf-dev-centos7-hdp2-server
   - task: test_pxf
     attempts: 2
-    file: pxf_src/concourse/tasks/test.yml
     image: gpdb6-pxf-dev-centos7-hdp2-server
     config:
       platform: linux
@@ -165,7 +163,6 @@ jobs:
     - get: gpdb6-pxf-dev-centos7-hdp2-server
   - task: test_pxf
     attempts: 2
-    file: pxf_src/concourse/tasks/test.yml
     image: gpdb6-pxf-dev-centos7-hdp2-server
     config:
       platform: linux
@@ -203,7 +200,6 @@ jobs:
     - get: gpdb6-pxf-dev-centos7-hdp2-server
   - task: test_pxf
     attempts: 2
-    file: pxf_src/concourse/tasks/test.yml
     image: gpdb6-pxf-dev-centos7-hdp2-server
     config:
       platform: linux
@@ -242,7 +238,6 @@ jobs:
     - get: gpdb6-pxf-dev-centos7-hdp2-server
   - task: test_pxf
     attempts: 2
-    file: pxf_src/concourse/tasks/test.yml
     image: gpdb6-pxf-dev-centos7-hdp2-server
     config:
       platform: linux

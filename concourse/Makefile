@@ -224,10 +224,6 @@ pg_regress:
 		--pipeline $(PG_REGRESS_PIPELINE_NAME)\
 		--config $(HOME)/workspace/pxf/concourse/pipelines/pg_regress_pipeline.yml \
 		--load-vars-from=$(HOME)/workspace/pxf/concourse/settings/pg_regress.yml \
-		--load-vars-from=$(SECRETS_HOME)/gpdb_common-ci-secrets.yml \
-		--load-vars-from=$(SECRETS_HOME)/pxf-secrets.yml \
-		--load-vars-from=$(SECRETS_HOME)/pxf-common.yml \
-		--load-vars-from=$(SECRETS_HOME)/pxf-dev.yml \
 		${FLY_OPTION_NON-INTERACTIVE}
 
 	@echo using the following command to unpause the pipeline:
