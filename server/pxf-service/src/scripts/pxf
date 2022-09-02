@@ -68,6 +68,8 @@ export PXF_DEBUG=${PXF_DEBUG:-false}
 # Kill PXF on OutOfMemoryError, set to false to disable
 export PXF_OOM_KILL=${PXF_OOM_KILL:-true}
 
+export PXF_USE_SYSTEMD=${PXF_USE_SYSTEMD:-false}
+
 # Additional locations to be class-loaded by the application
 export LOADER_PATH="${PXF_LOADER_PATH:+$PXF_LOADER_PATH,}file:${PXF_BASE}/conf,file:${PXF_BASE}/lib"
 
@@ -103,6 +105,13 @@ function checkJavaHome() {
     # Find Java
     [[ -x ${JAVA_HOME}/bin/java ]] || fail "\$JAVA_HOME=$JAVA_HOME is invalid. Set \$JAVA_HOME in your environment before running PXF commands."
     javaexe="$JAVA_HOME/bin/java"
+}
+
+function checkSystemdUserService()
+{
+    if ! systemctl is-active "user@$(id -u).service" &>/dev/null; then
+        fail "The systemd user service for user '$(id -un)' (id=$(id -u)) is not active."
+    fi
 }
 
 # print error message and return with error code
@@ -365,45 +374,24 @@ function doMigrate() {
 function doStart() {
     checkJavaHome
     warnUserEnvScript
-    do_start
-}
-
-function do_start() {
-    if [[ -f "$pid_file" ]]; then
-        pid=$(cat "$pid_file")
-        isRunning "$pid" && { echoYellow "PXF is already running [pid=$pid]"; return 0; }
+    if [[ $PXF_USE_SYSTEMD == true ]]; then
+        checkSystemdUserService
+        # TOOD: shoud the service unit file go in PXF_RUNDIR since it is not managed by a user?
+        sed -e "/^Environment/c\Environment=PXF_LOG_LEVEL=${PXF_LOG_LEVEL:-info} PXF_BASE=${PXF_BASE} JAVA_HOME=${JAVA_HOME}" \
+            -e "/^ExecStart/c\ExecStart=${PXF_HOME}/bin/pxf run" \
+            "$PXF_HOME/conf/pxf.service" >"${PXF_RUNDIR}/pxf.service"
+        systemctl --user enable "${PXF_RUNDIR}/pxf.service" &>/dev/null
+        systemctl --user start pxf.service
+        pid="$(systemctl --user show --property MainPID pxf.service)"
+    else
+        "${PXF_HOME}/bin/pxf" run &
+        pid=$!
+        disown $pid
+        echo "$pid" > "${pid_file}"
+        [[ -z $pid ]] && fail "Failed to start PXF"
     fi
-
-    PXF_OPTS=(-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager -Dlogging.config=${PXF_BASE}/conf/pxf-log4j2.xml)
-    [[ $PXF_DEBUG == true ]]      && PXF_OPTS+=(-agentlib:jdwp=transport=dt_socket,address=2020,suspend=n,server=y -Dloader.debug=true)
-    [[ $PXF_OOM_KILL = true ]]    && PXF_OPTS+=(-XX:OnOutOfMemoryError="${PXF_HOME}/bin/kill-pxf.sh %p")
-    [[ -n "$PXF_OOM_DUMP_PATH" ]] && PXF_OPTS+=(-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$PXF_OOM_DUMP_PATH)
-    JAVA_OPTS=($PXF_JVM_OPTS  "${PXF_OPTS[@]}")
-    RUN_ARGS=(--spring.config.location=classpath:/application.properties,file:${PXF_BASE}/conf/pxf-application.properties)
-
-    local arguments=(-Dsun.misc.URLClassPath.disableJarChecking=true "${JAVA_OPTS[@]}" -jar "$jarfile" $RUN_ARGS)
-
-    working_dir=$(dirname "$jarfile")
-    pushd "$working_dir" > /dev/null || exit 1
-    checkPermissions || return $?
-
-    echoGreen "Starting PXF with properties:"
-    echoGreen "   JAVA_HOME=${JAVA_HOME}"
-    echoGreen "   PXF_HOME=${PXF_HOME}"
-    echoGreen "   PXF_BASE=${PXF_BASE}"
-    echoGreen "   PXF_LOGDIR=${PXF_LOGDIR}"
-    echoGreen "   PXF_RUNDIR=${PXF_RUNDIR}"
-    echoGreen "   PXF_JVM_OPTS=${PXF_JVM_OPTS}"
-    [[ $PXF_DEBUG == true ]] && echoGreen "   LOADER_PATH=${LOADER_PATH}"
-
-    "$javaexe" "${arguments[@]}" 1>>"${PXF_LOGDIR}/${identity}.out" 2>&1 &
-    pid=$!
-    disown $pid
-    echo "$pid" > "$pid_file"
-
-    [[ -z $pid ]] && fail "Failed to start PXF"
     checkWebapp 300 10 || return 1
-    echoGreen "PXF started [pid=$pid]. Listening on port $PXF_PORT";
+    echoGreen "PXF started [pid=${pid##*=}]. Listening on port $PXF_PORT";
 }
 
 #
@@ -416,31 +404,37 @@ function do_start() {
 function doStop() {
     checkJavaHome
     warnUserEnvScript
+    if [[ $PXF_USE_SYSTEMD == true ]]; then
+        checkSystemdUserService
+        systemctl --user stop pxf.service &>/dev/null
+        systemctl --user disable pxf.service &>/dev/null
+        rm "${PXF_RUNDIR}/pxf.service"
+    else
+        working_dir=$(dirname "$jarfile")
+        pushd "$working_dir" > /dev/null
+        [[ -f $pid_file ]] || { echoYellow "Not running (pidfile not found). Is PXF running? Stop aborted."; return 0; }
+        pid=$(cat "$pid_file")
+        isRunning "$pid" || { echoYellow "Not running (process ${pid}). Removing stale pid file '$pid_file'."; rm -f "$pid_file"; return 0; }
 
-    working_dir=$(dirname "$jarfile")
-    pushd "$working_dir" > /dev/null
-    [[ -f $pid_file ]] || { echoYellow "Not running (pidfile not found). Is PXF running? Stop aborted."; return 0; }
-    pid=$(cat "$pid_file")
-    isRunning "$pid" || { echoYellow "Not running (process ${pid}). Removing stale pid file '$pid_file'."; rm -f "$pid_file"; return 0; }
+        echoYellow "Stopping PXF [pid=$pid]..."
 
-    echoYellow "Stopping PXF [pid=$pid]..."
+        # first try endpoint (assume it might be disabled)
+        if $curl --max-time 5 --silent -X POST "localhost:$PXF_PORT/actuator/shutdown" | grep "Shutting down, bye..." > /dev/null; then
+            for i in $(seq 1 $STOP_WAIT_TIME); do
+                if isRunning "$pid"; then
+                    sleep 1
+                else
+                    echoGreen "PXF stopped [pid=$pid]"
+                    rm -f $pid_file
+                    return 0
+                fi
+            done
+        fi
 
-    # first try endpoint (assume it might be disabled)
-    if $curl --max-time 5 --silent -X POST "localhost:$PXF_PORT/actuator/shutdown" | grep "Shutting down, bye..." > /dev/null; then
-        for i in $(seq 1 $STOP_WAIT_TIME); do
-            if isRunning "$pid"; then
-                sleep 1
-            else
-                echoGreen "PXF stopped [pid=$pid]"
-                rm -f $pid_file
-                return 0
-            fi
-        done
+        # second try a nice kill and if that doesn't work force kill
+        do_stop "$pid" "$pid_file" || do_stop "$pid" "$pid_file" "-f"
+        rm -f $pid_file
     fi
-
-    # second try a nice kill and if that doesn't work force kill
-    do_stop "$pid" "$pid_file" || do_stop "$pid" "$pid_file" "-f"
-    rm -f $pid_file
 }
 
 function do_stop() {
@@ -463,6 +457,35 @@ function doStatus() {
     checkWebapp 1 0 || return 1
     echoGreen "PXF is listening on port $PXF_PORT"
     return 0
+}
+
+function run() {
+    # sytemd on RHEL7 doesn't support StandardOutput with a file
+    # redirect stdout and stderr to append to pxf-app.out
+    exec >> "$PXF_BASE/logs/pxf-app.out" 2>&1
+    # checkJavaHome actually sets javaexe
+    checkJavaHome
+    warnUserEnvScript
+
+    PXF_OPTS=(-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager -Dlogging.config=${PXF_BASE}/conf/pxf-log4j2.xml)
+    [[ $PXF_DEBUG == true ]]      && PXF_OPTS+=(-agentlib:jdwp=transport=dt_socket,address=2020,suspend=n,server=y -Dloader.debug=true)
+    [[ $PXF_OOM_KILL = true ]]    && PXF_OPTS+=(-XX:OnOutOfMemoryError="${PXF_HOME}/bin/kill-pxf.sh %p")
+    [[ -n "$PXF_OOM_DUMP_PATH" ]] && PXF_OPTS+=(-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$PXF_OOM_DUMP_PATH)
+    JAVA_OPTS=($PXF_JVM_OPTS  "${PXF_OPTS[@]}")
+    RUN_ARGS=(--spring.config.location=classpath:/application.properties,file:${PXF_BASE}/conf/pxf-application.properties)
+
+    local arguments=(-Dsun.misc.URLClassPath.disableJarChecking=true "${JAVA_OPTS[@]}" -jar "$jarfile" $RUN_ARGS)
+
+    echoGreen "Starting PXF with properties:"
+    echoGreen "   JAVA_HOME=${JAVA_HOME}"
+    echoGreen "   PXF_HOME=${PXF_HOME}"
+    echoGreen "   PXF_BASE=${PXF_BASE}"
+    echoGreen "   PXF_LOGDIR=${PXF_LOGDIR}"
+    echoGreen "   PXF_RUNDIR=${PXF_RUNDIR}"
+    echoGreen "   PXF_JVM_OPTS=${PXF_JVM_OPTS}"
+    [[ $PXF_DEBUG == true ]] && echoGreen "   LOADER_PATH=${LOADER_PATH}"
+
+    exec "$javaexe" "${arguments[@]}"
 }
 
 function doSync() {
@@ -543,6 +566,8 @@ case $pxf_script_command in
     'migrate')
         doMigrate "$@"
         ;;
+    'run')
+        run "$@"; exit $?;;
     *)
         printUsage
         exit 2

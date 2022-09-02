@@ -60,6 +60,12 @@ sed -i "s|module_pathname =.*|module_pathname = '${RPM_INSTALL_PREFIX}/fdw/pxf_f
 %config(noreplace) %{prefix}/conf/pxf-env.sh
 %config(noreplace) %{prefix}/conf/pxf-log4j2.xml
 %config(noreplace) %{prefix}/conf/pxf-profiles.xml
+%config(noreplace) %{prefix}/conf/pxf.service
+%if 0%{?rhel} && 0%{?rhel} == 7
+%config(noreplace) %{prefix}/conf/user@.service
+%else
+%exclude %{prefix}/conf/user@.service
+%endif
 
 %pre
 # cleanup files and directories created by 'pxf init' command

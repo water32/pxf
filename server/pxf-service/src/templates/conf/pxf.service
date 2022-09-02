@@ -1,0 +1,15 @@
+[Unit]
+Description=Greenplum Database Platform Extension Framework
+After=syslog.target
+
+[Service]
+Environment=PXF_LOG_LEVEL=info PXF_BASE=@PXF_HOME@ JAVA_HOME=@JAVA_HOME@
+ExecStart=@PXF_HOME@/bin/pxf run
+SuccessExitStatus=143
+Restart=on-failure
+# systemd on RHEL7 does not support file: or append:
+#StandardOutput=append:@PXF_BASE@/logs/pxf-app.out
+#StandardError=inherit
+
+[Install]
+WantedBy=multi-user.target
