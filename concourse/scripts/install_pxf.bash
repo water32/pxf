@@ -138,6 +138,16 @@ function create_pxf_installer_scripts() {
 		    gpscp -f ~gpadmin/hostfile_all -v -r -u ${DEFAULT_OS_USER} /tmp/krb5.conf =:/tmp/krb5.conf
 		    gpssh -f ~gpadmin/hostfile_all -v -u ${DEFAULT_OS_USER} -s -e 'sudo mv /tmp/krb5.conf /etc/krb5.conf'
 		  fi
+
+		  if [[ $TEST_SYSTEMD_SERVICE == true ]]; then
+		    echo 'export PXF_USE_SYSTEMD=true' >> "\${PXF_BASE}/conf/pxf-env.sh"
+		    if ! systemctl is-active "user@\$(id -ru).service" &>/dev/null; then
+		      gpssh -f ~gpadmin/hostfile_all -v -u ${DEFAULT_OS_USER} -s -e 'sudo install -m 0644 ${PXF_HOME}/conf/user@.service /usr/lib/systemd/system'
+		      gpssh -f ~gpadmin/hostfile_all -v -u ${DEFAULT_OS_USER} -s -e 'sudo systemctl daemon-reload'
+		      gpssh -f ~gpadmin/hostfile_all -v -u ${DEFAULT_OS_USER} -s -e 'sudo systemctl enable user@\$(id -ru gpadmin).service'
+		      gpssh -f ~gpadmin/hostfile_all -v -u ${DEFAULT_OS_USER} -s -e 'sudo systemctl start user@\$(id -ru gpadmin).service'
+		    fi
+		  fi
 		}
 
 		function main() {

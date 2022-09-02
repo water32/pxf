@@ -183,7 +183,8 @@ EOF
 			${BASE_DIR}/servers/default-no-impersonation/pxf-site.xml
 		fi &&
 		echo 'export PXF_LOADER_PATH=file:/tmp/publicstage/pxf' >> ${BASE_DIR}/conf/pxf-env.sh && \
-		PXF_BASE=${BASE_DIR} ${PXF_HOME}/bin/pxf cluster sync
+		PXF_BASE=${BASE_DIR} ${PXF_HOME}/bin/pxf cluster sync && \
+		PXF_BASE=${BASE_DIR} ${PXF_HOME}/bin/pxf cluster restart
 	"
 }
 

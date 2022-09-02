@@ -31,6 +31,7 @@ params:
   PXF_JVM_OPTS:
   PXF_VERSION: 6
   SKIP_HADOOP_SETUP:
+  TEST_SYSTEMD_SERVICE: false
 
 run:
   path: sh

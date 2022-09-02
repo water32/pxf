@@ -860,6 +860,7 @@ jobs:
       INSTALL_GPHDFS: false
       PXF_JVM_OPTS: ((pxf-jvm-opts))
       SKIP_HADOOP_SETUP: true
+      TEST_SYSTEMD_SERVICE: true
   - task: Test PXF-GP[[gp_ver]]-FILE-NO-IMPERS on RHEL7
     on_success:
       do:
