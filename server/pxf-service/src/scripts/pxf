@@ -376,7 +376,7 @@ function doStart() {
     warnUserEnvScript
     if [[ $PXF_USE_SYSTEMD == true ]]; then
         checkSystemdUserService
-        # TOOD: shoud the service unit file go in PXF_RUNDIR since it is not managed by a user?
+        # TODO: should the service unit file go in PXF_RUNDIR since it is not managed by a user?
         sed -e "/^Environment/c\Environment=PXF_LOG_LEVEL=${PXF_LOG_LEVEL:-info} PXF_BASE=${PXF_BASE} JAVA_HOME=${JAVA_HOME}" \
             -e "/^ExecStart/c\ExecStart=${PXF_HOME}/bin/pxf run" \
             "$PXF_HOME/conf/pxf.service" >"${PXF_RUNDIR}/pxf.service"
