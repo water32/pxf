@@ -384,7 +384,7 @@ function doStart() {
         systemctl --user start pxf.service
         pid="$(systemctl --user show --property MainPID pxf.service)"
     else
-        if [[ -f "$pid_file"]]; then
+        if [[ -f "$pid_file" ]]; then
             pid=$(cat "$pid_file")
             isRunning "$pid" && { echoYellow "PXF is already running [pid=$pid]"; return 0; }
         fi
