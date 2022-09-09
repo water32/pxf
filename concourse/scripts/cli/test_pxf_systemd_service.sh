@@ -17,7 +17,7 @@ test_enabling_systemd_without_user_services() {
     #      : PXF is not running
     pxf cluster stop
     # when : a DBA configures PXF to use systemd
-    sed -e '/PXF_USE_SYSTEMD/c\export PXF_USE_SYSTEMD=true' "${PXF_BASE_DIR}/conf/pxf-env.sh"
+    sed -i.bak -e '/PXF_USE_SYSTEMD/c\export PXF_USE_SYSTEMD=true' "${PXF_BASE_DIR}/conf/pxf-env.sh"
     #      : AND runs "pxf cluster sync"
     pxf cluster sync
     #      : AND runs "pxf cluster start"
