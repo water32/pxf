@@ -408,8 +408,7 @@ function doStart() {
 function doStop() {
     checkJavaHome
     warnUserEnvScript
-    if [[ $PXF_USE_SYSTEMD == true ]]; then
-        checkSystemdUserService
+    if systemctl is-active "user@(id -u)" &>/dev/null && systemctl --user is-active pxf.service &>/dev/null; then
         systemctl --user stop pxf.service &>/dev/null
         systemctl --user disable pxf.service &>/dev/null
         rm "${PXF_RUNDIR}/pxf.service"
