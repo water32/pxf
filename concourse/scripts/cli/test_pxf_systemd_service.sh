@@ -5,13 +5,31 @@ dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=./common.sh
 source "${dir}/common.sh"
 
+before_all() {
+    pxf cluster stop
+
+    PXF_BASE="$(mktemp -d)"
+    export PXF_BASE
+    echo "Updating PXF_BASE to ${PXF_BASE}"
+    # PXF_BASE_DIR is already exported, don't need to re-export
+    PXF_BASE_DIR="${PXF_BASE}"
+
+    pxf prepare
+    pxf cluster sync
+}
+before_all
+
 # ************************************************************************************************************
 # ***** TEST Suite starts with PXF not running on any nodes **************************************************
 # ************************************************************************************************************
 
 # === Test "pxf cluster start (without enabling systemd user services)" =====================================
 expected_output=\
-"The systemd user service for user '$(id -un)' (id=$(id -u)) is not active"
+"Starting PXF on master host and 2 segment hosts...\n\
+ERROR: PXF failed to start on 3 out of 3 hosts\n\
+mdw ==> ${red}ERROR: The systemd user service for user 'gpadmin' (id=1025) is not active.${reset}\n\n\
+sdw1 ==> ${red}ERROR: The systemd user service for user 'gpadmin' (id=1025) is not active.${reset}\n\n\
+sdw2 ==> ${red}ERROR: The systemd user service for user 'gpadmin' (id=1025) is not active.${reset}\n"
 test_enabling_systemd_without_user_services() {
     # given:
     #      : PXF is not running
@@ -21,13 +39,23 @@ test_enabling_systemd_without_user_services() {
     #      : AND runs "pxf cluster sync"
     pxf cluster sync
     #      : AND runs "pxf cluster start"
+    local output
     local result
-    result="$(pxf cluster start)"
+    output="$(pxf cluster start 2>&1)"
+    result="$?"
+    assert_equals "1" "${result}" "pxf cluster start should not succeed"
     # then : it prints an error message
-    assert_equals "${expected_output}" "${result}" "pxf cluster start should not succeed"
+    assert_equals "$(echo -e ${expected_output})" "${output}" "pxf cluster start should not succeed"
 }
 
 run_test test_enabling_systemd_without_user_services "pxf cluster start should not succeed"
 # ===========================================================================================================
+
+after_all() {
+    pxf cluster stop
+    rm -rf "${PXF_BASE}"
+    unset PXF_BASE
+}
+after_all
 
 exit_with_err "${BASH_SOURCE[0]}"
