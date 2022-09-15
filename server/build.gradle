@@ -256,6 +256,11 @@ task stage(type: Copy) {
         into 'bin'
         filter { line -> line.replaceAll('_PXF_VERSION_', "${version}") }
     }
+    from('pxf-service/src/scripts/') {
+        into 'sbin'
+        include 'disable-systemd-user-service.sh'
+        include 'enable-systemd-user-service.sh'
+    }
     from('pxf-service/src/templates')
     into "$buildDir/stage/pxf"
 
