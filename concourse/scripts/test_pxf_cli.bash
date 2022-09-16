@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+exit 1
+
 SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 cluster_env_files=$( cd "${SCRIPT_DIR}/../../../cluster_env_files" && pwd )
