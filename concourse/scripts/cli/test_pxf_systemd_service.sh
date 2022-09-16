@@ -83,6 +83,7 @@ test_enabling_systemd_with_user_services() {
     assert_equals "0" "${result}" "pxf cluster start should succeed"
     # then : it prints an error message
     assert_equals "$(echo -e ${expected_output})" "${output}" "pxf cluster start should succeed"
+    pxf cluster stop
     for host in "${all_cluster_hosts[@]}"; do
         disable_systemd_user_service "${host}"
     done
@@ -92,7 +93,6 @@ run_test test_enabling_systemd_with_user_services "pxf cluster start should succ
 # ===========================================================================================================
 
 after_all() {
-    pxf cluster stop
     rm -rf "${PXF_BASE}"
     unset PXF_BASE
 }
