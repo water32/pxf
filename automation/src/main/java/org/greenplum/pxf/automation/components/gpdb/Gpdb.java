@@ -1,10 +1,12 @@
 package org.greenplum.pxf.automation.components.gpdb;
 
+import com.google.common.collect.Lists;
 import org.apache.commons.lang.StringUtils;
 import org.greenplum.pxf.automation.components.common.DbSystemObject;
 import org.greenplum.pxf.automation.components.common.ShellSystemObject;
 import org.greenplum.pxf.automation.structures.tables.basic.Table;
 import org.greenplum.pxf.automation.utils.jsystem.report.ReportUtils;
+import org.greenplum.pxf.automation.utils.system.FDWUtils;
 import org.springframework.util.Assert;
 
 import java.io.File;
@@ -74,7 +76,12 @@ public class Gpdb extends DbSystemObject {
 		connect();
 
 		// Create the extensions if they don't exist
-		createExtension("pxf", true);
+		String extensionName = FDWUtils.useFDW ? "pxf_fdw" : "pxf";
+		createExtension(extensionName, true);
+
+		if (FDWUtils.useFDW) {
+			createForeignServers(true);
+		}
 
 		ReportUtils.stopLevel(report);
 	}
@@ -139,6 +146,33 @@ public class Gpdb extends DbSystemObject {
 
 	private void createExtension(String extensionName, boolean ignoreFail) throws Exception {
 		runQuery("CREATE EXTENSION IF NOT EXISTS " + extensionName, ignoreFail, false);
+	}
+
+	private void createForeignServers(boolean ignoreFail) throws Exception {
+		List<String> servers = Lists.newArrayList(
+		"default_hdfs",
+		"default_hive",
+		"default_hbase",
+		"default_jdbc",
+		"default_file",
+		"default_s3",
+		"default_gs",
+		"default_adl",
+		"default_wasbs",
+		"s3_s3",
+		"hdfs-non-secure_hdfs",
+		"hdfs-secure_hdfs",
+		"hdfs-ipa_hdfs");
+
+		for (String server : servers) {
+			String foreignServerName = server.replace("-", "_");
+			String pxfServerName = server.substring(0,server.lastIndexOf("_")); // strip protocol at the end
+			String fdwName = server.substring(server.lastIndexOf("_") + 1) + "_pxf_fdw"; // strip protocol at the end
+			runQuery(String.format("CREATE SERVER IF NOT EXISTS %s FOREIGN DATA WRAPPER %s OPTIONS(config '%s')",
+					foreignServerName, fdwName, pxfServerName), ignoreFail, false);
+			runQuery(String.format("CREATE USER MAPPING IF NOT EXISTS FOR CURRENT_USER SERVER %s", foreignServerName),
+					ignoreFail, false);
+		}
 	}
 
 	@Override

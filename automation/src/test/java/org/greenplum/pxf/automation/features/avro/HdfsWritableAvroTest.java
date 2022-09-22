@@ -323,9 +323,11 @@ public class HdfsWritableAvroTest extends BaseFeature {
         if (ProtocolUtils.getPxfTestKeepData().equals("true")) {
             return;
         }
-        for (File file : filesToDelete) {
-            if (!file.delete()) {
-                ReportUtils.startLevel(null, getClass(), String.format("Problem deleting file '%s'", file));
+        if (filesToDelete != null) {
+            for (File file : filesToDelete) {
+                if (!file.delete()) {
+                    ReportUtils.startLevel(null, getClass(), String.format("Problem deleting file '%s'", file));
+                }
             }
         }
         dropComplexTypes();
@@ -338,8 +340,10 @@ public class HdfsWritableAvroTest extends BaseFeature {
     }
 
     private void dropComplexTypes() throws Exception {
-        gpdb.runQuery("DROP TYPE IF EXISTS struct CASCADE", true, false);
-        gpdb.runQuery("DROP TYPE IF EXISTS mood CASCADE", true, false);
+        if (gpdb != null) {
+            gpdb.runQuery("DROP TYPE IF EXISTS struct CASCADE", true, false);
+            gpdb.runQuery("DROP TYPE IF EXISTS mood CASCADE", true, false);
+        }
     }
 
     private void insertPrimitives(String exTable) throws Exception {
