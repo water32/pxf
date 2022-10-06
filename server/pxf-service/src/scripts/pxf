@@ -118,45 +118,6 @@ function failWithHint() {
     exit 1
 }
 
-#
-# waitForSpringBoot waits for spring boot to finish loading
-# for given attempts number.
-#
-function waitForSpringBoot() {
-    attempts=0
-    max_attempts=$1 # number of attempts to connect
-    echo_after_attempts=$2 # only start echoing after this number of attempts
-    sleep_time=1 # sleep 1 second between attempts
-
-    # wait until spring boot is up:
-    echoYellow 'Checking if PXF is up and running...'
-    until $curl --silent --connect-timeout 1 -I "http://localhost:$PXF_PORT" | grep 'PXF Server' > /dev/null; do
-        if (( ++attempts == max_attempts )); then
-            echoRed 'ERROR: PXF is down - the application is not running'
-            return 1
-        fi
-        if (( attempts >= echo_after_attempts )); then
-            echoYellow "PXF not responding, re-trying after $sleep_time second (attempt number ${attempts})"
-        fi
-        sleep $sleep_time
-    done
-
-    return 0
-}
-
-#
-# checkWebapp checks if PXF is up for $1 attempts and then
-# verifies PXF webapp is functional
-#
-function checkWebapp() {
-    waitForSpringBoot "$1" "$2" || return 1
-
-    curlResponse=$($curl -s "http://localhost:${PXF_PORT}/actuator/health")
-
-    [[ $curlResponse == {\"status\":\"UP\"* ]] || fail "PXF is inaccessible. Check logs ($PXF_LOGDIR) for more information"
-    return 0
-}
-
 # determines whether the application is running
 function isRunning() {
     ps -o pid,command -p "$1" | grep 'pxf-app' &> /dev/null
@@ -180,13 +141,6 @@ function copyConfigurationFilesToPxfBase() {
     cp -Lv "${PXF_HOME}/conf/pxf-env.sh"                 "${PXF_BASE}/conf"
     cp -Lv "${PXF_HOME}/conf/pxf-log4j2.xml"             "${PXF_BASE}/conf"
     cp -Lv "${PXF_HOME}/conf/pxf-profiles.xml"           "${PXF_BASE}/conf"
-}
-
-function validate_system() {
-    # validate curl
-    if ! curl=$(command -v curl); then
-        fail 'curl is not installed, please install'
-    fi
 }
 
 function printUsage() {
@@ -359,7 +313,6 @@ function doMigrate() {
 # doStart handles start commands
 # command is executed as the current user
 #
-# after start, uses checkWebapp to verify the PXF webapp was loaded
 # successfully
 #
 function doStart() {
@@ -402,7 +355,6 @@ function do_start() {
     echo "$pid" > "$pid_file"
 
     [[ -z $pid ]] && fail "Failed to start PXF"
-    checkWebapp 300 10 || return 1
     echoGreen "PXF started [pid=$pid]. Listening on port $PXF_PORT";
 }
 
@@ -424,21 +376,6 @@ function doStop() {
     isRunning "$pid" || { echoYellow "Not running (process ${pid}). Removing stale pid file '$pid_file'."; rm -f "$pid_file"; return 0; }
 
     echoYellow "Stopping PXF [pid=$pid]..."
-
-    # first try endpoint (assume it might be disabled)
-    if $curl --max-time 5 --silent -X POST "localhost:$PXF_PORT/actuator/shutdown" | grep "Shutting down, bye..." > /dev/null; then
-        for i in $(seq 1 $STOP_WAIT_TIME); do
-            if isRunning "$pid"; then
-                sleep 1
-            else
-                echoGreen "PXF stopped [pid=$pid]"
-                rm -f $pid_file
-                return 0
-            fi
-        done
-    fi
-
-    # second try a nice kill and if that doesn't work force kill
     do_stop "$pid" "$pid_file" || do_stop "$pid" "$pid_file" "-f"
     rm -f $pid_file
 }
@@ -460,8 +397,16 @@ function do_stop() {
 function doStatus() {
     checkJavaHome
     warnUserEnvScript
-    checkWebapp 1 0 || return 1
+
+    echoYellow 'Checking if PXF is up and running...'
+
+    working_dir="$(dirname "${jarfile}")"
+    pushd "${working_dir}" >/dev/null
+    [[ -s "${pid_file}" ]] || { echoRed 'ERROR: PXF is down - the application is not running'; return 3; }
+    pid="$(cat "${pid_file}")"
+    isRunning "${pid}" || { echoRed "ERROR: PXF is down - process ${pid} not found"; return 1; }
     echoGreen "PXF is listening on port $PXF_PORT"
+
     return 0
 }
 
@@ -493,7 +438,6 @@ pxf_script_command=$1
 silent=false
 
 validate_user
-validate_system
 
 case $pxf_script_command in
     'init')
