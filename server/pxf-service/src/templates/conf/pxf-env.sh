@@ -33,4 +33,4 @@
 # export LD_LIBRARY_PATH=
 
 # Enable systemd unit service for managing PXF, set to true to enable
-# export PXF_USE_SYSTEMD=false
+# export PXF_AUTO_RESTART=false

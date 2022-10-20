@@ -68,7 +68,7 @@ export PXF_DEBUG=${PXF_DEBUG:-false}
 # Kill PXF on OutOfMemoryError, set to false to disable
 export PXF_OOM_KILL=${PXF_OOM_KILL:-true}
 
-export PXF_USE_SYSTEMD=${PXF_USE_SYSTEMD:-false}
+export PXF_AUTO_RESTART=${PXF_AUTO_RESTART:-false}
 
 # Additional locations to be class-loaded by the application
 export LOADER_PATH="${PXF_LOADER_PATH:+$PXF_LOADER_PATH,}file:${PXF_BASE}/conf,file:${PXF_BASE}/lib"
@@ -374,7 +374,7 @@ function doMigrate() {
 function doStart() {
     checkJavaHome
     warnUserEnvScript
-    if [[ $PXF_USE_SYSTEMD == true ]]; then
+    if [[ $PXF_AUTO_RESTART == true ]]; then
         checkSystemdUserService
         # TODO: should the service unit file go in PXF_RUNDIR since it is not managed by a user?
         sed -e "/^Environment/c\Environment=PXF_LOG_LEVEL=${PXF_LOG_LEVEL:-info} PXF_BASE=${PXF_BASE} JAVA_HOME=${JAVA_HOME}" \
@@ -459,6 +459,11 @@ function doStatus() {
     warnUserEnvScript
     checkWebapp 1 0 || return 1
     echoGreen "PXF is listening on port $PXF_PORT"
+    if [[ $PXF_AUTO_RESTART == true ]]; then
+        echoGreen "PXF_AUTO_RESTART=${PXF_AUTO_RESTART}"
+        echoGreen "Systemd User Service: $(systemctl is-active user@$(id -u))"
+        echoGreen "Systemd PXF service:  $(systemctl --user is-active pxf.service)"
+    fi
     return 0
 }
 
@@ -486,6 +491,7 @@ function run() {
     echoGreen "   PXF_LOGDIR=${PXF_LOGDIR}"
     echoGreen "   PXF_RUNDIR=${PXF_RUNDIR}"
     echoGreen "   PXF_JVM_OPTS=${PXF_JVM_OPTS}"
+    echoGreen "   PXF_AUTO_RESTART=${PXF_AUTO_RESTART}"
     [[ $PXF_DEBUG == true ]] && echoGreen "   LOADER_PATH=${LOADER_PATH}"
 
     exec "$javaexe" "${arguments[@]}"

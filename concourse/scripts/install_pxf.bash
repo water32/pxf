@@ -140,7 +140,7 @@ function create_pxf_installer_scripts() {
 		  fi
 
 		  if [[ $TEST_SYSTEMD_SERVICE == true ]]; then
-		    echo 'export PXF_USE_SYSTEMD=true' >> "\${PXF_BASE}/conf/pxf-env.sh"
+		    echo 'export PXF_AUTO_RESTART=true' >> "\${PXF_BASE}/conf/pxf-env.sh"
 		    if ! systemctl is-active "user@\$(id -ru).service" &>/dev/null; then
 		      gpssh -f ~gpadmin/hostfile_all -v -u ${DEFAULT_OS_USER} -s -e 'sudo install -m 0644 ${PXF_HOME}/conf/user@.service /usr/lib/systemd/system'
 		      gpssh -f ~gpadmin/hostfile_all -v -u ${DEFAULT_OS_USER} -s -e 'sudo systemctl daemon-reload'
