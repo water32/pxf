@@ -18,7 +18,7 @@ function _main() {
     sleep 1
     log 'Stopping PXF'
     kill "${PID}" &>/dev/null
-    for i in $(seq 30); do
+    for i in {1..30}; do
         if ! isRunning "${PID}"; then
             log "PXF stopped [${PID}]"
             exit 0
@@ -29,7 +29,7 @@ function _main() {
     done
 
     kill -9 "$PID" &>/dev/null
-    for i in $(seq 30); do
+    for i in {1..30}; do
         if ! isRunning "${PID}"; then
             log "PXF stopped [${PID}]"
             exit 0
