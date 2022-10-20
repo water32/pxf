@@ -73,6 +73,9 @@ export PXF_AUTO_RESTART=${PXF_AUTO_RESTART:-false}
 # Additional locations to be class-loaded by the application
 export LOADER_PATH="${PXF_LOADER_PATH:+$PXF_LOADER_PATH,}file:${PXF_BASE}/conf,file:${PXF_BASE}/lib"
 
+# used by systemctl --user commands
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -ru)}"
+
 [[ -z "$STOP_WAIT_TIME" ]] && STOP_WAIT_TIME="60"
 identity="pxf-app"
 
