@@ -6,7 +6,7 @@ After=syslog.target
 Environment=PXF_LOG_LEVEL=info PXF_BASE=@PXF_HOME@ JAVA_HOME=@JAVA_HOME@
 ExecStart=@PXF_HOME@/bin/pxf run
 SuccessExitStatus=143
-Restart=on-failure
+Restart=always
 # systemd on RHEL7 does not support file: or append:
 #StandardOutput=append:@PXF_BASE@/logs/pxf-app.out
 #StandardError=inherit
