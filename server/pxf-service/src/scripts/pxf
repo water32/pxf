@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -53,9 +53,9 @@ export JAVA_HOME=${JAVA_HOME:=/usr/java/default}
 # Path to Log directory
 export PXF_LOGDIR=${PXF_LOGDIR:=${PXF_BASE}/logs}
 
-export PXF_CLI_LOGDIR="${PXF_LOGDIR}/admin"
-PXF_CLI_LOGFILE="${PXF_CLI_LOGDIR}/pxf-cli-$(date +%Y-%m).log"
-export PXF_CLI_LOGFILE
+export PXF_ADMIN_LOGDIR="${PXF_LOGDIR}/admin"
+PXF_COMMANDS_LOGFILE="${PXF_ADMIN_LOGDIR}/pxf-commands-$(date +%Y-%m).log"
+export PXF_COMMANDS_LOGFILE
 
 # Path to Run directory
 export PXF_RUNDIR=${PXF_RUNDIR:=${PXF_BASE}/run}
@@ -122,8 +122,17 @@ function failWithHint() {
     exit 1
 }
 
+# Writes all function arguments as a string to PXF commands log
+# Before the function args are written to the log file, they are prefixed with
+# the current timestamp and this process' PID to allow grouping log messages
+# from the same invocation of the launcher
+#
+# Example
+#    log "Checking if PXF process exists"
+#
+#     2022-10-20 17:23:55.554 PDT	[27717]	Checking if PXF process exists
 function log() {
-    printf "%s\t[%d]\t%s\n" "$(date '+%Y-%m-%d %H:%M:%S.%3N %Z')" "${BASHPID}" "$*" >>"${PXF_CLI_LOGFILE}"
+    printf "%s\t[%d]\t%s\n" "$(date '+%Y-%m-%d %H:%M:%S.%3N %Z')" "${BASHPID}" "$*" >>"${PXF_COMMANDS_LOGFILE}"
 }
 
 # determines whether the application is running
@@ -132,26 +141,50 @@ function isRunning() {
     ps -o pid,command -p "$1" | grep 'pxf-app' &> /dev/null
 }
 
+# Creates the PXF admin log directory if it doesn't exist
+function ensureAdminLogDirectory() {
+    if [[ ! -d "${PXF_ADMIN_LOGDIR}" ]]; then
+        install -m 700 -d "${PXF_ADMIN_LOGDIR}"
+    fi
+}
+
+# Creates a directory under $PXF_BASE with the given mode
+function createPxfBaseDirectory() {
+    local mode="$1"
+    local directory="$2"
+
+    log "Creating directory ${directory} in ${PXF_BASE} with mode ${mode}"
+    install -m "${mode}" -d "${PXF_BASE}/${directory}"
+}
+
 # creates the runtime directory structure inside $PXF_BASE
 function createPxfBaseDirectories() {
     log "Creating PXF runtime directory structure in ${PXF_BASE}"
-    install -m 744 -d "${PXF_BASE}/conf"
-    install -m 744 -d "${PXF_BASE}/lib"
-    install -m 744 -d "${PXF_BASE}/lib/native"
-    install -m 744 -d "${PXF_BASE}/servers"
-    install -m 744 -d "${PXF_BASE}/servers/default"
-    install -m 700 -d "${PXF_BASE}/logs"
-    install -m 700 -d "${PXF_BASE}/run"
-    install -m 700 -d "${PXF_BASE}/keytabs"
+    createPxfBaseDirectory 744 "conf"
+    createPxfBaseDirectory 744 "lib"
+    createPxfBaseDirectory 744 "lib/native"
+    createPxfBaseDirectory 744 "servers"
+    createPxfBaseDirectory 744 "servers/default"
+    createPxfBaseDirectory 700 "logs"
+    createPxfBaseDirectory 700 "logs/admin"
+    createPxfBaseDirectory 700 "run"
+    createPxfBaseDirectory 700 "keytabs"
+}
+
+function copyFile() {
+    local config_file="$1"
+
+    log "Copying ${PXF_HOME}/conf/${config_file} to ${PXF_BASE}/conf"
+    cp -Lv "${PXF_HOME}/conf/${config_file}" "${PXF_BASE}/conf"
 }
 
 # copies configuration files inside $PXF_BASE
 function copyConfigurationFilesToPxfBase() {
     log "Copying PXF configuration files from ${PXF_HOME} to ${PXF_BASE}"
-    cp -Lv "${PXF_HOME}/conf/pxf-application.properties" "${PXF_BASE}/conf"
-    cp -Lv "${PXF_HOME}/conf/pxf-env.sh"                 "${PXF_BASE}/conf"
-    cp -Lv "${PXF_HOME}/conf/pxf-log4j2.xml"             "${PXF_BASE}/conf"
-    cp -Lv "${PXF_HOME}/conf/pxf-profiles.xml"           "${PXF_BASE}/conf"
+    copyFile pxf-application.properties
+    copyFile pxf-env.sh
+    copyFile pxf-log4j2.xml
+    copyFile pxf-profiles.xml
 }
 
 function printUsage() {
@@ -411,9 +444,14 @@ function do_stop() {
     log "Attempting to stop PXF with '${killcmd[*]}'"
     "${killcmd[@]}" &> /dev/null || { echoRed "Unable to terminate process $1"; return 1; }
     for i in $(seq 1 $STOP_WAIT_TIME); do
-        isRunning "$1" || { echoGreen "PXF stopped [$1]"; rm -f "$2"; return 0; }
+        if ! isRunning "$1"; then
+            log "PXF stopped [$1]"
+            echoGreen "PXF stopped [$1]"
+            rm -f "$2"
+            return 0
+        fi
         log "PXF process with PID=$1 is still running..."
-        if [[ $i -eq STOP_WAIT_TIME/2 ]]; then
+        if ((i == STOP_WAIT_TIME/2)); then
             log "Attempting to stop PXF again with '${killcmd[*]}'"
             "${killcmd[@]}" &> /dev/null
         fi
@@ -425,13 +463,12 @@ function do_stop() {
 }
 
 function doStatus() {
+    log "Checking if PXF is up and running..."
     checkJavaHome
     warnUserEnvScript
 
     echoYellow 'Checking if PXF is up and running...'
 
-    working_dir="$(dirname "${jarfile}")"
-    pushd "${working_dir}" >/dev/null
     if [[ ! -s "${pid_file}" ]]; then
         log "PXF pidfile '${pid_file}' does not exist"
         echoRed 'ERROR: PXF is down - the application is not running'
@@ -469,11 +506,11 @@ function warnUserEnvScript() {
     [[ -f $user_env_script ]] || echoYellow "WARNING: failed to find ${user_env_script}, default parameters will be used"
 }
 
+ensureAdminLogDirectory
+
 pxf_script_command=$1
 
 silent=false
-
-[[ -d "${PXF_CLI_LOGDIR}" ]] || mkdir "${PXF_CLI_LOGDIR}"
 
 validate_user
 
