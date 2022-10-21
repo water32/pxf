@@ -68,8 +68,8 @@ sed -i "s|module_pathname =.*|module_pathname = '${RPM_INSTALL_PREFIX}/gpextable
 %config(noreplace) %{prefix}/conf/user@.service
 %else
 %exclude %{prefix}/conf/user@.service
-%exclude %{prefix}/sbin/disable-systemd-user-service.sh
-%exclude %{prefix}/sbin/denable-systemd-user-service.sh
+%exclude %{prefix}/sbin/disable-systemd-user-service
+%exclude %{prefix}/sbin/denable-systemd-user-service
 %endif
 
 %pre

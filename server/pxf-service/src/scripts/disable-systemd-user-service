@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+GP_USER="${1:-gpadmin}"
+
 PXF_SBINDIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 PXF_HOME="$(cd -- "$(dirname -- "${PXF_SBINDIR}")" &>/dev/null && pwd)"
 
@@ -8,9 +10,9 @@ if [[ "${EUID}" != 0 ]]; then
     exit 1
 fi
 
-echo "Stopping and disabling user@$(id -ru).service"
-systemctl start "user@$(id -u gpadmin).service"
-systemctl disable "user@$(id -u gpadmin).service"
+echo "Stopping and disabling user@$(id -ru "${GP_USER}").service"
+systemctl stop "user@$(id -ru "${GP_USER}").service"
+systemctl disable "user@$(id -ru "${GP_USER}").service"
 if cmp --silent "${PXF_HOME}/conf/user@.service" /usr/lib/systemd/system/user@.service; then
     echo "Removing /usr/lib/systemd/system/user@.service"
     rm -rf /usr/lib/systemd/system/user@.service

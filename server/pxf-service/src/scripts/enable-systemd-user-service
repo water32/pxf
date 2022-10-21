@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+GP_USER="${1:-gpadmin}"
+
 PXF_SBINDIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 PXF_HOME="$(cd -- "$(dirname -- "${PXF_SBINDIR}")" &>/dev/null && pwd)"
 
@@ -15,6 +17,7 @@ else
     echo "There is already a user@service file in /usr/lib/systemd/system/; skipping installation..."
 fi
 
-echo "Enabling and starting user@$(id -ru gpadmin).service ..."
-systemctl enable "user@$(id -ru gpadmin).service"
-systemctl start "user@$(id -ru gpadmin).service"
+# TODO: allow for a username to be given instead of hard-coding
+echo "Enabling and starting user@$(id -ru "${GP_USER}").service ..."
+systemctl enable "user@$(id -ru "${GP_USER}").service"
+systemctl start "user@$(id -ru "${GP_USER}").service"

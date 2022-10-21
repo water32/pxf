@@ -258,8 +258,8 @@ task stage(type: Copy) {
     }
     from('pxf-service/src/scripts/') {
         into 'sbin'
-        include 'disable-systemd-user-service.sh'
-        include 'enable-systemd-user-service.sh'
+        include 'disable-systemd-user-service'
+        include 'enable-systemd-user-service'
     }
     from('pxf-service/src/templates')
     into "$buildDir/stage/pxf"
