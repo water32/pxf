@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
 
 # Load settings
-root=`cd \`dirname $0\`/..;pwd`
+root=$(cd "$(dirname "$0")/.." && pwd)
 bin=${root}/bin
-. ${bin}/gphd-env.sh
 
-cluster_initialized
-if [ $? -ne 0 ] && [ ! $PXFDEMO ]; then
-	echo cluster not initialized
-	echo please run ${bin}/init-gphd.sh
-	exit 1
+# shellcheck source=/dev/null
+. "${bin}/gphd-env.sh"
+
+if ! cluster_initialized && [ ! "${PXFDEMO}" ]; then
+    echo "cluster not initialized"
+    echo "please run ${bin}/init-gphd.sh"
+    exit 1
 fi
 
 # Start PXF
-pushd ${GPHD_ROOT}
-for (( i=0; i < ${SLAVES}; i++ ))
-do
-	${bin}/pxf-service.sh start ${i} | sed "s/^/node $i: /"
+pushd "${GPHD_ROOT}" &>/dev/null || exit 1
+for ((i = 0; i < WORKERS; i++)); do
+    "${bin}/pxf-service.sh" start "${i}" | sed "s/^/node $i: /"
 done
-popd
+popd &>/dev/null || exit 1

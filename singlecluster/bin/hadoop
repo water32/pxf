@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 
 # Load settings
-root=`cd \`dirname $0\`/..;pwd`
+root=$(cd "$(dirname "$0")/.." && pwd)
 bin=${root}/bin
-. ${bin}/gphd-env.sh
 
-${HADOOP_BIN}/hadoop $*
+# shellcheck source=/dev/null
+. "${bin}/gphd-env.sh"
+
+"${HADOOP_BIN}/hadoop" "$@"

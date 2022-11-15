@@ -2,26 +2,29 @@
 
 # Set GPHD_ROOT
 # This assumes gphd-env.sh is always being sourced
-export GPHD_ROOT=$( cd $(dirname ${BASH_SOURCE[0]})/.. && pwd )
+GPHD_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+export GPHD_ROOT
 export GPHD_CONF=${GPHD_ROOT}/conf
 
 # Load settings file
 settings_file=${GPHD_CONF}/gphd-conf.sh
-if [ ! -f ${settings_file} ]; then
-	echo cannot find settings file at ${settings_file}
-	exit 1
-fi
-. ${settings_file}
-
-if [ ${SLAVES} -lt 1 -o ${SLAVES} -gt 10 ]; then
-	echo SLAVES valid range 1-10 \(${SLAVES}\)
-	exit 1
+if [ ! -f "${settings_file}" ]; then
+    echo "cannot find settings file at ${settings_file}"
+    exit 1
 fi
 
-if [ ! -x ${JAVA_HOME}/bin/java ]; then
-	echo cannot find java at ${JAVA_HOME}
-	echo check your conf/gphd-conf.sh file
-	exit 1
+# shellcheck source=/dev/null
+. "${settings_file}"
+
+if [ "${WORKERS}" -lt 1 ] || [ "${WORKERS}" -gt 10 ]; then
+    echo "WORKERS valid range 1-10 (${WORKERS})"
+    exit 1
+fi
+
+if [ ! -x "${JAVA_HOME}"/bin/java ]; then
+    echo "cannot find java at ${JAVA_HOME}"
+    echo "check your conf/gphd-conf.sh file"
+    exit 1
 fi
 
 # Some basic definitions
@@ -48,33 +51,31 @@ export HIVE_CONF=${HIVE_ROOT}/conf
 export TEZ_CONF=${TEZ_ROOT}/conf
 export RANGER_CONF=${RANGER_ROOT}/conf
 
-export TEZ_JARS=$(echo "$TEZ_ROOT"/*.jar | tr ' ' ':'):$(echo "$TEZ_ROOT"/lib/*.jar | tr ' ' ':')
+TEZ_JARS=$(echo "$TEZ_ROOT"/*.jar | tr ' ' ':'):$(echo "$TEZ_ROOT"/lib/*.jar | tr ' ' ':')
+export TEZ_JARS
 
-function cluster_initialized()
-{
-	if [ -d ${HADOOP_STORAGE_ROOT}/dfs/name ]; then
-		return 0
-	else
-		return 1
-	fi
+function cluster_initialized() {
+    if [ -d "${HADOOP_STORAGE_ROOT}/dfs/name" ]; then
+        return 0
+    else
+        return 1
+    fi
 }
 
-function hdfs_running()
-{
-	`${bin}/hdfs dfsadmin -Dipc.client.connect.max.retries.on.timeouts=0 -safemode get 2>&1 | grep -q "Safe mode is OFF"`
-	return $?
+function hdfs_running() {
+    ${bin}/hdfs dfsadmin -Dipc.client.connect.max.retries.on.timeouts=0 -safemode get 2>&1 | grep -q "Safe mode is OFF"
+    return $?
 }
 
-function zookeeper_running()
-{
-	local retval=1
-	for i in {1..10}; do
-		sleep 5s
-		${ZOOKEEPER_BIN}/zkServer.sh status > /dev/null 2>&1
-		retval=$?
-		if [ ${retval} -eq 0 ]; then
-			return 0
-		fi
-	done
-	return ${retval}
+function zookeeper_running() {
+    local retval=1
+    for _i in {1..10}; do
+        sleep 5s
+        "${ZOOKEEPER_BIN}/zkServer.sh" status &>/dev/null
+        retval=$?
+        if [ ${retval} -eq 0 ]; then
+            return 0
+        fi
+    done
+    return ${retval}
 }
