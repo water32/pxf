@@ -5,14 +5,16 @@ output "ssh_config" {
     namenode = google_compute_instance.namenode
     datanode = google_compute_instance.datanode
   })
-
+  sensitive = true
 }
+
 output "ansible_inventory" {
   value = templatefile("${path.module}/templates/inventory.ini.tpl", {
     ipa = google_compute_instance.ipa
     namenode = google_compute_instance.namenode
     datanode = google_compute_instance.datanode
   })
+  sensitive = true
 }
 
 output "etc_hosts" {
@@ -22,6 +24,7 @@ output "etc_hosts" {
     namenode = google_compute_instance.namenode
     datanode = google_compute_instance.datanode
   })
+  sensitive = true
 }
 
 output "ansible_variables" {
