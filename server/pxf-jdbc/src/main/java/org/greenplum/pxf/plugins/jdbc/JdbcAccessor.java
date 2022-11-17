@@ -103,6 +103,17 @@ public class JdbcAccessor extends JdbcBasePlugin implements Accessor {
         }
 
         Connection connection = super.getConnection();
+        try {
+            return openForReadInner(connection);
+        } catch (Throwable e) {
+            if (statementRead == null) {
+                closeConnection(connection);
+            }
+            throw new PxfRuntimeException(e.getMessage(), e);
+        }
+    }
+
+    private boolean openForReadInner(Connection connection) throws SQLException {
         SQLQueryBuilder sqlQueryBuilder = new SQLQueryBuilder(context, connection.getMetaData(), getQueryText());
 
         // Build SELECT query
@@ -225,7 +236,7 @@ public class JdbcAccessor extends JdbcBasePlugin implements Accessor {
         return true;
     }
 
-     /**
+    /**
      * writeNextObject() implementation
      * <p>
      * If batchSize is not 0 or 1, add a tuple to the batch of statementWrite
