@@ -1,4 +1,6 @@
-CREATE EXTERNAL TABLE IF NOT EXISTS precision_numeric_csv (
+DROP TABLE IF EXISTS precision_numeric_csv;
+
+CREATE EXTERNAL TABLE precision_numeric_csv (
 description STRING,
 a DECIMAL(5,  2),
 b DECIMAL(12, 2),

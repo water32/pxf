@@ -29,6 +29,7 @@ import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.Type;
 import org.greenplum.pxf.api.OneField;
 import org.greenplum.pxf.api.OneRow;
+import org.greenplum.pxf.api.error.UnsupportedTypeException;
 import org.greenplum.pxf.api.io.DataType;
 import org.greenplum.pxf.api.model.BasePlugin;
 import org.greenplum.pxf.api.model.Resolver;
@@ -52,11 +53,10 @@ public class ParquetResolver extends BasePlugin implements Resolver {
     // used to distinguish string pattern between type "timestamp" ("2019-03-14 14:10:28")
     // and type "timestamp with time zone" ("2019-03-14 14:10:28+07:30")
     public static final Pattern TIMESTAMP_PATTERN = Pattern.compile("[+-]\\d{2}(:\\d{2})?$");
-
+    private final ObjectMapper mapper = new ObjectMapper();
     private MessageType schema;
     private SimpleGroupFactory groupFactory;
     private List<ColumnDescriptor> columnDescriptors;
-    private final ObjectMapper mapper = new ObjectMapper();
 
     @Override
     public void afterPropertiesSet() {
@@ -64,6 +64,12 @@ public class ParquetResolver extends BasePlugin implements Resolver {
         columnDescriptors = context.getTupleDescription();
     }
 
+    /**
+     * Get fields based on the row
+     *
+     * @param row the row to get the fields from
+     * @return a list of fields containing Greenplum data type and data value
+     */
     @Override
     public List<OneField> getFields(OneRow row) {
         validateSchema();
@@ -71,17 +77,13 @@ public class ParquetResolver extends BasePlugin implements Resolver {
         List<OneField> output = new LinkedList<>();
         int columnIndex = 0;
 
-        // schema is the readSchema, if there is column projection
-        // the schema will be a subset of tuple descriptions
         for (ColumnDescriptor columnDescriptor : columnDescriptors) {
             OneField oneField;
             if (!columnDescriptor.isProjected()) {
                 oneField = new OneField(columnDescriptor.columnTypeCode(), null);
-            } else if (schema.getType(columnIndex).isPrimitive()) {
-                oneField = resolvePrimitive(group, columnIndex, schema.getType(columnIndex), 0);
-                columnIndex++;
             } else {
-                throw new UnsupportedOperationException("Parquet complex type support is not yet available.");
+                oneField = resolveField(group, columnIndex);
+                columnIndex++;
             }
             output.add(oneField);
         }
@@ -117,7 +119,7 @@ public class ParquetResolver extends BasePlugin implements Resolver {
         return new OneRow(null, group);
     }
 
-    private void fillGroup(int index, OneField field, Group group, Type type) throws IOException {
+    private void fillGroup(int index, OneField field, Group group, Type type) {
         if (field.val == null)
             return;
         switch (type.asPrimitiveType().getPrimitiveTypeName()) {
@@ -202,7 +204,7 @@ public class ParquetResolver extends BasePlugin implements Resolver {
                 group.add(index, (Boolean) field.val);
                 break;
             default:
-                throw new IOException("Not supported type " + type.asPrimitiveType().getPrimitiveTypeName());
+                throw new UnsupportedTypeException("Not supported type " + type.asPrimitiveType().getPrimitiveTypeName());
         }
     }
 
@@ -218,42 +220,52 @@ public class ParquetResolver extends BasePlugin implements Resolver {
         }
     }
 
-    private OneField resolvePrimitive(Group group, int columnIndex, Type type, int level) {
 
+    /**
+     * Resolve the Parquet data at the columnIndex into Greenplum representation
+     *
+     * @param group       contains parquet schema and data for a row
+     * @param columnIndex is the index of the column in the row that needs to be resolved
+     * @return a field containing Greenplum data type and data value
+     */
+    private OneField resolveField(Group group, int columnIndex) {
         OneField field = new OneField();
-        // get type converter based on the primitive type
-        ParquetTypeConverter converter = ParquetTypeConverter.from(type.asPrimitiveType());
-
-        // determine how many values for the primitive are present in the column
+        // get type converter based on the field data type
+        // schema is the readSchema, if there is column projection, the schema will be a subset of tuple descriptions
+        Type type = schema.getType(columnIndex);
+        ParquetTypeConverter converter = ParquetTypeConverter.from(type);
+        // determine how many values for the field are present in the column
         int repetitionCount = group.getFieldRepetitionCount(columnIndex);
-
-        // at the top level (top field), non-repeated primitives will convert to typed OneField
-        if (level == 0 && type.getRepetition() != REPEATED) {
-            field.type = converter.getDataType(type).getOID();
-            field.val = repetitionCount == 0 ? null : converter.getValue(group, columnIndex, 0, type);
-        } else if (type.getRepetition() == REPEATED) {
-            // repeated primitive at any level will convert into JSON
+        if (type.getRepetition() == REPEATED) {
+            // For REPEATED type, repetitionCount can be any non-negative number,
+            // the element value will be converted into JSON value
             ArrayNode jsonArray = mapper.createArrayNode();
             for (int repeatIndex = 0; repeatIndex < repetitionCount; repeatIndex++) {
                 converter.addValueToJsonArray(group, columnIndex, repeatIndex, type, jsonArray);
             }
-            // but will become a string only at top level
-            if (level == 0) {
-                field.type = DataType.TEXT.getOID();
-                try {
-                    field.val = mapper.writeValueAsString(jsonArray);
-                } catch (Exception e) {
-                    throw new RuntimeException("Failed to serialize repeated parquet type " + type.asPrimitiveType().getName(), e);
+            field.type = DataType.TEXT.getOID();
+            try {
+                field.val = mapper.writeValueAsString(jsonArray);
+            } catch (Exception e) {
+                String typeName;
+                if (type.isPrimitive()) {
+                    typeName = type.asPrimitiveType().getPrimitiveTypeName().name();
+                } else {
+                    typeName = type.asGroupType().getOriginalType() == null ?
+                            "customized struct" : type.asGroupType().getOriginalType().name();
                 }
-            } else {
-                // just return the array node within OneField container
-                field.val = jsonArray;
+                throw new RuntimeException(String.format("Failed to serialize repeated parquet type %s.", typeName), e);
             }
+        } else if (repetitionCount == 0) {
+            // For non-REPEATED type, repetitionCount can only be 0 or 1
+            // repetitionCount == 0 means this is a null LIST/Primitive
+            field.type = converter.getDataType(type).getOID();
+            field.val = null;
         } else {
-            // level > 0 and type != REPEATED -- primitive type as a member of complex group -- NOT YET SUPPORTED
-            throw new UnsupportedOperationException("Parquet complex type support is not yet available.");
+            // repetitionCount can only be 1
+            field.type = converter.getDataType(type).getOID();
+            field.val = converter.getValue(group, columnIndex, 0, type);
         }
         return field;
     }
-
 }
