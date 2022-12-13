@@ -1691,6 +1691,7 @@ jobs:
     image: google-cloud-sdk-slim-image
     file: pxf_src/concourse/tasks/promote_pxf_artifacts.yml
     params:
+      ENVIRONMENT: [[ environment ]]
       GCS_RELEASES_BUCKET: ((ud/pxf/common/releases-bucket-name))
       GCS_RELEASES_PATH: [[ environment ]]/releases
       GIT_BRANCH: ((pxf-git-branch))

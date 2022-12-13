@@ -75,6 +75,16 @@ By default, these pipelines run perf on RHEL7.
 If you would like to run pipelines using RHEL8, please include `REDHAT_MAJOR_VERSION=8` to the command.
 Ex: `make SCALE=10 REDHAT_MAJOR_VERSION=8 -C "${HOME}/workspace/pxf/concourse" perf`
 
+# Deploy development PXF release pipelines
+
+The dev release pipeline performs most functions of the `pxf-build` release pipeline except for the tagging and bumping of the build version.
+
+To deploy dev release pipeline, use:
+
+```shell
+make -C "${HOME}/workspace/pxf/concourse" dev-release
+```
+
 # Deploy development PXF pipelines
 
 The dev pipeline is an abbreviated version of the `pxf-build` pipeline.

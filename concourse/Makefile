@@ -83,6 +83,7 @@ set-dev-release-pipeline:
 		--pipeline=$(DEV_BUILD_PIPELINE_NAME) \
 		--config "$${PIPELINE_FILE}" \
 		--load-vars-from=$(HOME)/workspace/pxf/concourse/settings/pxf-multinode-params.yml \
+		--var=ud/pxf/dev/git-remote-ssh-url=noop \
 		--var=pxf-git-branch=${BRANCH} \
 		--var=pxf-build-bucket-prefix=dev/$(USER)-$(BRANCH) \
 		--var=pxf-releases-bucket-prefix=dev/$(USER)-$(BRANCH) \

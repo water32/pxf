@@ -11,6 +11,7 @@ inputs:
 - name: pxf_gp6_tarball_ubuntu18
 
 params:
+  ENVIRONMENT:
   GCS_RELEASES_BUCKET:
   GCS_RELEASES_PATH:
   GIT_BRANCH:
