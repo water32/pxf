@@ -19,7 +19,7 @@ const (
 	pxfBase  envVar = "PXF_BASE"
 	javaHome envVar = "JAVA_HOME"
 	// For pxf migrate
-	pxfConf  envVar = "PXF_CONF"
+	pxfConf envVar = "PXF_CONF"
 )
 
 type messageType int
@@ -135,15 +135,15 @@ var (
 		name: pxfInit,
 		messages: map[messageType]string{
 			success: "PXF initialized successfully on %d out of %d host%s\n",
-			status:  "*****************************************************************************\n" +
-				 "* DEPRECATION NOTICE:\n" +
-				 "* The \"pxf cluster init\" command is deprecated and will be removed\n" +
-				 "* in a future release of PXF.\n" +
-				 "*\n" +
-				 "* Use the \"pxf cluster register\" command instead.\n" +
-				 "*\n" +
-				 "*****************************************************************************\n\n" +
-				 "Initializing PXF on master host%s and %d segment host%s...\n",
+			status: "*****************************************************************************\n" +
+				"* DEPRECATION NOTICE:\n" +
+				"* The \"pxf cluster init\" command is deprecated and will be removed\n" +
+				"* in a future release of PXF.\n" +
+				"*\n" +
+				"* Use the \"pxf cluster register\" command instead.\n" +
+				"*\n" +
+				"*****************************************************************************\n\n" +
+				"Initializing PXF on master host%s and %d segment host%s...\n",
 			standby: ", standby master host,",
 			err:     "PXF failed to initialize on %d out of %d host%s\n",
 		},
@@ -218,12 +218,12 @@ var (
 		name: reset,
 		messages: map[messageType]string{
 			success: "PXF has been reset on %d out of %d host%s\n",
-			status:  "*****************************************************************************\n" +
-				 "* DEPRECATION NOTICE:\n" +
-				 "* The \"pxf cluster reset\" command is deprecated and will be removed\n" +
-				 "* in a future release of PXF.\n" +
-				 "*****************************************************************************\n\n" +
-				 "Resetting PXF on master host%s and %d segment host%s...\n",
+			status: "*****************************************************************************\n" +
+				"* DEPRECATION NOTICE:\n" +
+				"* The \"pxf cluster reset\" command is deprecated and will be removed\n" +
+				"* in a future release of PXF.\n" +
+				"*****************************************************************************\n\n" +
+				"Resetting PXF on master host%s and %d segment host%s...\n",
 			standby: ", standby master host,",
 			err:     "Failed to reset PXF on %d out of %d host%s\n",
 		},
@@ -263,8 +263,8 @@ var (
 			standby: ", standby master host,",
 			err:     "PXF failed to migrate configuration on %d out of %d host%s\n",
 		},
-		warn: false,
-		envVars: []envVar{pxfHome, pxfConf, pxfBase},
+		warn:       false,
+		envVars:    []envVar{pxfHome, pxfConf, pxfBase},
 		whereToRun: cluster.ON_REMOTE | cluster.ON_HOSTS | cluster.INCLUDE_MASTER | cluster.INCLUDE_MIRRORS,
 	}
 )

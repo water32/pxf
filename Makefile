@@ -35,7 +35,7 @@ else
 endif
 
 cli:
-	make -C cli/go/src/pxf-cli
+	make -C cli
 
 server:
 	make -C server
@@ -43,7 +43,7 @@ server:
 clean:
 	rm -rf build
 	make -C $(SOURCE_EXTENSION_DIR) clean-all
-	make -C cli/go/src/pxf-cli clean
+	make -C cli clean
 	make -C server clean
 
 test:
@@ -52,7 +52,7 @@ ifneq ($(FDW_SUPPORT),)
 else
 	@echo "The variable FDW_SUPPORT was empty; skipping fdw tests"
 endif
-	make -C cli/go/src/pxf-cli test
+	make -C cli test
 	make -C server test
 
 it:
@@ -60,7 +60,7 @@ it:
 
 install:
 	make -C $(SOURCE_EXTENSION_DIR) install
-	make -C cli/go/src/pxf-cli install
+	make -C cli install
 	make -C server install
 
 install-server:
@@ -69,7 +69,7 @@ install-server:
 stage:
 	rm -rf build/stage
 	make -C $(SOURCE_EXTENSION_DIR) stage
-	make -C cli/go/src/pxf-cli stage
+	make -C cli stage
 	make -C server stage
 	set -e ;\
 	GP_MAJOR_VERSION=$$(cat $(SOURCE_EXTENSION_DIR)/build/metadata/gp_major_version) ;\
@@ -89,7 +89,7 @@ tar: stage
 
 rpm:
 	make -C $(SOURCE_EXTENSION_DIR) stage
-	make -C cli/go/src/pxf-cli stage
+	make -C cli stage
 	make -C server stage
 	set -e ;\
 	GP_MAJOR_VERSION=$$(cat $(SOURCE_EXTENSION_DIR)/build/metadata/gp_major_version) ;\
@@ -126,7 +126,7 @@ rpm-tar: rpm
 
 deb:
 	make -C $(SOURCE_EXTENSION_DIR) stage
-	make -C cli/go/src/pxf-cli stage
+	make -C cli stage
 	make -C server stage
 	set -e ;\
 	GP_MAJOR_VERSION=$$(cat $(SOURCE_EXTENSION_DIR)/build/metadata/gp_major_version) ;\

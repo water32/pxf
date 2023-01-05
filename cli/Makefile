@@ -1,17 +1,16 @@
-include ../../../../common.mk
+include ../common.mk
 
 .PHONY: all build stage install test clean help
 .DEFAULT_GOAL := build
 
-TARGET := $(notdir $(CURDIR))
-PXF_ROOT_DIR := $(shell cd ../../../.. && pwd)
-PXF_SERVER_DIR := ${PXF_ROOT_DIR}/server
-PXF_CLI_DIR := ${PXF_ROOT_DIR}/cli
-PXF_VERSION ?= $(shell cat $(PXF_ROOT_DIR)/version)
+MODULE_NAME    := $(shell go list -m)
+PXF_ROOT_DIR   := $(shell cd .. && pwd)
+PXF_SERVER_DIR := $(PXF_ROOT_DIR)/server
+PXF_CLI_DIR    := $(PXF_ROOT_DIR)/cli
+PXF_VERSION    ?= $(shell cat $(PXF_ROOT_DIR)/version)
+GOMODCACHE     ?= $(shell go env GOMODCACHE)
 
-LDFLAGS := -ldflags "-X ${TARGET}/cmd.version=${PXF_VERSION}"
-GO_MOD_CACHE := ${PXF_ROOT_DIR}/cli/go/pkg
-GOPATH := ${PXF_ROOT_DIR}/cli/go
+LDFLAGS := -ldflags "-X $(MODULE_NAME)/cmd.version=$(PXF_VERSION)"
 
 help:
 	@echo
@@ -26,23 +25,22 @@ help:
 all: test stage install
 
 build:
-	@if [ -d ${HOME}/.go-mod-cached-sources ] && [ ! -d $(GO_MOD_CACHE)/mod ]; then \
+	@if [ -d ${HOME}/.go-mod-cached-sources ] && [ ! -d $(GOMODCACHE) ]; then \
 		mkdir -p $(GO_MOD_CACHE); \
-		ln -s ${HOME}/.go-mod-cached-sources $(GO_MOD_CACHE)/mod; \
+		ln -s ${HOME}/.go-mod-cached-sources $(GOMODCACHE); \
 	fi
-	go build -v $(LDFLAGS)
-	go install $(LDFLAGS)
+	go build -v $(LDFLAGS) -o build/ $(MODULE_NAME)
 
 stage: test
 	mkdir -p $(PXF_CLI_DIR)/build/stage/pxf/bin
-	cp $(GOPATH)/bin/pxf-cli $(PXF_CLI_DIR)/build/stage/pxf/bin
+	cp build/pxf-cli build/stage/pxf/bin
 
 install: build
 	@if [ -z "$(PXF_HOME)" ]; then \
 		echo "ERROR: PXF_HOME is not set"; exit 2; \
 	fi
 	mkdir -p $(PXF_HOME)/bin
-	cp $(GOPATH)/bin/pxf-cli $(PXF_HOME)/bin
+	cp build/pxf-cli $(PXF_HOME)/bin
 
 test: build
 	ginkgo cmd end_to_end

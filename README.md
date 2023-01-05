@@ -95,7 +95,8 @@ To build PXF, you must have:
     Once you have installed Go, you will need the `ginkgo` tool which runs Go tests,
     respectively. Assuming `go` is on your `PATH`, you can run:
     ```shell
-    go install github.com/onsi/ginkgo/ginkgo@v1.16.5
+    cd ~/workspace/pxf/cli
+    go install github.com/onsi/ginkgo/ginkgo
     ```
 
    * NOTE: You are required to list the version. For now, keep it stable at v1.16.5 which is what we use for the concourse images. See `concourse/docker/pxf-dev-base/cloudbuild.yml` for the default values.

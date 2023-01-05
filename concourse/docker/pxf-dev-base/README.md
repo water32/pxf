@@ -27,9 +27,9 @@ gcloud builds submit . --config=concourse/docker/pxf-dev-base/cloudbuild.yaml \
 This guide assumes the PXF repository lives under the `~/workspace/pxf`
 directory. The `cloudbuild.yaml` file produces the following docker images:
 
-You can build these images individually by first setting these local variables: 
+You can build these images individually by first setting these local variables:
 ```
-export GO_VERSION=1.17.6
+export GO_VERSION=1.19
 export GINKGO_VERSION=1.16.5
 ```
 ## Greenplum 5 Images
