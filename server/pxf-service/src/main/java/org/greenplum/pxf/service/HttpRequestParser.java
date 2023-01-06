@@ -233,7 +233,9 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
         // Call the protocol handler for any protocol-specific logic handling
         if (StringUtils.isNotBlank(profile)) {
             String handlerClassName = pluginConf.getHandler(profile);
-            Utilities.updatePlugins(context, handlerClassName);
+            if (handlerClassName != null) {
+                Utilities.updatePlugins(context, handlerClassName);
+            }
         }
 
         // validate that the result has all required fields, and values are in valid ranges
@@ -272,6 +274,10 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
 
         // get Profile's plugins from the configuration file
         Map<String, String> pluginsMap = pluginConf.getPlugins(profile);
+        if (pluginsMap == null) {
+            // a dynamic profile will have no plugins predefined
+            return;
+        }
 
         // create sets of keys to find out duplicates between what user has specified in the request
         // and what is configured in the configuration file -- DO NOT ALLOW DUPLICATES
@@ -288,7 +294,10 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
         // add properties defined by profiles to the request map as if they were specified by the user
         pluginsMap.forEach((k, v) -> params.put(RequestMap.USER_PROP_PREFIX + k, v));
 
-        params.put(RequestMap.USER_PROP_PREFIX + PROFILE_SCHEME, pluginConf.getProtocol(profile));
+        String profileProtocol = pluginConf.getProtocol(profile);
+        if (profileProtocol != null) {
+            params.put(RequestMap.USER_PROP_PREFIX + PROFILE_SCHEME, profileProtocol);
+        }
     }
 
     /*

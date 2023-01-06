@@ -299,9 +299,20 @@ function install_pxf_server() {
 
 function install_pxf_tarball() {
 	local tarball_dir=${PXF_PKG_DIR:-pxf_tarball}
-	tar -xzf "${tarball_dir}/"pxf-*.tar.gz -C /tmp
+	tar -xzf "${tarball_dir}/"pxf-gp*.tar.gz -C /tmp
 	/tmp/pxf*/install_component
 	chown -R gpadmin:gpadmin "${PXF_HOME}"
+
+	# install separately built PXF FDW extension if it is available on the inputs
+	local fdw_tarball_dir=${PXF_PKG_DIR:-pxf_fdw_tarball}
+	if compgen -G "${fdw_tarball_dir}/pxf-fdw-*.tar.gz" > /dev/null; then
+		tar -xzf "${fdw_tarball_dir}/"pxf-fdw-*.tar.gz -C /tmp
+		chmod 777 /tmp
+		ls -al /tmp
+		/usr/bin/install -c -m 755 /tmp/pxf_fdw.so "$("${GPHOME}/bin/pg_config" --pkglibdir)"
+		/usr/bin/install -c -m 644 /tmp/pxf_fdw.control "$("${GPHOME}/bin/pg_config" --sharedir)/extension/"
+		/usr/bin/install -c -m 644 /tmp/pxf_fdw*.sql "$("${GPHOME}/bin/pg_config" --sharedir)/extension/"
+	fi
 }
 
 function install_pxf_package() {
@@ -502,6 +513,9 @@ function configure_pxf_server() {
 		echo 'JDK 11 requested for runtime, setting PXF JAVA_HOME=/usr/lib/jvm/jdk-11 in pxf-env.sh'
 		su gpadmin -c "echo 'export JAVA_HOME=/usr/lib/jvm/jdk-11' >> ${BASE_DIR}/conf/pxf-env.sh"
 	fi
+
+	# add property to allow dynamic test: profiles that are used when testing against FDW
+	echo -e "\npxf.profile.dynamic.regex=test:.*" >> "${BASE_DIR}/conf/pxf-application.properties"
 }
 
 function configure_hdfs_client_for_s3() {

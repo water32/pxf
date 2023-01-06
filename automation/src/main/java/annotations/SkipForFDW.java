@@ -7,12 +7,12 @@ import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.TYPE;
 
 /**
- * Annotation for marking Test cases that fail when run against PXF FDW.
+ * Annotation for marking Test cases that should be skipped when run against PXF FDW.
  *
- * This is a marker interface for now but can be used later to skip tests that cannot be run against FDW
- * (e.g. those exercising features of external tables that are not supported wth FDW).
+ * This is a marker interface for tests that cannot be run against FDW because they
+ * exercise features of external tables that are not supported wth FDW.
  */
 @Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
 @Target({ METHOD, TYPE })
-public @interface FailsWithFDW {
+public @interface SkipForFDW {
 }

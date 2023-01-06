@@ -11,6 +11,7 @@ import org.springframework.util.Assert;
 
 import java.io.File;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,6 +22,7 @@ public class Gpdb extends DbSystemObject {
 
 	private static final String DEFAULT_PORT = "5432";
 	private static final String GREENPLUM_DATABASE_PREFIX = "Greenplum Database ";
+	private static final String IF_NOT_EXISTS_OPTION = "IF NOT EXISTS";
 
 	private String sshUserName;
 	private String sshPassword;
@@ -80,6 +82,7 @@ public class Gpdb extends DbSystemObject {
 		createExtension(extensionName, true);
 
 		if (FDWUtils.useFDW) {
+			createTestFDW(true);
 			createForeignServers(true);
 		}
 
@@ -148,6 +151,13 @@ public class Gpdb extends DbSystemObject {
 		runQuery("CREATE EXTENSION IF NOT EXISTS " + extensionName, ignoreFail, false);
 	}
 
+	private void createTestFDW(boolean ignoreFail) throws Exception {
+		runQuery("DROP FOREIGN DATA WRAPPER IF EXISTS test_pxf_fdw CASCADE", ignoreFail, false);
+		runQuery("CREATE FOREIGN DATA WRAPPER test_pxf_fdw HANDLER pxf_fdw_handler " +
+				 "VALIDATOR pxf_fdw_validator OPTIONS (protocol 'test', mpp_execute 'all segments')",
+				ignoreFail, false);
+	}
+
 	private void createForeignServers(boolean ignoreFail) throws Exception {
 		List<String> servers = Lists.newArrayList(
 		"default_hdfs",
@@ -162,15 +172,22 @@ public class Gpdb extends DbSystemObject {
 		"s3_s3",
 		"hdfs-non-secure_hdfs",
 		"hdfs-secure_hdfs",
-		"hdfs-ipa_hdfs");
+		"hdfs-ipa_hdfs",
+		"default_test");
 
+		// version below GP7 do not have IF EXISTS / IF NOT EXISTS command options for foreign SERVER creation
+		String option = (version < 7) ? "" : IF_NOT_EXISTS_OPTION;
 		for (String server : servers) {
 			String foreignServerName = server.replace("-", "_");
+			if (version < 7 && serverExists(foreignServerName)) {
+				continue;
+			}
+
 			String pxfServerName = server.substring(0,server.lastIndexOf("_")); // strip protocol at the end
 			String fdwName = server.substring(server.lastIndexOf("_") + 1) + "_pxf_fdw"; // strip protocol at the end
-			runQuery(String.format("CREATE SERVER IF NOT EXISTS %s FOREIGN DATA WRAPPER %s OPTIONS(config '%s')",
-					foreignServerName, fdwName, pxfServerName), ignoreFail, false);
-			runQuery(String.format("CREATE USER MAPPING IF NOT EXISTS FOR CURRENT_USER SERVER %s", foreignServerName),
+			runQuery(String.format("CREATE SERVER %s %s FOREIGN DATA WRAPPER %s OPTIONS(config '%s')",
+					option, foreignServerName, fdwName, pxfServerName), ignoreFail, false);
+			runQuery(String.format("CREATE USER MAPPING %s FOR CURRENT_USER SERVER %s", option, foreignServerName),
 					ignoreFail, false);
 		}
 	}
@@ -447,6 +464,24 @@ public class Gpdb extends DbSystemObject {
 		int versionInt = Integer.valueOf(versionStr);
 		ReportUtils.report(report, getClass(), "Determined Greenplum version: " + versionInt);
 		return versionInt;
+	}
+
+	private boolean serverExists(String name) throws SQLException {
+		/* If in the future we want to check the existence of both the foreign server and the user mapping
+		we can use the following query
+		SELECT COUNT(*) FROM pg_catalog.pg_user_mapping um
+		LEFT JOIN pg_catalog.pg_foreign_server fs ON um.umserver = fs.oid
+		LEFT JOIN pg_catalog.pg_roles r ON um.umuser = r.oid
+		WHERE r.rolname = session_user::text AND fs.srvname = '%s';
+		 */
+		String query = String.format("SELECT COUNT(*) FROM pg_catalog.pg_foreign_server WHERE srvname = '%s'", name);
+		ReportUtils.report(report, getClass(), "Determining if foreign server exists - query: " + query);
+
+		ResultSet res = stmt.executeQuery(query);
+		res.next();
+		int count = res.getInt(1);
+		ReportUtils.report(report, getClass(), "Retrieved from Greenplum: [" + count + "] servers");
+		return count > 0;
 	}
 
 }
