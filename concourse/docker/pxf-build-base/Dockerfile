@@ -15,7 +15,7 @@ RUN apt-get update && \
 RUN cd /tmp && \
     wget -O go.tgz -q https://dl.google.com/go/go1.17.6.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go.tgz && rm go.tgz && \
-    GOPATH=/opt/go /usr/local/go/bin/go install github.com/onsi/ginkgo/ginkgo
+    GOPATH=/opt/go /usr/local/go/bin/go install github.com/onsi/ginkgo/ginkgo@latest
 
 ADD . /tmp/pxf_src
 
