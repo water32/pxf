@@ -3,8 +3,13 @@
 -- start_matchsubs
 --
 -- # create a match/subs
+--
+-- # replace PXF URL with "pxf-location" string
 -- m/pxf:\/\/(.*)\|/
--- s/pxf:\/\/.*\|/pxf:\/\/location |/
+-- s/pxf:\/\/.*data\?PROFILE=.+?\|/pxf-location\|/
+--
+-- m/\|.*\/data/
+-- s/\|.*\/data/\|pxf-location/
 --
 -- end_matchsubs
 

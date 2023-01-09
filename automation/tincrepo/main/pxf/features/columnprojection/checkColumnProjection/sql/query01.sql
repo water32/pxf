@@ -13,9 +13,14 @@ SELECT t0, colprojvalue FROM test_column_projection ORDER BY t0;
 
 SELECT colprojvalue FROM test_column_projection ORDER BY t0;
 
--- Column Projection is not supported for boolean?
--- SELECT t0, colprojvalue FROM test_column_projection WHERE b2 ORDER BY t0;
---
+SELECT t0, colprojvalue FROM test_column_projection WHERE b2 ORDER BY t0;
+
+SELECT t0, a1, colprojvalue FROM test_column_projection WHERE a1 < 5 AND b2 = false ORDER BY t0;
+
+SELECT round(sqrt(a1)::numeric, 5), colprojvalue FROM test_column_projection WHERE a1 < 5 AND b2 = false ORDER BY t0;
+
+SELECT round(sqrt(a1)::numeric, 5), colprojvalue FROM test_column_projection WHERE b2 = false ORDER BY t0;
+
 SELECT t0, colprojvalue FROM test_column_projection WHERE a1 < 5 ORDER BY t0;
 
 SELECT t0, colprojvalue FROM test_column_projection WHERE a1 <= 5 ORDER BY t0;
@@ -28,7 +33,7 @@ SELECT t0, colprojvalue FROM test_column_projection WHERE a1 < 2 OR a1 >= 8 ORDE
 
 SELECT t0, colprojvalue FROM test_column_projection WHERE sqrt(a1) > 1 ORDER BY t0;
 
-SELECT t0, colprojvalue, sqrt(a1) FROM test_column_projection ORDER BY t0;
+SELECT t0, colprojvalue, round(sqrt(a1)::numeric, 5) FROM test_column_projection ORDER BY t0;
 
 -- Casting boolean column to int
 SELECT t0, colprojvalue, sqrt(b2::int) FROM test_column_projection ORDER BY t0;
@@ -41,9 +46,14 @@ SELECT t0, colprojvalue FROM test_column_projection ORDER BY t0;
 
 SELECT colprojvalue FROM test_column_projection ORDER BY t0;
 
--- Column Projection is not supported for boolean?
--- SELECT t0, colprojvalue FROM test_column_projection WHERE b2 ORDER BY t0;
---
+SELECT t0, colprojvalue FROM test_column_projection WHERE b2 ORDER BY t0;
+
+SELECT t0, a1, colprojvalue FROM test_column_projection WHERE a1 < 5 AND b2 = false ORDER BY t0;
+
+SELECT round(sqrt(a1)::numeric, 5), colprojvalue FROM test_column_projection WHERE a1 < 5 AND b2 = false ORDER BY t0;
+
+SELECT round(sqrt(a1)::numeric, 5), colprojvalue FROM test_column_projection WHERE b2 = false ORDER BY t0;
+
 SELECT t0, colprojvalue FROM test_column_projection WHERE a1 < 5 ORDER BY t0;
 
 SELECT t0, colprojvalue FROM test_column_projection WHERE a1 <= 5 ORDER BY t0;
@@ -56,7 +66,7 @@ SELECT t0, colprojvalue FROM test_column_projection WHERE a1 < 2 OR a1 >= 8 ORDE
 
 SELECT t0, colprojvalue FROM test_column_projection WHERE sqrt(a1) > 1 ORDER BY t0;
 
-SELECT t0, colprojvalue, sqrt(a1) FROM test_column_projection ORDER BY t0;
+SELECT t0, colprojvalue, round(sqrt(a1)::numeric, 5) FROM test_column_projection ORDER BY t0;
 
 -- Casting boolean column to int
 SELECT t0, colprojvalue, sqrt(b2::int) FROM test_column_projection ORDER BY t0;

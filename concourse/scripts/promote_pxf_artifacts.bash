@@ -64,32 +64,37 @@ for ((i = 0; i < "${#sources[@]}"; i++)); do
 	gsutil cp "${sources[$i]}" "${destinations[$i]}"
 done
 
-# configure ssh
-mkdir -p ~/.ssh
-ssh-keyscan github.com > ~/.ssh/known_hosts
-echo "${GIT_SSH_KEY}" > ~/.ssh/id_rsa
-chmod 600 ~/.ssh/id_rsa
+# Tagging and Bumping of Version Number only happens in "prod" environment.
+if [[ ${ENVIRONMENT} == prod ]]; then
+	# configure ssh
+	mkdir -p ~/.ssh
+	ssh-keyscan github.com > ~/.ssh/known_hosts
+	echo "${GIT_SSH_KEY}" > ~/.ssh/id_rsa
+	chmod 600 ~/.ssh/id_rsa
 
-# configure git
-git config --global user.email "${GIT_EMAIL}"
-git config --global user.name "${GIT_USERNAME}"
-git -C pxf_src remote set-url origin "${GIT_REMOTE_URL}"
-# avoid detached HEAD state from Concourse checking out a SHA
-git -C pxf_src checkout "${GIT_BRANCH}"
+	# configure git
+	git config --global user.email "${GIT_EMAIL}"
+	git config --global user.name "${GIT_USERNAME}"
+	git -C pxf_src remote set-url origin "${GIT_REMOTE_URL}"
+	# avoid detached HEAD state from Concourse checking out a SHA
+	git -C pxf_src checkout "${GIT_BRANCH}"
 
-TAG=release-${pxf_version}
-echo "Creating new tag ${TAG}..."
-# create annotated tag
-git -C pxf_src tag -am "PXF Version ${TAG}" "${TAG}"
+	TAG=release-${pxf_version}
+	echo "Creating new tag ${TAG}..."
+	# create annotated tag
+	git -C pxf_src tag -am "PXF Version ${TAG}" "${TAG}"
 
-patch=${pxf_version##*.}
-# bump patch and add -SNAPSHOT
-SNAPSHOT_VERSION=${pxf_version%${patch}}$((patch + 1))-SNAPSHOT
+	patch=${pxf_version##*.}
+	# bump patch and add -SNAPSHOT
+	SNAPSHOT_VERSION=${pxf_version%${patch}}$((patch + 1))-SNAPSHOT
 
-echo "Changing version ${pxf_version} -> ${SNAPSHOT_VERSION} and committing change..."
-echo "${SNAPSHOT_VERSION}" > pxf_src/version
-git -C pxf_src add version
-git -C pxf_src commit -m "Bump version to ${SNAPSHOT_VERSION} [skip ci]"
+	echo "Changing version ${pxf_version} -> ${SNAPSHOT_VERSION} and committing change..."
+	echo "${SNAPSHOT_VERSION}" > pxf_src/version
+	git -C pxf_src add version
+	git -C pxf_src commit -m "Bump version to ${SNAPSHOT_VERSION} [skip ci]"
 
-echo "Pushing new tag ${TAG} and new SNAPSHOT version ${SNAPSHOT_VERSION}"
-git -C pxf_src push --follow-tags
+	echo "Pushing new tag ${TAG} and new SNAPSHOT version ${SNAPSHOT_VERSION}"
+	git -C pxf_src push --follow-tags
+else
+	echo "[Environment: ${ENVIRONMENT}] - Skipping Tagging and Bumping Version Number operations."
+fi

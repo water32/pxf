@@ -73,10 +73,10 @@ function check_pre_requisites() {
 }
 
 function create_firewall_resource() {
-    local my_ip=$(curl ifconfig.co)
+    local my_ip=$(curl -s ifconfig.co)
     cat << EOF > "${terraform_dir}"/local-firewall.tf
-resource "google_compute_firewall" "$USER-access" {
-  name    = "$USER-access"
+resource "google_compute_firewall" "${TF_VAR_env_name}-access" {
+  name    = "${TF_VAR_env_name}-access"
   network = var.network
   direction = "INGRESS"
   allow {
@@ -135,9 +135,9 @@ function terraform_destroy() {
 
 # cleanup ansible artifacts that might exist from previous runs
 function cleanup_existing_artifacts() {
-    rm "${ansible_play_path}"/*.p12
-    rm "${ansible_play_path}"/inventory.ini
-    rm "${ansible_play_path}"/config.yml
+    rm -f "${ansible_play_path}"/*.p12
+    rm -f "${ansible_play_path}"/inventory.ini
+    rm -f "${ansible_play_path}"/config.yml
 }
 
 function generate_keystores() {
@@ -164,11 +164,28 @@ function generate_keystores() {
     done
 }
 
-# setup ssh_config with host alias, users, and identity files
+# Add ssh "Include config.d/*" wild card directive at beginning of
+# ~/.ssh/config file.
+function update_ssh_config(){
+    cat <<EOF > /tmp/ssh-config.$$
+Include config.d/*
+
+EOF
+    cat ~/.ssh/config >> /tmp/ssh-config.$$
+    mv /tmp/ssh-config.$$ ~/.ssh/config
+}
+
+# setup ssh ipa_config with host alias, users, and identity files
 function setup_ssh_config() {
-    mkdir -p ~/.ssh
-    jq <"${metadata_path}" -r '.ssh_config.value' >>~/.ssh/config
+    mkdir -p ~/.ssh/config.d
+    [ ! -f ~/.ssh/config ] && touch ~/.ssh/config
+
+    # If necessary, update ~/.ssh/config file with Include directive
+    grep -qxF 'Include config.d/*' ~/.ssh/config || update_ssh_config
+
+    jq <"${metadata_path}" -r '.ssh_config.value'  >~/.ssh/config.d/ipa_config
     jq <"${metadata_path}" -r '.private_key.value' >~/.ssh/ipa_"${cluster_name}"_rsa
+
     chmod 0600 ~/.ssh/ipa_"${cluster_name}"_rsa
     ssh-keygen -y -f ~/.ssh/ipa_"${cluster_name}"_rsa >~/.ssh/ipa_"${cluster_name}"_rsa.pub
 }
@@ -235,8 +252,8 @@ function setup_pxf_server() {
     cp ipa_env_files/conf/*.xml "${PXF_BASE}"/servers/hdfs-ipa/
     cp ipa_env_files/*.keytab "${PXF_BASE}"/servers/hdfs-ipa/
     cp "${parent_script_dir}"/server/pxf-service/src/templates/templates/pxf-site.xml "${PXF_BASE}"/servers/hdfs-ipa/
-    sed -i '' -e "s|>gpadmin/_HOST@EXAMPLE.COM<|>porter@${domain_name_upper}<|g" "${PXF_BASE}"/servers/hdfs-ipa/pxf-site.xml
-    sed -i '' -e 's|/keytabs/|/servers/hdfs-ipa/|g' "${PXF_BASE}"/servers/hdfs-ipa/pxf-site.xml
+    sed -e "s|>gpadmin/_HOST@EXAMPLE.COM<|>porter@${domain_name_upper}<|g" "${PXF_BASE}"/servers/hdfs-ipa/pxf-site.xml > /tmp/pxf-site.xml.$$ && mv /tmp/pxf-site.xml.$$ "${PXF_BASE}"/servers/hdfs-ipa/pxf-site.xml
+    sed -e 's|/keytabs/|/servers/hdfs-ipa/|g' "${PXF_BASE}"/servers/hdfs-ipa/pxf-site.xml > /tmp/pxf-site.xml.$$ && mv /tmp/pxf-site.xml.$$ "${PXF_BASE}"/servers/hdfs-ipa/pxf-site.xml
     # set Hadoop client to use hostnames for datanodes instead of IP addresses (which are internal in GCP network)
     xmlstarlet ed --inplace --pf --append '/configuration/property[last()]' --type elem -n property -v "" \
      --subnode '/configuration/property[last()]' --type elem -n name -v "dfs.client.use.datanode.hostname" \
@@ -246,7 +263,7 @@ function setup_pxf_server() {
 
     rm -rf "${PXF_BASE}"/servers/hdfs-ipa-no-impersonation
     cp -R "${PXF_BASE}"/servers/hdfs-ipa "${PXF_BASE}"/servers/hdfs-ipa-no-impersonation
-    sed -i '' -e 's|hdfs-ipa|hdfs-ipa-no-impersonation|g' "${PXF_BASE}"/servers/hdfs-ipa-no-impersonation/pxf-site.xml
+    sed -e 's|hdfs-ipa|hdfs-ipa-no-impersonation|g' "${PXF_BASE}"/servers/hdfs-ipa-no-impersonation/pxf-site.xml > /tmp/pxf-site.xml.$$ && mv /tmp/pxf-site.xml.$$ "${PXF_BASE}"/servers/hdfs-ipa-no-impersonation/pxf-site.xml
     # set impersonation property to false for the PXF server
     xmlstarlet ed --inplace --pf --update "/configuration/property[name = 'pxf.service.user.impersonation']/value" -v false "${PXF_BASE}"/servers/hdfs-ipa-no-impersonation/pxf-site.xml
     # set service user to foobar
@@ -256,14 +273,14 @@ function setup_pxf_server() {
 
     rm -rf "${PXF_BASE}"/servers/hdfs-ipa-no-impersonation-no-svcuser
     cp -R "${PXF_BASE}"/servers/hdfs-ipa "${PXF_BASE}"/servers/hdfs-ipa-no-impersonation-no-svcuser
-    sed -i '' -e 's|hdfs-ipa|hdfs-ipa-no-impersonation-no-svcuser|g' "${PXF_BASE}"/servers/hdfs-ipa-no-impersonation-no-svcuser/pxf-site.xml
+    sed -e 's|hdfs-ipa|hdfs-ipa-no-impersonation-no-svcuser|g' "${PXF_BASE}"/servers/hdfs-ipa-no-impersonation-no-svcuser/pxf-site.xml > /tmp/pxf-site.xml.$$ && mv /tmp/pxf-site.xml.$$ "${PXF_BASE}"/servers/hdfs-ipa-no-impersonation-no-svcuser/pxf-site.xml
     # set impersonation property to false for the PXF server
     xmlstarlet ed --inplace --pf --update "/configuration/property[name = 'pxf.service.user.impersonation']/value" -v false "${PXF_BASE}"/servers/hdfs-ipa-no-impersonation-no-svcuser/pxf-site.xml
 }
 
 # print instructions for the manual steps the user must perform
 function print_user_instructions() {
-    echo "Cluster $USER has been created, now do the following:"
+    echo "Cluster ${TF_VAR_env_name} has been created, now do the following:"
     echo "1. --- copy the following to your /etc/hosts :"
     cat ipa_env_files/etc_hostfile
     echo "2. --- add the following to your /etc/krb5.conf :"
@@ -276,8 +293,8 @@ function print_user_instructions() {
 
 [realms]
  C.DATA-GPDB-UD-IPA.INTERNAL = {
-  kdc = ccp-$USER-ipa.c.data-gpdb-ud-ipa.internal
-  admin_server = ccp-$USER-ipa.c.data-gpdb-ud-ipa.internal
+  kdc = ccp-${TF_VAR_env_name}-ipa.c.data-gpdb-ud-ipa.internal
+  admin_server = ccp-${TF_VAR_env_name}-ipa.c.data-gpdb-ud-ipa.internal
  }
 
 [domain_realm]

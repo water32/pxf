@@ -1,11 +1,14 @@
 package org.greenplum.pxf.automation.features.avro;
 
+import annotations.FailsWithFDW;
+import annotations.WorksWithFDW;
 import org.greenplum.pxf.automation.components.cluster.PhdCluster;
 import org.greenplum.pxf.automation.datapreparer.CustomAvroPreparer;
 import org.greenplum.pxf.automation.features.BaseFeature;
 import org.greenplum.pxf.automation.fileformats.IAvroSchema;
 import org.greenplum.pxf.automation.structures.tables.basic.Table;
 import org.greenplum.pxf.automation.structures.tables.pxf.ReadableExternalTable;
+import org.greenplum.pxf.automation.structures.tables.utils.TableFactory;
 import org.greenplum.pxf.automation.utils.fileformats.FileFormatsUtils;
 import org.greenplum.pxf.automation.utils.system.ProtocolEnum;
 import org.greenplum.pxf.automation.utils.system.ProtocolUtils;
@@ -19,6 +22,7 @@ import java.io.File;
  * See <a href="https://testrail.greenplum.com/index.php?/suites/view/1099">HDFS
  * Readable - Avro</a>
  */
+@WorksWithFDW
 public class HdfsReadableAvroTest extends BaseFeature {
 
     private String hdfsPath;
@@ -581,13 +585,7 @@ public class HdfsReadableAvroTest extends BaseFeature {
     }
 
     private void prepareReadableTable(String name, String[] fields, String path) {
-        ProtocolEnum protocol = ProtocolUtils.getProtocol();
         // default external table with common settings
-        exTable = new ReadableExternalTable(name, fields,
-                protocol.getExternalTablePath(hdfs.getBasePath(), path), "custom");
-        exTable.setHost(pxfHost);
-        exTable.setPort(pxfPort);
-        exTable.setProfile(protocol.value() + ":avro");
-        exTable.setFormatter("pxfwritable_import");
+        exTable = TableFactory.getPxfHcfsReadableTable(name, fields, path, hdfs.getBasePath(), "avro");
     }
 }

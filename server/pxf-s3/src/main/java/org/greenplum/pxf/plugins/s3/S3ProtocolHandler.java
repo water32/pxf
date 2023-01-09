@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import static org.apache.commons.lang.StringUtils.isNotEmpty;
 import static org.greenplum.pxf.plugins.s3.S3SelectAccessor.FILE_HEADER_INFO_IGNORE;
 import static org.greenplum.pxf.plugins.s3.S3SelectAccessor.FILE_HEADER_INFO_USE;
 
@@ -54,9 +55,10 @@ public class S3ProtocolHandler implements ProtocolHandler {
     @Override
     public String getFragmenterClassName(RequestContext context) {
         String fragmenter = context.getFragmenter(); // default to fragmenter defined by the profile
-        if (useS3Select(context)) {
+        if (useS3Select(context) || useFileReadForJson(context)) {
             fragmenter = HCFS_FILE_FRAGMENTER;
         }
+
         LOG.debug("Determined to use {} fragmenter", fragmenter);
         return fragmenter;
     }
@@ -125,6 +127,19 @@ public class S3ProtocolHandler implements ProtocolHandler {
             default:
                 return false;
         }
+    }
+
+    /**
+     * Determine if the HdfsFileFragmenter should be used for JSON filetypes.
+     * This determination is dictated by the SPLIT_BY_FILE parameter which is provided in the LOCATION uri.
+     *
+     * @param context the request context
+     * @return true if the HdfsFileFragmenter should be used, false otherwise
+     */
+    private boolean useFileReadForJson(RequestContext context) {
+        boolean JsonFormat = StringUtils.equalsIgnoreCase("JSON", context.getFormat());
+        boolean splitByFile = context.getOption("split_by_file", false);
+        return JsonFormat && splitByFile;
     }
 
     /**

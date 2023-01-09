@@ -5,7 +5,6 @@
 
 -- Check that the filter is being pushed down. We create an external table
 -- that returns the filter being sent from the C-side
-
 CREATE FOREIGN DATA WRAPPER pxf_filter_push_down_fdw
     HANDLER pxf_fdw_handler
     VALIDATOR pxf_fdw_validator
@@ -34,6 +33,8 @@ SELECT * FROM test_filter WHERE  t0 = 'B' OR (a1 >= 0 AND a1 <= 2) ORDER BY t0, 
 
 SELECT * FROM test_filter WHERE  b2 = false ORDER BY t0, a1;
 
+SELECT t0, a1, filtervalue FROM test_filter WHERE a1 < 5 AND b2 = false ORDER BY t0, a1;
+
 SELECT * FROM test_filter WHERE  b2 = false AND (a1 = 1 OR a1 = 10) ORDER BY t0, a1;
 
 SELECT * FROM test_filter WHERE  b2 = false OR (a1 >= 0 AND a1 <= 2) ORDER BY t0, a1;
@@ -49,6 +50,8 @@ SELECT * FROM test_filter WHERE  t0 = 'B' AND (a1 = 1 OR a1 = 10) ORDER BY t0, a
 SELECT * FROM test_filter WHERE  t0 = 'B' OR (a1 >= 0 AND a1 <= 2) ORDER BY t0, a1;
 
 SELECT * FROM test_filter WHERE  b2 = false ORDER BY t0, a1;
+
+SELECT t0, a1, filtervalue FROM test_filter WHERE a1 < 5 AND b2 = false ORDER BY t0, a1;
 
 SELECT * FROM test_filter WHERE  b2 = false AND (a1 = 1 OR a1 = 10) ORDER BY t0, a1;
 
@@ -92,6 +95,8 @@ SELECT * FROM test_filter WHERE  t0 = 'B' OR (a1 >= 0 AND a1 <= 2) ORDER BY t0, 
 
 SELECT * FROM test_filter WHERE  b2 = false ORDER BY t0, a1;
 
+SELECT t0, a1, filtervalue FROM test_filter WHERE a1 < 5 AND b2 = false ORDER BY t0, a1;
+
 SELECT * FROM test_filter WHERE  b2 = false AND (a1 = 1 OR a1 = 10) ORDER BY t0, a1;
 
 SELECT * FROM test_filter WHERE  b2 = false OR (a1 >= 0 AND a1 <= 2) ORDER BY t0, a1;
@@ -107,6 +112,8 @@ SELECT * FROM test_filter WHERE  t0 = 'B' AND (a1 = 1 OR a1 = 10) ORDER BY t0, a
 SELECT * FROM test_filter WHERE  t0 = 'B' OR (a1 >= 0 AND a1 <= 2) ORDER BY t0, a1;
 
 SELECT * FROM test_filter WHERE  b2 = false ORDER BY t0, a1;
+
+SELECT t0, a1, filtervalue FROM test_filter WHERE a1 < 5 AND b2 = false ORDER BY t0, a1;
 
 SELECT * FROM test_filter WHERE  b2 = false AND (a1 = 1 OR a1 = 10) ORDER BY t0, a1;
 

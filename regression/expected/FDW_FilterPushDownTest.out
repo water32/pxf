@@ -52,6 +52,13 @@ SELECT * FROM test_filter WHERE  b2 = false ORDER BY t0, a1;
  J  |  9 | f  | a2c16s4dtrueo0l2
 (5 rows)
 
+SELECT t0, a1, filtervalue FROM test_filter WHERE a1 < 5 AND b2 = false ORDER BY t0, a1;
+ t0 | a1 |          filtervalue          
+----+----+-------------------------------
+ B  |  1 | a1c23s1d5o1a2c16s4dtrueo0l2l0
+ D  |  3 | a1c23s1d5o1a2c16s4dtrueo0l2l0
+(2 rows)
+
 SELECT * FROM test_filter WHERE  b2 = false AND (a1 = 1 OR a1 = 10) ORDER BY t0, a1;
  t0 | a1 | b2 |                 filtervalue                 
 ----+----+----+---------------------------------------------
@@ -106,6 +113,13 @@ SELECT * FROM test_filter WHERE  b2 = false ORDER BY t0, a1;
  H  |  7 | f  | a2c16s4dtrueo0l2
  J  |  9 | f  | a2c16s4dtrueo0l2
 (5 rows)
+
+SELECT t0, a1, filtervalue FROM test_filter WHERE a1 < 5 AND b2 = false ORDER BY t0, a1;
+ t0 | a1 |          filtervalue          
+----+----+-------------------------------
+ B  |  1 | a1c23s1d5o1a2c16s4dtrueo0l2l0
+ D  |  3 | a1c23s1d5o1a2c16s4dtrueo0l2l0
+(2 rows)
 
 SELECT * FROM test_filter WHERE  b2 = false AND (a1 = 1 OR a1 = 10) ORDER BY t0, a1;
  t0 | a1 | b2 |                 filtervalue                 
@@ -184,6 +198,13 @@ SELECT * FROM test_filter WHERE  b2 = false ORDER BY t0, a1;
  J  |  9 | f  | a2c16s4dtrueo0l2
 (5 rows)
 
+SELECT t0, a1, filtervalue FROM test_filter WHERE a1 < 5 AND b2 = false ORDER BY t0, a1;
+ t0 | a1 |          filtervalue          
+----+----+-------------------------------
+ B  |  1 | a1c23s1d5o1a2c16s4dtrueo0l2l0
+ D  |  3 | a1c23s1d5o1a2c16s4dtrueo0l2l0
+(2 rows)
+
 SELECT * FROM test_filter WHERE  b2 = false AND (a1 = 1 OR a1 = 10) ORDER BY t0, a1;
  t0 | a1 | b2 |                 filtervalue                 
 ----+----+----+---------------------------------------------
@@ -238,6 +259,13 @@ SELECT * FROM test_filter WHERE  b2 = false ORDER BY t0, a1;
  H  |  7 | f  | a2c16s4dtrueo0l2
  J  |  9 | f  | a2c16s4dtrueo0l2
 (5 rows)
+
+SELECT t0, a1, filtervalue FROM test_filter WHERE a1 < 5 AND b2 = false ORDER BY t0, a1;
+ t0 | a1 |          filtervalue          
+----+----+-------------------------------
+ B  |  1 | a1c23s1d5o1a2c16s4dtrueo0l2l0
+ D  |  3 | a1c23s1d5o1a2c16s4dtrueo0l2l0
+(2 rows)
 
 SELECT * FROM test_filter WHERE  b2 = false AND (a1 = 1 OR a1 = 10) ORDER BY t0, a1;
  t0 | a1 | b2 |                 filtervalue                 

@@ -53,4 +53,20 @@ s/Check the PXF logs located in the.*/Check the PXF logs located in the 'logs-di
 m/HINT:  .*/
 s/.*//g
 
+# rename DETAIL (from GP5) to CONTEXT (in GP6+)
+m/DETAIL/
+s/DETAIL/CONTEXT/
+
+# treat foreign table error messages as if they were from external table
+m/Foreign table.*/
+s/Foreign table/External table/
+
+# rename record (FDW) to line (exttable)
+m/, record \d+ of/
+s/, record/, line/
+
+# syntax mismatch error is different between exttable with GP6 and fdw with GP7
+m/invalid input syntax for type/
+s/invalid input syntax for type/invalid input syntax for/
+
 -- end_matchsubs

@@ -16,16 +16,21 @@ import org.apache.parquet.hadoop.metadata.FileMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.hadoop.util.HadoopInputFile;
 import org.apache.parquet.io.api.Binary;
+import org.apache.parquet.schema.LogicalTypeAnnotation;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
 import org.greenplum.pxf.api.OneField;
 import org.greenplum.pxf.api.OneRow;
+import org.greenplum.pxf.api.error.PxfRuntimeException;
+import org.greenplum.pxf.api.error.UnsupportedTypeException;
 import org.greenplum.pxf.api.io.DataType;
 import org.greenplum.pxf.api.model.Accessor;
 import org.greenplum.pxf.api.model.RequestContext;
 import org.greenplum.pxf.api.model.Resolver;
 import org.greenplum.pxf.api.utilities.ColumnDescriptor;
+import org.greenplum.pxf.plugins.hdfs.parquet.ParquetTypeConverter;
+import org.greenplum.pxf.plugins.hdfs.utilities.PgArrayBuilder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -42,7 +47,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static java.math.BigDecimal.ROUND_UNNECESSARY;
 import static org.apache.parquet.hadoop.ParquetOutputFormat.BLOCK_SIZE;
 import static org.apache.parquet.hadoop.ParquetOutputFormat.DICTIONARY_PAGE_SIZE;
 import static org.apache.parquet.hadoop.ParquetOutputFormat.ENABLE_DICTIONARY;
@@ -58,18 +62,17 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class ParquetWriteTest {
-
+    protected List<ColumnDescriptor> columnDescriptors;
+    @TempDir
+    File temp; // must be non-private
     private Accessor accessor;
     private Resolver resolver;
     private RequestContext context;
     private Configuration configuration;
-
-    protected List<ColumnDescriptor> columnDescriptors;
-
-    @TempDir
-    File temp; // must be non-private
+    private PgArrayBuilder pgArrayBuilder = null;
 
     @BeforeEach
     public void setup() {
@@ -907,13 +910,10 @@ public class ParquetWriteTest {
     }
 
     @Test
-    public void testWriteMultipleTypes() throws Exception {
-        String path = temp + "/out/multiple/";
-        columnDescriptors.add(new ColumnDescriptor("dec1", DataType.NUMERIC.getOID(), 0, "numeric", null));
-        columnDescriptors.add(new ColumnDescriptor("c1", DataType.BPCHAR.getOID(), 1, "char", new Integer[]{3}));
-        columnDescriptors.add(new ColumnDescriptor("tm", DataType.TIMESTAMP.getOID(), 2, "timestamp", null));
-        columnDescriptors.add(new ColumnDescriptor("bin", DataType.BYTEA.getOID(), 3, "bytea", null));
-        columnDescriptors.add(new ColumnDescriptor("name", DataType.TEXT.getOID(), 4, "text", null));
+    public void testWriteIntArray() throws Exception {
+        String path = temp + "/out/int_array/";
+
+        columnDescriptors.add(new ColumnDescriptor("integer_arr", DataType.INT4ARRAY.getOID(), 0, "int4_arr", null));
 
         context.setDataSource(path);
         context.setTransactionId("XID-XYZ-123470");
@@ -925,7 +925,626 @@ public class ParquetWriteTest {
 
         assertTrue(accessor.openForWrite());
 
-        // write parquet file with bigint values
+        String[] values = new String[]{"{NULL,0,0}", "{NULL,1,1}", "{NULL,2,2}", "{NULL,3,3}",
+                "{NULL,4,4}", "{NULL,5,5}", "{NULL,6,6}", "{NULL,7,7}", "{NULL,8,8}", null};
+        for (String value : values) {
+            List<OneField> record = Collections.singletonList(new OneField(DataType.INT4ARRAY.getOID(), value));
+            OneRow rowToWrite = resolver.setFields(record);
+            assertTrue(accessor.writeNextObject(rowToWrite));
+        }
+
+        accessor.closeForWrite();
+
+        Path expectedFile = new Path(HcfsType.FILE.getUriForWrite(context) + ".snappy.parquet");
+        assertTrue(expectedFile.getFileSystem(configuration).exists(expectedFile));
+
+        MessageType schema = validateFooter(expectedFile);
+
+        ParquetReader<Group> fileReader = ParquetReader.builder(new GroupReadSupport(), expectedFile)
+                .withConf(configuration)
+                .build();
+
+        assertList(schema.getType(0), fileReader, values, PrimitiveType.PrimitiveTypeName.INT32, null);
+        fileReader.close();
+
+    }
+
+    @Test
+    public void testWriteTextArray() throws Exception {
+        String path = temp + "/out/text_array/";
+
+        columnDescriptors.add(new ColumnDescriptor("text_array", DataType.TEXTARRAY.getOID(), 0, "text_array", null));
+
+        context.setDataSource(path);
+        context.setTransactionId("XID-XYZ-123471");
+
+        accessor.setRequestContext(context);
+        accessor.afterPropertiesSet();
+        resolver.setRequestContext(context);
+        resolver.afterPropertiesSet();
+
+        assertTrue(accessor.openForWrite());
+
+        String[] values = new String[]{"{NULL,a,a}", "{NULL,aa,aa}", "{NULL,aaa,aaa}", "{NULL,aaaa,aaaa}",
+                "{NULL,aaaaa,aaaaa}", "{NULL,aaaaaa,aaaaaa}", "{NULL,aaaaaaa,aaaaaaa}", "{NULL,aaaaaaaa,aaaaaaaa}",
+                "{NULL,aaaaaaaaa,aaaaaaaaa}", null};
+
+        for (String value : values) {
+            List<OneField> record = Collections.singletonList(new OneField(DataType.TEXTARRAY.getOID(), value));
+            OneRow rowToWrite = resolver.setFields(record);
+            assertTrue(accessor.writeNextObject(rowToWrite));
+        }
+
+        accessor.closeForWrite();
+
+        // Validate write
+        Path expectedFile = new Path(HcfsType.FILE.getUriForWrite(context) + ".snappy.parquet");
+        assertTrue(expectedFile.getFileSystem(configuration).exists(expectedFile));
+
+        MessageType schema = validateFooter(expectedFile);
+
+        ParquetReader<Group> fileReader = ParquetReader.builder(new GroupReadSupport(), expectedFile)
+                .withConf(configuration)
+                .build();
+
+        assertList(schema.getType(0), fileReader, values, PrimitiveType.PrimitiveTypeName.BINARY, LogicalTypeAnnotation.StringLogicalTypeAnnotation.stringType());
+
+        fileReader.close();
+    }
+
+    @Test
+    public void testWriteDateArray() throws Exception {
+        String path = temp + "/out/date_array/";
+
+        columnDescriptors.add(new ColumnDescriptor("date_array", DataType.DATEARRAY.getOID(), 0, "datearray", null));
+
+        context.setDataSource(path);
+        context.setTransactionId("XID-XYZ-123472");
+
+        accessor.setRequestContext(context);
+        accessor.afterPropertiesSet();
+        resolver.setRequestContext(context);
+        resolver.afterPropertiesSet();
+
+        assertTrue(accessor.openForWrite());
+
+        // write parquet file with DATE from 2020-08-01 to 2020-08-10
+        // physical type is int32
+        String[] values = new String[]{
+                String.format("{NULL,%s,%s}", String.format("2020-08-%02d", 1), String.format("2020-08-%02d", 1)),
+                String.format("{NULL,%s,%s}", String.format("2020-08-%02d", 2), String.format("2020-08-%02d", 2)),
+                String.format("{NULL,%s,%s}", String.format("2020-08-%02d", 3), String.format("2020-08-%02d", 3)),
+                String.format("{NULL,%s,%s}", String.format("2020-08-%02d", 4), String.format("2020-08-%02d", 4)),
+                String.format("{NULL,%s,%s}", String.format("2020-08-%02d", 5), String.format("2020-08-%02d", 5)),
+                String.format("{NULL,%s,%s}", String.format("2020-08-%02d", 6), String.format("2020-08-%02d", 6)),
+                String.format("{NULL,%s,%s}", String.format("2020-08-%02d", 7), String.format("2020-08-%02d", 7)),
+                String.format("{NULL,%s,%s}", String.format("2020-08-%02d", 8), String.format("2020-08-%02d", 8)),
+                String.format("{NULL,%s,%s}", String.format("2020-08-%02d", 9), String.format("2020-08-%02d", 9)),
+                null
+        };
+
+        for (String value : values) {
+            List<OneField> record = Collections.singletonList(new OneField(DataType.DATEARRAY.getOID(), value));
+            OneRow rowToWrite = resolver.setFields(record);
+            assertTrue(accessor.writeNextObject(rowToWrite));
+        }
+
+        accessor.closeForWrite();
+
+        // Validate write
+        Path expectedFile = new Path(HcfsType.FILE.getUriForWrite(context) + ".snappy.parquet");
+        assertTrue(expectedFile.getFileSystem(configuration).exists(expectedFile));
+
+        MessageType schema = validateFooter(expectedFile);
+
+        ParquetReader<Group> fileReader = ParquetReader.builder(new GroupReadSupport(), expectedFile)
+                .withConf(configuration)
+                .build();
+
+        assertList(schema.getType(0), fileReader, values, PrimitiveType.PrimitiveTypeName.INT32, LogicalTypeAnnotation.DateLogicalTypeAnnotation.dateType());
+
+        fileReader.close();
+    }
+
+    @Test
+    public void testWriteFloat8Array() throws Exception {
+        String path = temp + "/out/float_arr/";
+
+        columnDescriptors.add(new ColumnDescriptor("float8_array", DataType.FLOAT8ARRAY.getOID(), 0, "float8array", null));
+
+        context.setDataSource(path);
+        context.setTransactionId("XID-XYZ-123473");
+
+        accessor.setRequestContext(context);
+        accessor.afterPropertiesSet();
+        resolver.setRequestContext(context);
+        resolver.afterPropertiesSet();
+
+        assertTrue(accessor.openForWrite());
+
+        String[] values = new String[]{
+                String.format("{NULL,%s,%s}", 1.01, 1.01),
+                String.format("{NULL,%s,%s}", 2.02, 2.02),
+                String.format("{NULL,%s,%s}", 3.03, 3.03),
+                String.format("{NULL,%s,%s}", 4.04, 4.04),
+                String.format("{NULL,%s,%s}", 5.05, 5.05),
+                String.format("{NULL,%s,%s}", 6.06, 6.06),
+                String.format("{NULL,%s,%s}", 7.07, 7.07),
+                String.format("{NULL,%s,%s}", 8.08, 8.08),
+                String.format("{NULL,%s,%s}", 9.09, 9.09),
+                null
+        };
+
+        for (String value : values) {
+            List<OneField> record = Collections.singletonList(new OneField(DataType.FLOAT8ARRAY.getOID(), value));
+            OneRow rowToWrite = resolver.setFields(record);
+            assertTrue(accessor.writeNextObject(rowToWrite));
+        }
+
+        accessor.closeForWrite();
+
+        Path expectedFile = new Path(HcfsType.FILE.getUriForWrite(context) + ".snappy.parquet");
+        assertTrue(expectedFile.getFileSystem(configuration).exists(expectedFile));
+
+        MessageType schema = validateFooter(expectedFile);
+
+        ParquetReader<Group> fileReader = ParquetReader.builder(new GroupReadSupport(), expectedFile)
+                .withConf(configuration)
+                .build();
+
+        assertList(schema.getType(0), fileReader, values, PrimitiveType.PrimitiveTypeName.DOUBLE, null);
+
+        fileReader.close();
+
+    }
+
+    @Test
+    public void testWriteBooleanArray() throws Exception {
+        String path = temp + "/out/boolean_array/";
+
+        columnDescriptors.add(new ColumnDescriptor("bool_arr", DataType.BOOLARRAY.getOID(), 0, "bool_arr", null));
+
+        context.setDataSource(path);
+        context.setTransactionId("XID-XYZ-123474");
+
+        accessor.setRequestContext(context);
+        accessor.afterPropertiesSet();
+        resolver.setRequestContext(context);
+        resolver.afterPropertiesSet();
+
+        assertTrue(accessor.openForWrite());
+
+        String[] values = new String[]{"{NULL,t,t}", "{NULL,f,f}", "{NULL,t,t}", "{NULL,f,f}",
+                "{NULL,t,t}", "{NULL,f,f}", "{NULL,t,t}", "{NULL,f,f}", "{NULL,t,t}", null};
+
+        for (String value : values) {
+            List<OneField> record = Collections.singletonList(new OneField(DataType.BOOLARRAY.getOID(), value));
+            OneRow rowToWrite = resolver.setFields(record);
+            assertTrue(accessor.writeNextObject(rowToWrite));
+        }
+
+        accessor.closeForWrite();
+
+        // Validate write
+        Path expectedFile = new Path(HcfsType.FILE.getUriForWrite(context) + ".snappy.parquet");
+        assertTrue(expectedFile.getFileSystem(configuration).exists(expectedFile));
+
+        MessageType schema = validateFooter(expectedFile);
+
+        ParquetReader<Group> fileReader = ParquetReader.builder(new GroupReadSupport(), expectedFile)
+                .withConf(configuration)
+                .build();
+
+        assertList(schema.getType(0), fileReader, values, PrimitiveType.PrimitiveTypeName.BOOLEAN, null);
+
+        fileReader.close();
+    }
+
+    @Test
+    public void testWriteTimestampArray() throws Exception {
+        String path = temp + "/out/timestamp_array/";
+
+        columnDescriptors.add(new ColumnDescriptor("tm_array", DataType.TIMESTAMPARRAY.getOID(), 0, "tm_array", null));
+
+        context.setDataSource(path);
+        context.setTransactionId("XID-XYZ-123475");
+
+        accessor.setRequestContext(context);
+        accessor.afterPropertiesSet();
+        resolver.setRequestContext(context);
+        resolver.afterPropertiesSet();
+
+        assertTrue(accessor.openForWrite());
+
+        String[] values = generateLocalTimestampStrings(null);
+
+        for (String value : values) {
+            List<OneField> record = Collections.singletonList(new OneField(DataType.TIMESTAMPARRAY.getOID(), value));
+            OneRow rowToWrite = resolver.setFields(record);
+            assertTrue(accessor.writeNextObject(rowToWrite));
+        }
+
+        accessor.closeForWrite();
+
+        // Validate write
+        Path expectedFile = new Path(HcfsType.FILE.getUriForWrite(context) + ".snappy.parquet");
+        assertTrue(expectedFile.getFileSystem(configuration).exists(expectedFile));
+
+        MessageType schema = validateFooter(expectedFile);
+
+        ParquetReader<Group> fileReader = ParquetReader.builder(new GroupReadSupport(), expectedFile)
+                .withConf(configuration)
+                .build();
+
+        assertList(schema.getType(0), fileReader, values, PrimitiveType.PrimitiveTypeName.INT96, null);
+
+        fileReader.close();
+    }
+
+    @Test
+    public void testWriteBigIntArray() throws Exception {
+        String path = temp + "/out/big_int_arr/";
+
+        columnDescriptors.add(new ColumnDescriptor("big_int_arr", DataType.INT8ARRAY.getOID(), 0, "int8array", null));
+
+        context.setDataSource(path);
+        context.setTransactionId("XID-XYZ-123476");
+
+        accessor.setRequestContext(context);
+        accessor.afterPropertiesSet();
+        resolver.setRequestContext(context);
+        resolver.afterPropertiesSet();
+
+        assertTrue(accessor.openForWrite());
+
+        String[] values = new String[]{
+                String.format("{NULL,%s,%s}", (long) Integer.MAX_VALUE, (long) Integer.MAX_VALUE),
+                String.format("{NULL,%s,%s}", (long) Integer.MAX_VALUE + 1, (long) Integer.MAX_VALUE + 1),
+                String.format("{NULL,%s,%s}", (long) Integer.MAX_VALUE + 2, (long) Integer.MAX_VALUE + 2),
+                String.format("{NULL,%s,%s}", (long) Integer.MAX_VALUE + 3, (long) Integer.MAX_VALUE + 3),
+                String.format("{NULL,%s,%s}", (long) Integer.MAX_VALUE + 4, (long) Integer.MAX_VALUE + 4),
+                String.format("{NULL,%s,%s}", (long) Integer.MAX_VALUE + 5, (long) Integer.MAX_VALUE + 5),
+                String.format("{NULL,%s,%s}", (long) Integer.MAX_VALUE + 6, (long) Integer.MAX_VALUE + 6),
+                String.format("{NULL,%s,%s}", (long) Integer.MAX_VALUE + 7, (long) Integer.MAX_VALUE + 7),
+                String.format("{NULL,%s,%s}", (long) Integer.MAX_VALUE + 8, (long) Integer.MAX_VALUE + 8),
+                null
+        };
+
+        for (String value : values) {
+            List<OneField> record = Collections.singletonList(new OneField(DataType.INT8ARRAY.getOID(), value));
+            OneRow rowToWrite = resolver.setFields(record);
+            assertTrue(accessor.writeNextObject(rowToWrite));
+        }
+
+        accessor.closeForWrite();
+
+        Path expectedFile = new Path(HcfsType.FILE.getUriForWrite(context) + ".snappy.parquet");
+        assertTrue(expectedFile.getFileSystem(configuration).exists(expectedFile));
+
+        MessageType schema = validateFooter(expectedFile);
+
+        ParquetReader<Group> fileReader = ParquetReader.builder(new GroupReadSupport(), expectedFile)
+                .withConf(configuration)
+                .build();
+
+        assertList(schema.getType(0), fileReader, values, PrimitiveType.PrimitiveTypeName.INT64, null);
+
+        fileReader.close();
+    }
+
+    @Test
+    public void testWriteByteaArray() throws Exception {
+        String path = temp + "/out/bytea_array/";
+
+        columnDescriptors.add(new ColumnDescriptor("bytea_array", DataType.BYTEAARRAY.getOID(), 0, "byteaArray", null));
+
+        context.setDataSource(path);
+        context.setTransactionId("XID-XYZ-123477");
+
+        accessor.setRequestContext(context);
+        accessor.afterPropertiesSet();
+        resolver.setRequestContext(context);
+        resolver.afterPropertiesSet();
+
+        assertTrue(accessor.openForWrite());
+
+        // write parquet file with bytea array values
+        String[] values = new String[]{"{NULL,a,a}", "{NULL,aa,aa}", "{NULL,aaa,aaa}", "{NULL,aaaa,aaaa}",
+                "{NULL,aaaaa,aaaaa}", "{NULL,aaaaaa,aaaaaa}", "{NULL,aaaaaaa,aaaaaaa}", "{NULL,aaaaaaaa,aaaaaaaa}",
+                "{NULL,aaaaaaaaa,aaaaaaaaa}", null};
+
+        for (String value : values) {
+            List<OneField> record = Collections.singletonList(new OneField(DataType.BYTEAARRAY.getOID(), value));
+            OneRow rowToWrite = resolver.setFields(record);
+            assertTrue(accessor.writeNextObject(rowToWrite));
+        }
+
+        accessor.closeForWrite();
+
+        // Validate write
+        Path expectedFile = new Path(HcfsType.FILE.getUriForWrite(context) + ".snappy.parquet");
+        assertTrue(expectedFile.getFileSystem(configuration).exists(expectedFile));
+
+        MessageType schema = validateFooter(expectedFile);
+
+        ParquetReader<Group> fileReader = ParquetReader.builder(new GroupReadSupport(), expectedFile)
+                .withConf(configuration)
+                .build();
+
+        assertList(schema.getType(0), fileReader, values, PrimitiveType.PrimitiveTypeName.BINARY, null);
+
+        fileReader.close();
+    }
+
+    @Test
+    public void testWriteSmallIntArray() throws Exception {
+        String path = temp + "/out/small_int_array/";
+
+        columnDescriptors.add(new ColumnDescriptor("small_int_arr", DataType.INT2ARRAY.getOID(), 0, "int2array", null));
+
+        context.setDataSource(path);
+        context.setTransactionId("XID-XYZ-123478");
+
+        accessor.setRequestContext(context);
+        accessor.afterPropertiesSet();
+        resolver.setRequestContext(context);
+        resolver.afterPropertiesSet();
+
+
+        assertTrue(accessor.openForWrite());
+
+        String[] values = new String[]{"{NULL,0,0}", "{NULL,1,1}", "{NULL,2,2}", "{NULL,3,3}",
+                "{NULL,4,4}", "{NULL,5,5}", "{NULL,6,6}", "{NULL,7,7}", "{NULL,8,8}", null};
+
+        for (String value : values) {
+            List<OneField> record = Collections.singletonList(new OneField(DataType.INT2ARRAY.getOID(), value));
+            OneRow rowToWrite = resolver.setFields(record);
+            assertTrue(accessor.writeNextObject(rowToWrite));
+        }
+
+        accessor.closeForWrite();
+
+        Path expectedFile = new Path(HcfsType.FILE.getUriForWrite(context) + ".snappy.parquet");
+        assertTrue(expectedFile.getFileSystem(configuration).exists(expectedFile));
+
+        MessageType schema = validateFooter(expectedFile);
+
+        ParquetReader<Group> fileReader = ParquetReader.builder(new GroupReadSupport(), expectedFile)
+                .withConf(configuration)
+                .build();
+
+        assertList(schema.getType(0), fileReader, values, PrimitiveType.PrimitiveTypeName.INT32, LogicalTypeAnnotation.intType(16, true));
+
+        fileReader.close();
+    }
+
+    @Test
+    public void testWriteRealArray() throws Exception {
+        String path = temp + "/out/real_array/";
+
+        columnDescriptors.add(new ColumnDescriptor("real_array", DataType.FLOAT4ARRAY.getOID(), 0, "float4array", null));
+
+        context.setDataSource(path);
+        context.setTransactionId("XID-XYZ-123479");
+
+        accessor.setRequestContext(context);
+        accessor.afterPropertiesSet();
+        resolver.setRequestContext(context);
+        resolver.afterPropertiesSet();
+
+        assertTrue(accessor.openForWrite());
+
+        String[] values = new String[]{
+                String.format("{NULL,%s,%s}", 1.01, 1.01),
+                String.format("{NULL,%s,%s}", 2.02, 2.02),
+                String.format("{NULL,%s,%s}", 3.03, 3.03),
+                String.format("{NULL,%s,%s}", 4.04, 4.04),
+                String.format("{NULL,%s,%s}", 5.05, 5.05),
+                String.format("{NULL,%s,%s}", 6.06, 6.06),
+                String.format("{NULL,%s,%s}", 7.07, 7.07),
+                String.format("{NULL,%s,%s}", 8.08, 8.08),
+                String.format("{NULL,%s,%s}", 9.09, 9.09),
+                null
+        };
+
+        for (String value : values) {
+            List<OneField> record = Collections.singletonList(new OneField(DataType.FLOAT4ARRAY.getOID(), value));
+            OneRow rowToWrite = resolver.setFields(record);
+            assertTrue(accessor.writeNextObject(rowToWrite));
+        }
+
+        accessor.closeForWrite();
+
+        Path expectedFile = new Path(HcfsType.FILE.getUriForWrite(context) + ".snappy.parquet");
+        assertTrue(expectedFile.getFileSystem(configuration).exists(expectedFile));
+
+        MessageType schema = validateFooter(expectedFile);
+
+        ParquetReader<Group> fileReader = ParquetReader.builder(new GroupReadSupport(), expectedFile)
+                .withConf(configuration)
+                .build();
+
+        assertList(schema.getType(0), fileReader, values, PrimitiveType.PrimitiveTypeName.FLOAT, null);
+
+        fileReader.close();
+    }
+
+    @Test
+    public void testWriteVarcharArray() throws Exception {
+        String path = temp + "/out/varchar_arr/";
+
+        columnDescriptors.add(new ColumnDescriptor("varchar_arr", DataType.VARCHARARRAY.getOID(), 0, "varchararray", new Integer[]{5}));
+
+        context.setDataSource(path);
+        context.setTransactionId("XID-XYZ-123480");
+
+        accessor.setRequestContext(context);
+        accessor.afterPropertiesSet();
+        resolver.setRequestContext(context);
+        resolver.afterPropertiesSet();
+
+        assertTrue(accessor.openForWrite());
+
+        String[] values = new String[]{"{NULL,b,b}", "{NULL,bb,bb}", "{NULL,bbb,bbb}", "{NULL,bbbb,bbbb}",
+                "{NULL,bbbbb,bbbbb}", "{NULL,bbbbbb,bbbbbb}", "{NULL,bbbbbbb,bbbbbbb}", "{NULL,bbbbbbbb,bbbbbbbb}",
+                "{NULL,bbbbbbbbb,bbbbbbbbb}", null};
+
+        for (String value : values) {
+            List<OneField> record = Collections.singletonList(new OneField(DataType.VARCHARARRAY.getOID(), value));
+            OneRow rowToWrite = resolver.setFields(record);
+            assertTrue(accessor.writeNextObject(rowToWrite));
+        }
+
+        accessor.closeForWrite();
+
+        // Validate write
+        Path expectedFile = new Path(HcfsType.FILE.getUriForWrite(context) + ".snappy.parquet");
+        assertTrue(expectedFile.getFileSystem(configuration).exists(expectedFile));
+
+        MessageType schema = validateFooter(expectedFile);
+
+        ParquetReader<Group> fileReader = ParquetReader.builder(new GroupReadSupport(), expectedFile)
+                .withConf(configuration)
+                .build();
+
+        assertList(schema.getType(0), fileReader, values, PrimitiveType.PrimitiveTypeName.BINARY, LogicalTypeAnnotation.StringLogicalTypeAnnotation.stringType());
+
+        fileReader.close();
+    }
+
+    @Test
+    public void testWriteCharArray() throws Exception {
+        String path = temp + "/out/char_arr/";
+
+        columnDescriptors.add(new ColumnDescriptor("char_arr", DataType.BPCHARARRAY.getOID(), 0, "bpchararray", new Integer[]{3}));
+
+        context.setDataSource(path);
+        context.setTransactionId("XID-XYZ-123481");
+
+        accessor.setRequestContext(context);
+        accessor.afterPropertiesSet();
+        resolver.setRequestContext(context);
+        resolver.afterPropertiesSet();
+
+        assertTrue(accessor.openForWrite());
+
+        String[] values = new String[]{"{NULL,c,c}", "{NULL,cc,cc}", "{NULL,ccc,ccc}", "{NULL,cccc,cccc}",
+                "{NULL,ccccc,ccccc}", "{NULL,cccccc,cccccc}", "{NULL,ccccccc,ccccccc}", "{NULL,cccccccc,cccccccc}",
+                "{NULL,ccccccccc,ccccccccc}", null};
+
+        for (String value : values) {
+            List<OneField> record = Collections.singletonList(new OneField(DataType.BPCHARARRAY.getOID(), value));
+            OneRow rowToWrite = resolver.setFields(record);
+            assertTrue(accessor.writeNextObject(rowToWrite));
+        }
+
+        accessor.closeForWrite();
+
+        // Validate write
+        Path expectedFile = new Path(HcfsType.FILE.getUriForWrite(context) + ".snappy.parquet");
+        assertTrue(expectedFile.getFileSystem(configuration).exists(expectedFile));
+
+        MessageType schema = validateFooter(expectedFile);
+
+        ParquetReader<Group> fileReader = ParquetReader.builder(new GroupReadSupport(), expectedFile)
+                .withConf(configuration)
+                .build();
+
+        assertList(schema.getType(0), fileReader, values, PrimitiveType.PrimitiveTypeName.BINARY, LogicalTypeAnnotation.StringLogicalTypeAnnotation.stringType());
+
+        fileReader.close();
+    }
+
+    @Test
+    public void testWriteNumericArray() throws Exception {
+        String path = temp + "/out/numeric_array/";
+
+        columnDescriptors.add(new ColumnDescriptor("numeric_array", DataType.NUMERICARRAY.getOID(), 0, "numericarray", new Integer[]{38, 18}));
+
+        context.setDataSource(path);
+        context.setTransactionId("XID-XYZ-123482");
+
+        accessor.setRequestContext(context);
+        accessor.afterPropertiesSet();
+        resolver.setRequestContext(context);
+        resolver.afterPropertiesSet();
+
+        assertTrue(accessor.openForWrite());
+
+        String[] values = new String[]{
+                String.format("{NULL,%s,%s}", "12345678901234567890.123456789012345678", "12345678901234567890.123456789012345678"),
+                String.format("{NULL,%s,%s}", "22.2345", "22.2345"),
+                String.format("{NULL,%s,%s}", "333.34567", "333.34567"),
+                String.format("{NULL,%s,%s}", "4444.456789", "4444.456789"),
+                String.format("{NULL,%s,%s}", "55555.5678901", "55555.5678901"),
+                String.format("{NULL,%s,%s}", "666666.67890123", "666666.67890123"),
+                String.format("{NULL,%s,%s}", "7777777.789012345", "7777777.789012345"),
+                String.format("{NULL,%s,%s}", "88888888.8901234567", "88888888.8901234567"),
+                String.format("{NULL,%s,%s}", "999999999.90123456789", "999999999.90123456789"),
+                null
+        };
+
+        for (String value : values) {
+            List<OneField> record = Collections.singletonList(new OneField(DataType.NUMERICARRAY.getOID(), value));
+            OneRow rowToWrite = resolver.setFields(record);
+            assertTrue(accessor.writeNextObject(rowToWrite));
+        }
+
+        accessor.closeForWrite();
+
+        // Validate write
+        Path expectedFile = new Path(HcfsType.FILE.getUriForWrite(context) + ".snappy.parquet");
+        assertTrue(expectedFile.getFileSystem(configuration).exists(expectedFile));
+
+        MessageType schema = validateFooter(expectedFile);
+
+        ParquetReader<Group> fileReader = ParquetReader.builder(new GroupReadSupport(), expectedFile)
+                .withConf(configuration)
+                .build();
+
+        String[] expectedValues = new String[]{
+                String.format("{NULL,%s,%s}", "12345678901234567890.123456789012345678", "12345678901234567890.123456789012345678"),
+                String.format("{NULL,%s,%s}", "22.234500000000000000", "22.234500000000000000"),
+                String.format("{NULL,%s,%s}", "333.345670000000000000", "333.345670000000000000"),
+                String.format("{NULL,%s,%s}", "4444.456789000000000000", "4444.456789000000000000"),
+                String.format("{NULL,%s,%s}", "55555.567890100000000000", "55555.567890100000000000"),
+                String.format("{NULL,%s,%s}", "666666.678901230000000000", "666666.678901230000000000"),
+                String.format("{NULL,%s,%s}", "7777777.789012345000000000", "7777777.789012345000000000"),
+                String.format("{NULL,%s,%s}", "88888888.890123456700000000", "88888888.890123456700000000"),
+                String.format("{NULL,%s,%s}", "999999999.901234567890000000", "999999999.901234567890000000"),
+                null
+        };
+
+        assertList(schema.getType(0), fileReader, expectedValues, PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY, LogicalTypeAnnotation.DecimalLogicalTypeAnnotation.decimalType(18, 38));
+
+        fileReader.close();
+    }
+
+    @Test
+    public void testWriteMultipleTypes() throws Exception {
+        String path = temp + "/out/multiple/";
+        columnDescriptors.add(new ColumnDescriptor("dec1", DataType.NUMERIC.getOID(), 0, "numeric", null));
+        columnDescriptors.add(new ColumnDescriptor("c1", DataType.BPCHAR.getOID(), 1, "char", new Integer[]{3}));
+        columnDescriptors.add(new ColumnDescriptor("tm", DataType.TIMESTAMP.getOID(), 2, "timestamp", null));
+        columnDescriptors.add(new ColumnDescriptor("bin", DataType.BYTEA.getOID(), 3, "bytea", null));
+        columnDescriptors.add(new ColumnDescriptor("name", DataType.TEXT.getOID(), 4, "text", null));
+        columnDescriptors.add(new ColumnDescriptor("int_arr", DataType.INT4ARRAY.getOID(), 5, "int_arr", null));
+        columnDescriptors.add(new ColumnDescriptor("float_arr", DataType.FLOAT4ARRAY.getOID(), 6, "float_arr", null));
+        columnDescriptors.add(new ColumnDescriptor("tm_arr", DataType.TIMESTAMPARRAY.getOID(), 7, "timestamp_arr", null));
+        columnDescriptors.add(new ColumnDescriptor("bin_arr", DataType.BYTEAARRAY.getOID(), 8, "bytea_arr", null));
+        columnDescriptors.add(new ColumnDescriptor("str_arr", DataType.TEXTARRAY.getOID(), 9, "text_arr", null));
+
+        context.setDataSource(path);
+
+        context.setTransactionId("XID-XYZ-123483");
+
+        accessor.setRequestContext(context);
+        accessor.afterPropertiesSet();
+        resolver.setRequestContext(context);
+        resolver.afterPropertiesSet();
+
+        assertTrue(accessor.openForWrite());
+
         for (int i = 0; i < 3; i++) {
             List<OneField> record = new ArrayList<>();
             record.add(new OneField(DataType.NUMERIC.getOID(), String.format("%d.%d", (i + 1), (i + 2))));
@@ -938,10 +1557,22 @@ public class ParquetWriteTest {
             String localTimestampString = localTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")); // should be "2020-08-%02dT04:00:05Z" in PST
             record.add(new OneField(DataType.TIMESTAMP.getOID(), localTimestampString));
 
-            byte[] value = Binary.fromString(StringUtils.repeat("e", i + 1)).getBytes();
-            record.add(new OneField(DataType.BYTEA.getOID(), value));
+            byte[] bytes = Binary.fromString(StringUtils.repeat("e", i + 1)).getBytes();
+            record.add(new OneField(DataType.BYTEA.getOID(), bytes));
 
-            record.add(new OneField(DataType.TEXT.getOID(), StringUtils.repeat("f", i + 1)));
+            String text = StringUtils.repeat("f", i + 1);
+            record.add(new OneField(DataType.TEXT.getOID(), text));
+
+            record.add(new OneField(DataType.INT4ARRAY.getOID(), String.format("{NULL,%s,%s}", i, i)));
+
+            record.add(new OneField(DataType.FLOAT4ARRAY.getOID(), String.format("{NULL,%s,%s}", i + 0.01F, i + 0.01F)));
+
+            record.add(new OneField(DataType.TIMESTAMPARRAY.getOID(), String.format("{NULL,%s,%s}", localTimestampString, localTimestampString)));
+
+            record.add(new OneField(DataType.BYTEAARRAY.getOID(), String.format("{NULL,%s,%s}", StringUtils.repeat("e", i + 1), StringUtils.repeat("e", i + 1))));
+
+            record.add(new OneField(DataType.TEXTARRAY.getOID(), String.format("{NULL,%s,%s}", text, text)));
+
             OneRow rowToWrite = resolver.setFields(record);
             assertTrue(accessor.writeNextObject(rowToWrite));
         }
@@ -952,14 +1583,14 @@ public class ParquetWriteTest {
         Path expectedFile = new Path(HcfsType.FILE.getUriForWrite(context) + ".snappy.parquet");
         assertTrue(expectedFile.getFileSystem(configuration).exists(expectedFile));
 
-        MessageType schema = validateFooter(expectedFile, 5, 3);
+        MessageType schema = validateFooter(expectedFile, 10, 3);
 
         ParquetReader<Group> fileReader = ParquetReader.builder(new GroupReadSupport(), expectedFile)
                 .withConf(configuration)
                 .build();
 
         assertNotNull(schema.getColumns());
-        assertEquals(5, schema.getColumns().size());
+        assertEquals(10, schema.getColumns().size());
         assertEquals(PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY, schema.getType(0).asPrimitiveType().getPrimitiveTypeName());
         assertTrue(schema.getType(0).getLogicalTypeAnnotation() instanceof DecimalLogicalTypeAnnotation); //numeric
         assertEquals(PrimitiveType.PrimitiveTypeName.BINARY, schema.getType(1).asPrimitiveType().getPrimitiveTypeName());
@@ -970,6 +1601,13 @@ public class ParquetWriteTest {
         assertNull(schema.getType(3).getLogicalTypeAnnotation()); //bytea
         assertEquals(PrimitiveType.PrimitiveTypeName.BINARY, schema.getType(4).asPrimitiveType().getPrimitiveTypeName());
         assertTrue(schema.getType(4).getLogicalTypeAnnotation() instanceof StringLogicalTypeAnnotation); //text
+
+        assertListElementType(schema.asGroupType().getType(5).asGroupType().getType(0), 3, PrimitiveType.PrimitiveTypeName.INT32, null);//int_arr
+        assertListElementType(schema.asGroupType().getType(6).asGroupType().getType(0), 3, PrimitiveType.PrimitiveTypeName.FLOAT, null);//float_arr
+        assertListElementType(schema.asGroupType().getType(7).asGroupType().getType(0), 3, PrimitiveType.PrimitiveTypeName.INT96, null);//tm_arr
+        assertListElementType(schema.asGroupType().getType(8).asGroupType().getType(0), 3, PrimitiveType.PrimitiveTypeName.BINARY, null);//bytea_arr
+        assertListElementType(schema.asGroupType().getType(9).asGroupType().getType(0), 3, PrimitiveType.PrimitiveTypeName.BINARY, LogicalTypeAnnotation.StringLogicalTypeAnnotation.stringType());//text_arr
+
         Group row0 = fileReader.read();
         Group row1 = fileReader.read();
         Group row2 = fileReader.read();
@@ -1002,8 +1640,255 @@ public class ParquetWriteTest {
         assertEquals("f", row0.getString(4, 0));
         assertEquals("ff", row1.getString(4, 0));
         assertEquals("fff", row2.getString(4, 0));
+
+        assertListElementValue(row0.asGroup().getGroup(5, 0), 1, PrimitiveType.PrimitiveTypeName.INT32, null, "{NULL,0,0}");
+        assertListElementValue(row1.asGroup().getGroup(5, 0), 1, PrimitiveType.PrimitiveTypeName.INT32, null, "{NULL,1,1}");
+        assertListElementValue(row2.asGroup().getGroup(5, 0), 1, PrimitiveType.PrimitiveTypeName.INT32, null, "{NULL,2,2}");
+
+        assertListElementValue(row0.asGroup().getGroup(6, 0), 1, PrimitiveType.PrimitiveTypeName.FLOAT, null, String.format("{NULL,%s,%s}", 0.01F, 0.01F));
+        assertListElementValue(row1.asGroup().getGroup(6, 0), 1, PrimitiveType.PrimitiveTypeName.FLOAT, null, String.format("{NULL,%s,%s}", 1.01F, 1.01F));
+        assertListElementValue(row2.asGroup().getGroup(6, 0), 1, PrimitiveType.PrimitiveTypeName.FLOAT, null, String.format("{NULL,%s,%s}", 2.01F, 2.01F));
+
+        assertListElementValue(row0.asGroup().getGroup(7, 0), 1, PrimitiveType.PrimitiveTypeName.INT96, null, String.format("{NULL,%s,%s}", localTimestampString0, localTimestampString0));
+        assertListElementValue(row1.asGroup().getGroup(7, 0), 1, PrimitiveType.PrimitiveTypeName.INT96, null, String.format("{NULL,%s,%s}", localTimestampString0, localTimestampString0));
+        assertListElementValue(row2.asGroup().getGroup(7, 0), 1, PrimitiveType.PrimitiveTypeName.INT96, null, String.format("{NULL,%s,%s}", localTimestampString0, localTimestampString0));
+
+        assertListElementValue(row0.asGroup().getGroup(8, 0), 1, PrimitiveType.PrimitiveTypeName.BINARY, null, String.format("{NULL,%s,%s}", Binary.fromString("e"), Binary.fromString("e")));
+        assertListElementValue(row1.asGroup().getGroup(8, 0), 1, PrimitiveType.PrimitiveTypeName.BINARY, null, String.format("{NULL,%s,%s}", Binary.fromString("ee"), Binary.fromString("ee")));
+        assertListElementValue(row2.asGroup().getGroup(8, 0), 1, PrimitiveType.PrimitiveTypeName.BINARY, null, String.format("{NULL,%s,%s}", Binary.fromString("eee"), Binary.fromString("eee")));
+
+        assertListElementValue(row0.asGroup().getGroup(9, 0), 1, PrimitiveType.PrimitiveTypeName.BINARY, LogicalTypeAnnotation.StringLogicalTypeAnnotation.stringType(), String.format("{NULL,%s,%s}", Binary.fromString("f"), Binary.fromString("f")));
+        assertListElementValue(row1.asGroup().getGroup(9, 0), 1, PrimitiveType.PrimitiveTypeName.BINARY, LogicalTypeAnnotation.StringLogicalTypeAnnotation.stringType(), String.format("{NULL,%s,%s}", Binary.fromString("ff"), Binary.fromString("ff")));
+        assertListElementValue(row2.asGroup().getGroup(9, 0), 1, PrimitiveType.PrimitiveTypeName.BINARY, LogicalTypeAnnotation.StringLogicalTypeAnnotation.stringType(), String.format("{NULL,%s,%s}", Binary.fromString("fff"), Binary.fromString("fff")));
+
         assertNull(fileReader.read());
         fileReader.close();
+    }
+
+    // parquet doesn't keep timezone information, gpdb will convert tmtz into UTC timestamp
+    @Test
+    public void testWriteTimestampWithTimezone() throws Exception {
+        String path = temp + "/out/timestamp_with_timezone/";
+        columnDescriptors.add(new ColumnDescriptor("tmtz", DataType.TIMESTAMP_WITH_TIME_ZONE.getOID(), 0, "timestamp_with_timezone", null));
+
+        context.setDataSource(path);
+        context.setTransactionId("XID-XYZ-123484");
+
+        accessor.setRequestContext(context);
+        accessor.afterPropertiesSet();
+        resolver.setRequestContext(context);
+        resolver.afterPropertiesSet();
+
+        assertTrue(accessor.openForWrite());
+
+        for (int i = 0; i < 10; i++) {
+            Instant timestamp = Instant.parse("2020-08-01T04:00:05Z"); // UTC
+            ZonedDateTime localTime = timestamp.atZone(ZoneId.systemDefault());
+            String localTimestampString = localTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssxxx")); // 2020-06-28 04:30:00-07:00
+            List<OneField> record = Collections.singletonList(new OneField(DataType.TIMESTAMP_WITH_TIME_ZONE.getOID(), localTimestampString));
+            OneRow rowToWrite = resolver.setFields(record);
+            assertTrue(accessor.writeNextObject(rowToWrite));
+        }
+
+        accessor.closeForWrite();
+
+        // Validate write
+        Path expectedFile = new Path(HcfsType.FILE.getUriForWrite(context) + ".snappy.parquet");
+        assertTrue(expectedFile.getFileSystem(configuration).exists(expectedFile));
+
+        MessageType schema = validateFooter(expectedFile);
+
+        ParquetReader<Group> fileReader = ParquetReader.builder(new GroupReadSupport(), expectedFile)
+                .withConf(configuration)
+                .build();
+
+        // Physical type is INT96
+        Type type = schema.getType(0);
+        assertEquals(PrimitiveType.PrimitiveTypeName.INT96, type.asPrimitiveType().getPrimitiveTypeName());
+        assertNull(type.getLogicalTypeAnnotation());
+
+        for (int i = 0; i < 10; i++) {
+            Instant timestamp = Instant.parse("2020-08-01T04:00:05Z"); // UTC
+            ZonedDateTime localTime = timestamp.atZone(ZoneId.systemDefault());
+            //parquet doesn't keep timezone information
+            String localTimestampString = localTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")); // 2020-06-28 04:30:00
+            assertEquals(localTimestampString, bytesToTimestamp(fileReader.read().getInt96(0, 0).getBytes()));
+        }
+        assertNull(fileReader.read());
+        fileReader.close();
+    }
+
+    @Test
+    public void testWriteTimestampWithTimezoneArray() throws Exception {
+        String path = temp + "/out/timestamp_with_timezone_array/";
+
+        columnDescriptors.add(new ColumnDescriptor("tmtz_array", DataType.TIMESTAMP_WITH_TIMEZONE_ARRAY.getOID(), 0, "tmtz_array", null));
+
+        context.setDataSource(path);
+        context.setTransactionId("XID-XYZ-123485");
+
+        accessor.setRequestContext(context);
+        accessor.afterPropertiesSet();
+        resolver.setRequestContext(context);
+        resolver.afterPropertiesSet();
+
+        assertTrue(accessor.openForWrite());
+
+        String[] values = generateLocalTimestampStrings(ZoneId.systemDefault());
+        for (String value : values) {
+            List<OneField> record = Collections.singletonList(new OneField(DataType.TIMESTAMP_WITH_TIMEZONE_ARRAY.getOID(), value));
+            OneRow rowToWrite = resolver.setFields(record);
+            assertTrue(accessor.writeNextObject(rowToWrite));
+        }
+        accessor.closeForWrite();
+
+        // Validate write
+        Path expectedFile = new Path(HcfsType.FILE.getUriForWrite(context) + ".snappy.parquet");
+        assertTrue(expectedFile.getFileSystem(configuration).exists(expectedFile));
+
+        MessageType schema = validateFooter(expectedFile);
+
+        ParquetReader<Group> fileReader = ParquetReader.builder(new GroupReadSupport(), expectedFile)
+                .withConf(configuration)
+                .build();
+
+        String[] expectedValues = generateLocalTimestampStrings(null);
+        assertList(schema.getType(0), fileReader, expectedValues, PrimitiveType.PrimitiveTypeName.INT96, null);
+
+        fileReader.close();
+    }
+
+    @Test
+    public void testWriteUnsupportedComplexWithSchemaFile() {
+        String path = temp + "/out/unsupported_map/";
+
+        columnDescriptors.add(new ColumnDescriptor("unsupported_map", DataType.UNSUPPORTED_TYPE.getOID(), 0, "unsupported_map", null));
+
+        String filepath = this.getClass().getClassLoader().getResource("parquet/unsupported_map_type.schema").getPath();
+        context.addOption("SCHEMA", filepath);
+        context.setDataSource(path);
+        context.setTransactionId("XID-XYZ-123486");
+
+        accessor.setRequestContext(context);
+        accessor.afterPropertiesSet();
+        resolver.setRequestContext(context);
+        resolver.afterPropertiesSet();
+
+        Exception e = assertThrows(UnsupportedTypeException.class,
+                () -> accessor.openForWrite());
+        assertEquals("Parquet complex type MAP is not supported.", e.getMessage());
+    }
+
+    @Test
+    public void testWriteMultiDimensionalList() throws Exception {
+        String path = temp + "/out/unsupported_list_of_lists/";
+
+        columnDescriptors.add(new ColumnDescriptor("list_of_lists", DataType.INT4ARRAY.getOID(), 0, "list_of_lists", null));
+
+        context.setDataSource(path);
+        context.setTransactionId("XID-XYZ-123487");
+
+        accessor.setRequestContext(context);
+        accessor.afterPropertiesSet();
+        resolver.setRequestContext(context);
+        resolver.afterPropertiesSet();
+
+        assertTrue(accessor.openForWrite());
+        List<OneField> record = Collections.singletonList(new OneField(DataType.INT4ARRAY.getOID(), "{{1,2,3},{4,5,6}}"));
+        Exception e = assertThrows(PxfRuntimeException.class,
+                () -> resolver.setFields(record));
+        assertEquals("Error parsing array element: {1,2,3} was not of expected type INT32", e.getMessage());
+    }
+
+    @Test
+    public void testWriteMultiDimensionalListWithSchemaFile() {
+        String path = temp + "/out/unsupported_list_of_lists/";
+
+        columnDescriptors.add(new ColumnDescriptor("list_of_lists", DataType.INT4ARRAY.getOID(), 0, "list_of_lists", null));
+
+        String filepath = this.getClass().getClassLoader().getResource("parquet/unsupported_list_of_lists_type.schema").getPath();
+        context.addOption("SCHEMA", filepath);
+
+        context.setDataSource(path);
+        context.setTransactionId("XID-XYZ-123488");
+
+        accessor.setRequestContext(context);
+        accessor.afterPropertiesSet();
+        resolver.setRequestContext(context);
+        resolver.afterPropertiesSet();
+
+        Exception e = assertThrows(UnsupportedTypeException.class,
+                () -> accessor.openForWrite());
+        assertEquals("Parquet LIST of LIST is not supported.", e.getMessage());
+    }
+
+    @Test
+    public void testWriteInvalidListSchemaWithoutRepeatedGroup() {
+        String path = temp + "/out/invalid_list_schema_without_repeated_group/";
+
+        columnDescriptors.add(new ColumnDescriptor("invalid_list_schema_without_repeated_group", DataType.BOOLARRAY.getOID(), 0, "invalid_list_schema_without_repeated_group", null));
+
+        String filepath = this.getClass().getClassLoader().getResource("parquet/invalid_list_schema_without_repeated_group.schema").getPath();
+        context.addOption("SCHEMA", filepath);
+
+        context.setDataSource(path);
+        context.setTransactionId("XID-XYZ-123489");
+
+        accessor.setRequestContext(context);
+        accessor.afterPropertiesSet();
+        resolver.setRequestContext(context);
+        resolver.afterPropertiesSet();
+
+        // need to add an elementType validation, but when should we throw exception? when getting schema or when parsing values?
+        Exception e = assertThrows(PxfRuntimeException.class,
+                () -> accessor.openForWrite());
+        assertEquals("Invalid Parquet List schema: optional group bool_arr (LIST) { }.", e.getMessage());
+    }
+
+    @Test
+    public void testWriteInvalidListSchemaWithInvalidRepeatedGroup() {
+        String path = temp + "/out/invalid_list_schema_with_invalid_repeated_group/";
+
+        columnDescriptors.add(new ColumnDescriptor("invalid_list_schema_with_invalid_repeated_group", DataType.BOOLARRAY.getOID(), 0, "invalid_list_schema_with_invalid_repeated_group", null));
+
+        String filepath = this.getClass().getClassLoader().getResource("parquet/invalid_list_schema_with_invalid_repeated_group.schema").getPath();
+        context.addOption("SCHEMA", filepath);
+
+        context.setDataSource(path);
+        context.setTransactionId("XID-XYZ-123489");
+
+        accessor.setRequestContext(context);
+        accessor.afterPropertiesSet();
+        resolver.setRequestContext(context);
+        resolver.afterPropertiesSet();
+
+        // need to add an elementType validation, but when should we throw exception? when getting schema or when parsing values?
+        Exception e = assertThrows(PxfRuntimeException.class,
+                () -> accessor.openForWrite());
+        assertEquals("Invalid Parquet List schema: optional group bool_arr (LIST) {   optional int32 bag; }.", e.getMessage());
+    }
+
+    @Test
+    public void testWriteInvalidListSchemaWithoutElementGroup() {
+        String path = temp + "/out/invalid_list_schema_without_element_group/";
+
+        columnDescriptors.add(new ColumnDescriptor("invalid_list_schema_without_element_group", DataType.BOOLARRAY.getOID(), 0, "invalid_list_schemawithout_element_group", null));
+
+        String filepath = this.getClass().getClassLoader().getResource("parquet/invalid_list_schema_without_element_group.schema").getPath();
+        context.addOption("SCHEMA", filepath);
+
+        context.setDataSource(path);
+        context.setTransactionId("XID-XYZ-123489");
+
+        accessor.setRequestContext(context);
+        accessor.afterPropertiesSet();
+        resolver.setRequestContext(context);
+        resolver.afterPropertiesSet();
+
+        // need to add an elementType validation, but when should we throw exception? when getting schema or when parsing values?
+        Exception e = assertThrows(PxfRuntimeException.class,
+                () -> accessor.openForWrite());
+        assertEquals("Invalid Parquet List schema: optional group bool_arr (LIST) {   repeated group bag {   } }.", e.getMessage());
     }
 
     private MessageType validateFooter(Path parquetFile) throws IOException {
@@ -1031,6 +1916,110 @@ public class ParquetWriteTest {
             ColumnChunkMetaData column0 = block0.getColumns().get(0);
             assertEquals(CompressionCodecName.SNAPPY, column0.getCodec());
             return metadata.getSchema();
+        }
+    }
+
+    private String[] generateLocalTimestampStrings(ZoneId zoneId) {
+        String[] localTimestampStrings = new String[10];
+        for (int i = 0; i < 10; i++) {
+            if (i != 9) {
+                Instant timestamp = Instant.parse(String.format("2020-08-%02dT04:00:05Z", i + 1)); // UTC
+                if (zoneId == null) {
+                    ZonedDateTime localTime = timestamp.atZone(ZoneId.systemDefault());
+                    String localTimestampString = localTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+                    localTimestampStrings[i] = String.format("{NULL,%s,%s}", localTimestampString, localTimestampString);
+                } else {
+                    ZonedDateTime localTime = timestamp.atZone(zoneId);
+                    String localTimestampString = localTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssxxx"));
+                    localTimestampStrings[i] = String.format("{NULL,%s,%s}", localTimestampString, localTimestampString);
+                }
+            }
+        }
+        return localTimestampStrings;
+    }
+
+    private void assertList(Type outerType, ParquetReader<Group> fileReader, String[] expectedValues, PrimitiveType.PrimitiveTypeName elementTypeName, LogicalTypeAnnotation logicalTypeAnnotation) throws IOException {
+        for (int i = 0; i < expectedValues.length; i++) {
+            assertNotNull(outerType.getLogicalTypeAnnotation());
+            assertEquals(LogicalTypeAnnotation.listType(), outerType.getLogicalTypeAnnotation());
+
+            Group outerGroup = fileReader.read();
+            if (i != expectedValues.length - 1) {
+                // if the array is not a null array, the outer group should only have one field
+                assertEquals(1, outerGroup.getFieldRepetitionCount(outerType.asGroupType().getName()));
+
+                // get the repeated list group
+                Group repeatedGroup = outerGroup.getGroup(0, 0);
+                Type repeatedType = outerType.asGroupType().getType(0);
+                //repeated group must use "repeated" keyword
+                assertEquals(Type.Repetition.REPEATED, repeatedType.getRepetition());
+                int repetitionCount = repeatedGroup.getFieldRepetitionCount(repeatedType.asGroupType().getName());
+                assertEquals(3, repetitionCount);
+                assertListElementType(outerType.asGroupType().getType(0), repetitionCount, elementTypeName, logicalTypeAnnotation);
+                assertListElementValue(outerGroup.getGroup(0, 0), repetitionCount, elementTypeName, logicalTypeAnnotation, expectedValues[i]);
+            } else {
+                // if the array is a null array, the outer group should have no field
+                assertEquals(0, outerGroup.getFieldRepetitionCount(outerType.asGroupType().getName()));
+            }
+
+        }
+    }
+
+    private void assertListElementValue(Group repeatedGroup, int repetitionCount, PrimitiveType.PrimitiveTypeName elementTypeName, LogicalTypeAnnotation logicalTypeAnnotation, String expectedValueArrayString) {
+        expectedValueArrayString = expectedValueArrayString.substring(1, expectedValueArrayString.length() - 1); // remove {}
+
+        String[] expectedValues = expectedValueArrayString.split(",");
+        for (int j = 0; j < repetitionCount; j++) {
+            Group elementGroup = repeatedGroup.getGroup(0, j);
+            // the first element is null, so repetitonCount should be 0
+            if (j == 0) {
+                assertEquals(0, elementGroup.getFieldRepetitionCount(0));
+                continue;
+            }
+            // only one  element in the repeated list, the repetition count should be 1
+            assertEquals(1, elementGroup.getFieldRepetitionCount(0));
+            switch (elementTypeName) {
+                case INT32:
+                    if (logicalTypeAnnotation != null &&
+                            logicalTypeAnnotation == LogicalTypeAnnotation.IntLogicalTypeAnnotation.intType(16, true)) {
+                        assertEquals(Short.parseShort(expectedValues[j]), (short) elementGroup.getInteger(0, 0));
+                    } else if (logicalTypeAnnotation != null && logicalTypeAnnotation == LogicalTypeAnnotation.dateType()) {
+                        assertEquals(ParquetTypeConverter.getDaysFromEpochFromDateString(expectedValues[j]), elementGroup.getInteger(0, 0));
+                    } else {
+                        assertEquals(Integer.parseInt(expectedValues[j]), elementGroup.getInteger(0, 0));
+                    }
+                    break;
+                case INT96:
+                    assertEquals(expectedValues[j], bytesToTimestamp(elementGroup.getInt96(0, 0).getBytes()));
+                    break;
+                case FLOAT:
+                    assertEquals(Float.parseFloat(expectedValues[j]), elementGroup.getFloat(0, 0));
+                    break;
+                case BINARY:
+                    if (logicalTypeAnnotation != null) {
+                        assertEquals(expectedValues[j], elementGroup.getBinary(0, 0).toStringUsingUTF8());
+                    } else {
+                        assertEquals(Binary.fromReusedByteArray(expectedValues[j].getBytes()), elementGroup.getBinary(0, 0));
+                    }
+                    break;
+                case FIXED_LEN_BYTE_ARRAY:
+                    assertEquals(expectedValues[j], new BigDecimal(new BigInteger(elementGroup.getBinary(0, 0).getBytes()), 18).toString());
+                    break;
+                default:
+                    break;
+            }
+
+        }
+    }
+
+    private void assertListElementType(Type repeatedType, int repetitionCount, PrimitiveType.PrimitiveTypeName expectedElementTypeName, LogicalTypeAnnotation logicalTypeAnnotation) {
+        //repeated group must use "repeated" keyword
+        assertEquals(Type.Repetition.REPEATED, repeatedType.getRepetition());
+        for (int j = 0; j < repetitionCount; j++) {
+            Type elementType = repeatedType.asGroupType().getType(0).asPrimitiveType();
+            // Physical type is binary, logical type is String
+            assertEquals(expectedElementTypeName, elementType.asPrimitiveType().getPrimitiveTypeName());
+            assertEquals(elementType.getLogicalTypeAnnotation(), logicalTypeAnnotation);
         }
     }
 }

@@ -22,19 +22,24 @@ jobs:
           tag_name: ${{ github.ref }}
           release_name: PXF Version ${{ github.ref }}
           body: |
-            ## 6.4.0 (08/15/2022)
+            ## 6.5.0 (12/21/2022)
 
             ### Enhancements:
 
-            - [#818](https://github.com/greenplum-db/pxf/pull/818) Add support for writing ORC primitive types
-            - [#836](https://github.com/greenplum-db/pxf/pull/836) Add write support for one-dimensional ORC arrays
-            - [#842](https://github.com/greenplum-db/pxf/pull/842) Add support for using a PreparedStatement when reading
+            - [#872](https://github.com/greenplum-db/pxf/pull/872) Enable automation tests to run against PXF FDW extension
+            - [#876](https://github.com/greenplum-db/pxf/pull/876) Parquet write array
+            - [#879](https://github.com/greenplum-db/pxf/pull/879) Add new SPLIT_BY_FILE option for json profiles
+            - [#880](https://github.com/greenplum-db/pxf/pull/880) Allow setting JDBC session-level parallel instructions for Oracle
+            - [#885](https://github.com/greenplum-db/pxf/pull/885) Prevent out-of-bounds buffer access
+            - [#886](https://github.com/greenplum-db/pxf/pull/886) Update jackson-databind to 2.13.4.1
+            - [#895](https://github.com/greenplum-db/pxf/pull/895) Parquet read array
+            - [#903](https://github.com/greenplum-db/pxf/pull/903) Bump postgresql from 42.4.1 to 42.4.3
 
             ### Bug Fixes:
 
-            - [#833](https://github.com/greenplum-db/pxf/pull/833) Bump aws-java-sdk-s3 from 1.11.472 to 1.12.261
-            - [#838](https://github.com/greenplum-db/pxf/pull/838) Upgrade org.xerial.snappy:snappy-java to 1.1.8.4
-            - [#845](https://github.com/greenplum-db/pxf/pull/845) Bump postgresql version from 42.3.3 to 42.4.1
+            - [#875](https://github.com/greenplum-db/pxf/pull/875) Fix projection of boolean qualifiers whose attrs are not in SELECT list
+            - [#879](https://github.com/greenplum-db/pxf/pull/879) Refactor JsonRecordReader and fix incorrect parsing of JSON objects for multi-line JSON
+            - [#897](https://github.com/greenplum-db/pxf/pull/897) Add close connection if statementRead is null
 
           draft: false
           prerelease: false

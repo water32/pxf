@@ -62,6 +62,7 @@ public class BridgeOutputBuilder {
     private static final Logger LOG = LoggerFactory.getLogger(BridgeOutputBuilder.class);
 
     private static final byte DELIM = 10; /* (byte)'\n'; */
+    public static final String PXF_ERROR_TOKEN = "PXFERRMSG> ";
     private final Charset databaseEncoding;
     private final String newLine;
     private final byte[] newLineBytes;
@@ -131,11 +132,11 @@ public class BridgeOutputBuilder {
             return errorRecord;
         } else {
             // Serialize error text into CSV
-            // We create a row with an extra column containing the error information
+            // We create a row with an extra column containing the error token (used by FDW) and error information
             LOG.error(ex.getMessage(), ex);
             return new Text(
                     StringUtils.repeat(String.valueOf(greenplumCSV.getDelimiter()), columnDescriptors.size()) +
-                            greenplumCSV.toCsvField(ex.getMessage(), true, true, true) +
+                            greenplumCSV.toCsvField(PXF_ERROR_TOKEN + ex.getMessage(), true, true, true) +
                             newLine);
         }
     }
@@ -478,20 +479,22 @@ public class BridgeOutputBuilder {
         return fields.stream()
                 .map(field -> {
                     // Check first if the field.val is null then using .toString() is safe in else branches.
-                    if (field.val == null)
+                    if (field.val == null) {
                         return greenplumCSV.getValueOfNull();
-                    else if (field.type == DataType.BYTEA.getOID()) {
+                    } else if (field.type == DataType.BYTEA.getOID()) {
                         // check for Format Type here. if the Format Type is CSV, we should escape using single \
                         // for Text or Custom Format types, it should \\
                         String hexPrepend = gpdbTableformat.equalsIgnoreCase("csv") ? "\\x" : "\\\\x";
                         return hexPrepend + Hex.encodeHexString((byte[]) field.val);
-                    } else if (field.type == DataType.NUMERIC.getOID() || !DataType.isTextForm(field.type))
+                    } else if (field.type == DataType.NUMERIC.getOID() || !DataType.isTextForm(field.type)) {
                         return field.val.toString();
-                    else if (field.type == DataType.TIMESTAMP.getOID())
-                        return ((Timestamp) field.val).toLocalDateTime().format(GreenplumDateTime.DATETIME_FORMATTER);
-                    else if (field.type == DataType.DATE.getOID())
+                    } else if (field.type == DataType.TIMESTAMP.getOID()) {
+                        return field.val instanceof String ?
+                                (String) field.val :
+                                ((Timestamp) field.val).toLocalDateTime().format(GreenplumDateTime.DATETIME_FORMATTER);
+                    } else if (field.type == DataType.DATE.getOID()) {
                         return field.val.toString();
-                    else
+                    } else
                         return greenplumCSV.toCsvField(field.val.toString(), true, true, true);
                 })
                 .collect(Collectors.joining(String.valueOf(greenplumCSV.getDelimiter()), "", newLine));
