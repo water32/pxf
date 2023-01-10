@@ -1,6 +1,8 @@
 package org.greenplum.pxf.automation.features.parquet;
 
+import com.google.common.collect.Lists;
 import jsystem.framework.system.SystemManagerImpl;
+import org.apache.commons.lang.StringUtils;
 import org.greenplum.pxf.automation.components.hive.Hive;
 import org.greenplum.pxf.automation.features.BaseFeature;
 import org.greenplum.pxf.automation.structures.tables.basic.Table;
@@ -11,7 +13,6 @@ import org.greenplum.pxf.automation.structures.tables.utils.TableFactory;
 import org.greenplum.pxf.automation.utils.system.ProtocolEnum;
 import org.greenplum.pxf.automation.utils.system.ProtocolUtils;
 import org.greenplum.pxf.plugins.hdfs.utilities.PgUtilities;
-import org.junit.Ignore;
 import org.testng.annotations.Test;
 
 import java.io.File;
@@ -81,11 +82,12 @@ public class ParquetWriteTest extends BaseFeature {
             "bytea_arr            BYTEA[]"      ,         // DataType.BYTEAARRAY
             "char_arr             CHAR(15)[]"   ,         // DataType.BPCHARARRAY
             "varchar_arr          VARCHAR(15)[]",         // DataType.VARCHARARRAY
-            "date_arr             DATE[]"       ,         // DataType.DATEARRAY
-            "numeric_arr          NUMERIC[]"              // DataType.NUMERICARRAY
+            "numeric_arr          NUMERIC[]"    ,         // DataType.NUMERICARRAY
+            "date_arr             DATE[]"                 // DataType.DATEARRAY
     };
 
-    private static final String[] PARQUET_PRIMITIVE_ARRAYS_TABLE_COLUMNS_HIVE = {
+    // CDH (Hive 1.1) does not support date, so we will add the date_arr column as needed in the test case
+    private static List<String> PARQUET_PRIMITIVE_ARRAYS_TABLE_COLUMNS_HIVE = Lists.newArrayList(
             "id                   int"                  ,
             "bool_arr             array<boolean>"       ,           // DataType.BOOLARRAY
             "smallint_arr         array<smallint>"      ,           // DataType.INT2ARRAY
@@ -97,11 +99,10 @@ public class ParquetWriteTest extends BaseFeature {
             "bytea_arr            array<binary>"        ,           // DataType.BYTEAARRAY
             "char_arr             array<char(15)>"      ,           // DataType.BPCHARARRAY
             "varchar_arr          array<varchar(15)>"   ,           // DataType.VARCHARARRAY
-            "date_arr             array<date>"          ,           // DataType.DATEARRAY
             "numeric_arr          array<decimal(38,18)>"            // DataType.NUMERICARRAY
-    };
+    );
 
-    // JDBC dosen't support array, so convert array into text type for comparison
+    // JDBC doesn't support array, so convert array into text type for comparison
     private static final String[] PARQUET_PRIMITIVE_ARRAYS_TABLE_COLUMNS_READ_FROM_HIVE = {
             "id                   int",
             "bool_arr             text",           // DataType.BOOLARRAY
@@ -113,9 +114,9 @@ public class ParquetWriteTest extends BaseFeature {
             "text_arr             text",           // DataType.TEXTARRAY
             "char_arr             text",           // DataType.BPCHARARRAY
             "varchar_arr          text",           // DataType.VARCHARARRAY
-            "date_arr             text",           // DataType.DATEARRAY
             "numeric_arr          text"            // DataType.NUMERICARRAY
     };
+
     private static final String[] PARQUET_TIMESTAMP_LIST_TABLE_COLUMNS = {
             "id            INTEGER",
             "tm_arr        TIMESTAMP[]"
@@ -241,7 +242,7 @@ public class ParquetWriteTest extends BaseFeature {
 
         prepareWritableExternalTable(writeTableName, PARQUET_LIST_TABLE_COLUMNS, fullTestPath, null);
         gpdb.runQuery("INSERT INTO " + exTable.getName() + " SELECT id, bool_arr, smallint_arr, int_arr, bigint_arr, real_arr, " +
-                "double_arr, text_arr, bytea_arr, char_arr, varchar_arr, date_arr, numeric_arr FROM " + PXF_PARQUET_LIST_TYPES);
+                "double_arr, text_arr, bytea_arr, char_arr, varchar_arr, numeric_arr, date_arr FROM " + PXF_PARQUET_LIST_TYPES);
 
         waitForAsyncWriteToSucceedOnHCFS("parquet_write_list");
 
@@ -272,9 +273,8 @@ public class ParquetWriteTest extends BaseFeature {
      * Do not run this test with "hcfs" group as Hive is not available in the environments prepared for that group
      * Also do not run with "security" group that would require kerberos principal to be included in Hive JDBC URL
      */
-    @Test(groups = {"features", "gpdb"}, enabled = false)
+    @Test(groups = {"features", "gpdb"})
     public void parquetWriteListsReadWithHive() throws Exception {
-        // TODO: HDP and HDP3 can pass this test. HIVE 1.1 in CDH doesn't support Parquet Date
         // init only here, not in beforeClass() method as other tests run in environments without Hive
         hive = (Hive) SystemManagerImpl.getInstance().getSystemObject("hive");
 
@@ -287,11 +287,19 @@ public class ParquetWriteTest extends BaseFeature {
 
         // load the data into hive to check that PXF-written Parquet files can be read by other data
         String hiveExternalTableName = writeTableName + "_external";
-        hiveTable = new HiveExternalTable(hiveExternalTableName, PARQUET_PRIMITIVE_ARRAYS_TABLE_COLUMNS_HIVE, "hdfs:/" + fullTestPath);
+
+        boolean includeDateCol = checkHiveVersionForDateSupport(hive);
+        if (includeDateCol) {
+            PARQUET_PRIMITIVE_ARRAYS_TABLE_COLUMNS_HIVE.add("date_arr array<date>");
+        }
+        String[] parquetArrayTableCols = PARQUET_PRIMITIVE_ARRAYS_TABLE_COLUMNS_HIVE.toArray(new String[PARQUET_PRIMITIVE_ARRAYS_TABLE_COLUMNS_HIVE.size()]);
+        PARQUET_PRIMITIVE_ARRAYS_TABLE_COLUMNS_HIVE.toArray(parquetArrayTableCols);
+
+        hiveTable = new HiveExternalTable(hiveExternalTableName, parquetArrayTableCols, "hdfs:/" + fullTestPath);
         hiveTable.setStoredAs("PARQUET");
         hive.createTableAndVerify(hiveTable);
 
-        String ctasHiveQuery = new StringJoiner(",",
+        StringJoiner ctasHiveQuery = new StringJoiner(",",
                 "CREATE TABLE " + hiveTable.getFullName() + "_ctas AS SELECT ", " FROM " + hiveTable.getFullName() + " ORDER BY id")
                 .add("id")
                 .add("bool_arr")
@@ -304,17 +312,24 @@ public class ParquetWriteTest extends BaseFeature {
                 .add("bytea_arr")
                 .add("char_arr")
                 .add("varchar_arr")
-                .add("date_arr")
-                .add("numeric_arr")
-                .toString();
+                .add("numeric_arr");
+
+        if (includeDateCol) {
+            ctasHiveQuery.add("date_arr");
+        }
 
         hive.runQuery("DROP TABLE IF EXISTS " + hiveTable.getFullName() + "_ctas");
-        hive.runQuery(ctasHiveQuery);
+        hive.runQuery(ctasHiveQuery.toString());
 
         // Check the bytea_array using the following way since the JDBC profile cannot handle binary
-        Table hiveResultTable = new Table(hiveTable.getFullName() + "_ctas", PARQUET_PRIMITIVE_ARRAYS_TABLE_COLUMNS_HIVE);
-        hive.queryResults(hiveResultTable, "SELECT id,bytea_arr FROM " + hiveTable.getFullName() + "_ctas ORDER BY id");
+        Table hiveResultTable = new Table(hiveTable.getFullName() + "_ctas", parquetArrayTableCols);
+        hive.queryResults(hiveResultTable, "SELECT id, bytea_arr FROM " + hiveTable.getFullName() + "_ctas ORDER BY id");
         assertHiveByteaArrayData(hiveResultTable.getData());
+
+        if (includeDateCol) {
+            hive.queryResults(hiveResultTable, "SELECT id, date_arr FROM " + hiveTable.getFullName() + "_ctas ORDER BY id");
+            assertHiveDateArrayData(hiveResultTable.getData());
+        }
 
         // use the Hive JDBC profile to avoid using the PXF Parquet reader implementation
         String jdbcUrl = HIVE_JDBC_URL_PREFIX + hive.getHost() + ":10000/default";
@@ -354,7 +369,7 @@ public class ParquetWriteTest extends BaseFeature {
         gpdb.createTableAndVerify(exTable);
 
         gpdb.runQuery("INSERT INTO " + exTable.getName() + " SELECT id, bool_arr, smallint_arr, int_arr, bigint_arr, real_arr, " +
-                "double_arr, text_arr, bytea_arr, char_arr, varchar_arr, date_arr, numeric_arr FROM " + PXF_PARQUET_LIST_TYPES);
+                "double_arr, text_arr, bytea_arr, char_arr, varchar_arr, numeric_arr, date_arr FROM " + PXF_PARQUET_LIST_TYPES);
 
         waitForAsyncWriteToSucceedOnHCFS("parquet_write_lists_with_user_provided_schema_file_on_hcfs");
 
@@ -449,8 +464,8 @@ public class ParquetWriteTest extends BaseFeature {
                     .add(String.format("'{\\\\x%02d%02d}'::bytea[]", i % 100, (i + 1) % 100))        // DataType.BYTEAARRAY
                     .add(String.format("'{\"%s\"}'", i))                                             // DataType.BPCHARARRAY
                     .add(String.format("'{\"var%02d\"}'", i))                                        // DataType.VARCHARARRAY
-                    .add(String.format("'{\"2010-01-%02d\"}'", (i % 30) + 1))                        // DataType.DATEARRAY
                     .add(String.format("'{12345678900000.00000%s}'", i))                             // DataType.NUMERICARRAY
+                    .add(String.format("'{\"2010-01-%02d\"}'", (i % 30) + 1))                        // DataType.DATEARRAY
                     ;
             insertStatement.append(statementBuilder.toString().concat((i < (numRows - 1)) ? "," : ";"));
         }
@@ -462,7 +477,7 @@ public class ParquetWriteTest extends BaseFeature {
 
         for (int i = 0; i < queryResultData.size(); i++) {
             StringJoiner rowBuilder = new StringJoiner(", ", "[", "]")
-                    .add(String.valueOf(i))    // always not-null row index, column index starts with 0 after it                    // DataType.TEXTARRAY
+                    .add(String.valueOf(i))    // always not-null row index, column index starts with 0 after it
                     .add(String.format("[\\\\x%02d%02d]", i % 100, (i + 1) % 100))                      // DataType.BYTEAARRAY
                     ;
 
@@ -472,7 +487,54 @@ public class ParquetWriteTest extends BaseFeature {
             ByteBuffer byteBuffer = ByteBuffer.wrap(byteaArrayString.getBytes());
             String hexString = pgUtilities.encodeByteaHex(byteBuffer); // \x0001, need another \ when added into string
             queryResultData.get(i).set(1, "[\\" + hexString + "]");
+
             assertEquals(rowBuilder.toString(), queryResultData.get(i).toString());
+        }
+    }
+
+    private void assertHiveDateArrayData(List<List<String>> queryResultData) {
+        for (int i = 0; i < queryResultData.size(); i++) {
+            StringJoiner rowBuilder = new StringJoiner(", ", "[", "]")
+                    .add(String.valueOf(i))    // always not-null row index, column index starts with 0 after it
+                    .add(String.format("[\"2010-01-%02d\"]", (i % 30) + 1)) // DataType.DATEARRAY
+                    ;
+
+            assertEquals(rowBuilder.toString(), queryResultData.get(i).toString());
+        }
+    }
+
+    /**
+     *  Support for Parquet Date types was introduced with Hive 1.2.0
+     *  See https://issues.apache.org/jira/browse/HIVE-6384
+     * @param hive
+     * @return boolean returns true if the Hive version is greater than 1.2, false otherwise
+     * @throws Exception
+     */
+    private boolean checkHiveVersionForDateSupport(Hive hive) throws Exception {
+        Table versionResult = new Table("versionResult", null);
+
+        try {
+            // Hive 1.1.0-cdh and Hive 3.1 both have the version() UDF.
+            hive.queryResults(versionResult, "SELECT version()");
+
+            String result = versionResult.getData().get(0).get(0);
+            String[] versions = result.split("\\.");
+            int majorVersion = Integer.parseInt(versions[0]);
+            int minorVersion = Integer.parseInt(versions[1]);
+
+            // we do not need to check the patch version since it went in 1.2.0
+            if (majorVersion == 1 && minorVersion < 2) {
+                return false;
+            }
+            return true;
+        } catch (Exception e) {
+            // Hive 1.2.1 fails to find the version as `select version()` was not introduced until Hive 2.1
+            // We fail here due to this UDF not existing, so if we get this err, catch it and return true
+            if (StringUtils.contains(e.getCause().toString(),"Invalid function 'version'")) {
+                return true;
+            } else {
+                throw e;
+            }
         }
     }
 }
