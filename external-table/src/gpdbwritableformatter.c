@@ -434,7 +434,7 @@ verifyExternalTableDefinition(int16 ncolumns_remote, AttrNumber nvalidcolumns, A
 
 		input_type = 0;
 		defined_type = attr->atttypid;
-		enumType = readInt1FromBuffer(data_buf, bufidx);
+		enumType = readInt1FromBuffer(data_buf, data_len, bufidx);
 
 		/* Convert enumType to type oid */
 		input_type = getTypeOidFromJavaEnumOrdinal(enumType);
