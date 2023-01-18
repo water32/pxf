@@ -38,104 +38,183 @@ var _ = Describe("GenerateStatusReport()", func() {
 	Context("When there is no standby master", func() {
 		It("reports master host and segment hosts are initializing, resetting, registering, syncing, preparing, and migrating", func() {
 			cmd.GenerateStatusReport(&cmd.InitCommand, createClusterData(3, clusterWithoutStandby))
-			Expect(testStdout).To(gbytes.Say("Initializing PXF on master host and 2 segment hosts"))
+			Expect(testLogFile).To(gbytes.Say("Initializing PXF on master host and 2 segment hosts"))
+			Expect(testStdout).To(gbytes.Say("Initializing PXF on master host and 2 segment hosts..."))
+
 			cmd.GenerateStatusReport(&cmd.ResetCommand, createClusterData(3, clusterWithoutStandby))
+			Expect(testLogFile).To(gbytes.Say("Resetting PXF on master host and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Resetting PXF on master host and 2 segment hosts"))
+
 			cmd.GenerateStatusReport(&cmd.SyncCommand, createClusterData(2, clusterWithoutStandby))
+			Expect(testLogFile).To(gbytes.Say("Syncing PXF configuration files from master host to 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Syncing PXF configuration files from master host to 2 segment hosts"))
+
 			cmd.GenerateStatusReport(&cmd.RegisterCommand, createClusterData(3, clusterWithoutStandby))
+			Expect(testLogFile).To(gbytes.Say("Installing PXF extension on master host and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Installing PXF extension on master host and 2 segment hosts"))
+
 			cmd.GenerateStatusReport(&cmd.PrepareCommand, createClusterData(3, clusterWithoutStandby))
+			Expect(testLogFile).To(gbytes.Say("Preparing PXF on master host and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Preparing PXF on master host and 2 segment hosts"))
+
 			cmd.GenerateStatusReport(&cmd.MigrateCommand, createClusterData(3, clusterWithoutStandby))
+			Expect(testLogFile).To(gbytes.Say("Migrating PXF configuration on master host and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Migrating PXF configuration on master host and 2 segment hosts"))
 		})
+
 		It("reports segment hosts are starting, stopping, restarting and statusing", func() {
 			cmd.GenerateStatusReport(&cmd.StartCommand, createClusterData(3, clusterWithoutStandby))
+			Expect(testLogFile).To(gbytes.Say("Starting PXF on master host and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Starting PXF on master host and 2 segment hosts"))
+
 			cmd.GenerateStatusReport(&cmd.StopCommand, createClusterData(3, clusterWithoutStandby))
+			Expect(testLogFile).To(gbytes.Say("Stopping PXF on master host and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Stopping PXF on master host and 2 segment hosts"))
+
 			cmd.GenerateStatusReport(&cmd.RestartCommand, createClusterData(3, clusterWithoutStandby))
+			Expect(testLogFile).To(gbytes.Say("Restarting PXF on master host and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Restarting PXF on master host and 2 segment hosts"))
+
 			cmd.GenerateStatusReport(&cmd.StatusCommand, createClusterData(3, clusterWithoutStandby))
+			Expect(testLogFile).To(gbytes.Say("Checking status of PXF servers on master host and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Checking status of PXF servers on master host and 2 segment hosts"))
 		})
 	})
+
 	Context("When there is a standby master on its own host", func() {
 		It("reports master host, standby master host and segment hosts are initializing, resetting, registering, syncing, preparing, and migrating", func() {
 			cmd.GenerateStatusReport(&cmd.InitCommand, createClusterData(4, clusterWithStandby))
+			Expect(testLogFile).To(gbytes.Say("Initializing PXF on master host, standby master host, and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Initializing PXF on master host, standby master host, and 2 segment hosts"))
+
 			cmd.GenerateStatusReport(&cmd.ResetCommand, createClusterData(4, clusterWithStandby))
+			Expect(testLogFile).To(gbytes.Say("Resetting PXF on master host, standby master host, and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Resetting PXF on master host, standby master host, and 2 segment hosts"))
+
 			cmd.GenerateStatusReport(&cmd.SyncCommand, createClusterData(3, clusterWithStandby))
+			Expect(testLogFile).To(gbytes.Say("Syncing PXF configuration files from master host to standby master host and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Syncing PXF configuration files from master host to standby master host and 2 segment hosts"))
+
 			cmd.GenerateStatusReport(&cmd.RegisterCommand, createClusterData(4, clusterWithStandby))
+			Expect(testLogFile).To(gbytes.Say("Installing PXF extension on master host, standby master host, and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Installing PXF extension on master host, standby master host, and 2 segment hosts"))
+
 			cmd.GenerateStatusReport(&cmd.PrepareCommand, createClusterData(4, clusterWithStandby))
+			Expect(testLogFile).To(gbytes.Say("Preparing PXF on master host, standby master host, and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Preparing PXF on master host, standby master host, and 2 segment hosts"))
+
 			cmd.GenerateStatusReport(&cmd.MigrateCommand, createClusterData(4, clusterWithStandby))
+			Expect(testLogFile).To(gbytes.Say("Migrating PXF configuration on master host, standby master host, and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Migrating PXF configuration on master host, standby master host, and 2 segment hosts"))
 		})
+
 		It("reports segment hosts are starting, stopping, restarting and statusing", func() {
 			cmd.GenerateStatusReport(&cmd.StartCommand, createClusterData(4, clusterWithStandby))
+			Expect(testLogFile).To(gbytes.Say("Starting PXF on master host, standby master host, and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Starting PXF on master host, standby master host, and 2 segment hosts"))
+
 			cmd.GenerateStatusReport(&cmd.StopCommand, createClusterData(4, clusterWithStandby))
+			Expect(testLogFile).To(gbytes.Say("Stopping PXF on master host, standby master host, and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Stopping PXF on master host, standby master host, and 2 segment hosts"))
+
 			cmd.GenerateStatusReport(&cmd.RestartCommand, createClusterData(4, clusterWithStandby))
+			Expect(testLogFile).To(gbytes.Say("Restarting PXF on master host, standby master host, and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Restarting PXF on master host, standby master host, and 2 segment hosts"))
+
 			cmd.GenerateStatusReport(&cmd.StatusCommand, createClusterData(4, clusterWithStandby))
+			Expect(testLogFile).To(gbytes.Say("Checking status of PXF servers on master host, standby master host, and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Checking status of PXF servers on master host, standby master host, and 2 segment hosts"))
 		})
 	})
+
 	Context("When there is a standby master on a segment host", func() {
 		It("reports master host and segment hosts are initializing, resetting, registering, syncing, preparing, and migrating", func() {
 			cmd.GenerateStatusReport(&cmd.InitCommand, createClusterData(3, clusterWithStandbyOnSegHost))
+			Expect(testLogFile).To(gbytes.Say("Initializing PXF on master host and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Initializing PXF on master host and 2 segment hosts"))
+
 			cmd.GenerateStatusReport(&cmd.ResetCommand, createClusterData(3, clusterWithStandbyOnSegHost))
+			Expect(testLogFile).To(gbytes.Say("Resetting PXF on master host and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Resetting PXF on master host and 2 segment hosts"))
+
 			cmd.GenerateStatusReport(&cmd.SyncCommand, createClusterData(2, clusterWithStandbyOnSegHost))
+			Expect(testLogFile).To(gbytes.Say("Syncing PXF configuration files from master host to 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Syncing PXF configuration files from master host to 2 segment hosts"))
+
 			cmd.GenerateStatusReport(&cmd.RegisterCommand, createClusterData(3, clusterWithStandbyOnSegHost))
+			Expect(testLogFile).To(gbytes.Say("Installing PXF extension on master host and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Installing PXF extension on master host and 2 segment hosts"))
+
 			cmd.GenerateStatusReport(&cmd.PrepareCommand, createClusterData(3, clusterWithStandbyOnSegHost))
+			Expect(testLogFile).To(gbytes.Say("Preparing PXF on master host and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Preparing PXF on master host and 2 segment hosts"))
+
 			cmd.GenerateStatusReport(&cmd.MigrateCommand, createClusterData(3, clusterWithStandbyOnSegHost))
+			Expect(testLogFile).To(gbytes.Say("Migrating PXF configuration on master host and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Migrating PXF configuration on master host and 2 segment hosts"))
 		})
+
 		It("reports segment hosts are starting, stopping, restarting and statusing", func() {
 			cmd.GenerateStatusReport(&cmd.StartCommand, createClusterData(3, clusterWithStandbyOnSegHost))
+			Expect(testLogFile).To(gbytes.Say("Starting PXF on master host and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Starting PXF on master host and 2 segment hosts"))
+
 			cmd.GenerateStatusReport(&cmd.StopCommand, createClusterData(3, clusterWithStandbyOnSegHost))
+			Expect(testLogFile).To(gbytes.Say("Stopping PXF on master host and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Stopping PXF on master host and 2 segment hosts"))
+
 			cmd.GenerateStatusReport(&cmd.RestartCommand, createClusterData(3, clusterWithStandbyOnSegHost))
+			Expect(testLogFile).To(gbytes.Say("Restarting PXF on master host and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Restarting PXF on master host and 2 segment hosts"))
+
 			cmd.GenerateStatusReport(&cmd.StatusCommand, createClusterData(3, clusterWithStandbyOnSegHost))
+			Expect(testLogFile).To(gbytes.Say("Checking status of PXF servers on master host and 2 segment hosts"))
 			Expect(testStdout).To(gbytes.Say("Checking status of PXF servers on master host and 2 segment hosts"))
 		})
 	})
+
 	Context("When there is only one segment host", func() {
 		It("reports master host and segment host are initializing, resetting, registering, syncing, preparing, and migrating", func() {
 			cmd.GenerateStatusReport(&cmd.InitCommand, createClusterData(2, clusterWithOneSeg))
+			Expect(testLogFile).To(gbytes.Say("Initializing PXF on master host and 1 segment host"))
 			Expect(testStdout).To(gbytes.Say("Initializing PXF on master host and 1 segment host"))
+
 			cmd.GenerateStatusReport(&cmd.ResetCommand, createClusterData(2, clusterWithOneSeg))
+			Expect(testLogFile).To(gbytes.Say("Resetting PXF on master host and 1 segment host"))
 			Expect(testStdout).To(gbytes.Say("Resetting PXF on master host and 1 segment host"))
+
 			cmd.GenerateStatusReport(&cmd.SyncCommand, createClusterData(1, clusterWithOneSeg))
+			Expect(testLogFile).To(gbytes.Say("Syncing PXF configuration files from master host to 1 segment host"))
 			Expect(testStdout).To(gbytes.Say("Syncing PXF configuration files from master host to 1 segment host"))
+
 			cmd.GenerateStatusReport(&cmd.RegisterCommand, createClusterData(2, clusterWithOneSeg))
+			Expect(testLogFile).To(gbytes.Say("Installing PXF extension on master host and 1 segment host"))
 			Expect(testStdout).To(gbytes.Say("Installing PXF extension on master host and 1 segment host"))
+
 			cmd.GenerateStatusReport(&cmd.PrepareCommand, createClusterData(2, clusterWithOneSeg))
+			Expect(testLogFile).To(gbytes.Say("Preparing PXF on master host and 1 segment host"))
 			Expect(testStdout).To(gbytes.Say("Preparing PXF on master host and 1 segment host"))
+
 			cmd.GenerateStatusReport(&cmd.MigrateCommand, createClusterData(2, clusterWithOneSeg))
+			Expect(testLogFile).To(gbytes.Say("Migrating PXF configuration on master host and 1 segment host"))
 			Expect(testStdout).To(gbytes.Say("Migrating PXF configuration on master host and 1 segment host"))
 		})
+
 		It("reports segment hosts are starting, stopping, restarting and statusing", func() {
 			cmd.GenerateStatusReport(&cmd.StartCommand, createClusterData(2, clusterWithOneSeg))
+			Expect(testLogFile).To(gbytes.Say("Starting PXF on master host and 1 segment host"))
 			Expect(testStdout).To(gbytes.Say("Starting PXF on master host and 1 segment host"))
+
 			cmd.GenerateStatusReport(&cmd.StopCommand, createClusterData(2, clusterWithOneSeg))
+			Expect(testLogFile).To(gbytes.Say("Stopping PXF on master host and 1 segment host"))
 			Expect(testStdout).To(gbytes.Say("Stopping PXF on master host and 1 segment host"))
+
 			cmd.GenerateStatusReport(&cmd.RestartCommand, createClusterData(2, clusterWithOneSeg))
+			Expect(testLogFile).To(gbytes.Say("Restarting PXF on master host and 1 segment host"))
 			Expect(testStdout).To(gbytes.Say("Restarting PXF on master host and 1 segment host"))
+
 			cmd.GenerateStatusReport(&cmd.StatusCommand, createClusterData(2, clusterWithOneSeg))
+			Expect(testLogFile).To(gbytes.Say("Checking status of PXF servers on master host and 1 segment host"))
 			Expect(testStdout).To(gbytes.Say("Checking status of PXF servers on master host and 1 segment host"))
 		})
 	})
@@ -175,51 +254,61 @@ var _ = Describe("GenerateOutput()", func() {
 	Context("when all hosts are successful", func() {
 		It("reports all hosts initialized successfully", func() {
 			_ = cmd.GenerateOutput(&cmd.InitCommand, clusterData)
+			Expect(testLogFile).To(gbytes.Say("PXF initialized successfully on 3 out of 3 hosts"))
 			Expect(testStdout).To(gbytes.Say("PXF initialized successfully on 3 out of 3 hosts"))
 		})
 
 		It("reports all hosts started successfully", func() {
 			_ = cmd.GenerateOutput(&cmd.StartCommand, clusterData)
+			Expect(testLogFile).To(gbytes.Say("PXF started successfully on 3 out of 3 hosts"))
 			Expect(testStdout).To(gbytes.Say("PXF started successfully on 3 out of 3 hosts"))
 		})
 
 		It("reports all hosts restarted successfully", func() {
 			_ = cmd.GenerateOutput(&cmd.RestartCommand, clusterData)
+			Expect(testLogFile).To(gbytes.Say("PXF restarted successfully on 3 out of 3 hosts"))
 			Expect(testStdout).To(gbytes.Say("PXF restarted successfully on 3 out of 3 hosts"))
 		})
 
 		It("reports all hosts stopped successfully", func() {
 			_ = cmd.GenerateOutput(&cmd.StopCommand, clusterData)
+			Expect(testLogFile).To(gbytes.Say("PXF stopped successfully on 3 out of 3 hosts"))
 			Expect(testStdout).To(gbytes.Say("PXF stopped successfully on 3 out of 3 hosts"))
 		})
 
 		It("reports all hosts synced successfully", func() {
 			_ = cmd.GenerateOutput(&cmd.SyncCommand, clusterData)
+			Expect(testLogFile).To(gbytes.Say("PXF configs synced successfully on 3 out of 3 hosts"))
 			Expect(testStdout).To(gbytes.Say("PXF configs synced successfully on 3 out of 3 hosts"))
 		})
 
 		It("reports all hosts running", func() {
 			_ = cmd.GenerateOutput(&cmd.StatusCommand, clusterData)
+			Expect(testLogFile).To(gbytes.Say("PXF is running on 3 out of 3 hosts"))
 			Expect(testStdout).To(gbytes.Say("PXF is running on 3 out of 3 hosts"))
 		})
 
 		It("reports all hosts reset successfully", func() {
 			_ = cmd.GenerateOutput(&cmd.ResetCommand, clusterData)
+			Expect(testLogFile).To(gbytes.Say("PXF has been reset on 3 out of 3 hosts"))
 			Expect(testStdout).To(gbytes.Say("PXF has been reset on 3 out of 3 hosts"))
 		})
 
 		It("reports all hosts registered successfully", func() {
 			_ = cmd.GenerateOutput(&cmd.RegisterCommand, clusterData)
+			Expect(testLogFile).To(gbytes.Say("PXF extension has been installed on 3 out of 3 hosts"))
 			Expect(testStdout).To(gbytes.Say("PXF extension has been installed on 3 out of 3 hosts"))
 		})
 
 		It("reports all hosts prepared successfully", func() {
 			_ = cmd.GenerateOutput(&cmd.PrepareCommand, clusterData)
+			Expect(testLogFile).To(gbytes.Say("PXF prepared successfully on 3 out of 3 hosts"))
 			Expect(testStdout).To(gbytes.Say("PXF prepared successfully on 3 out of 3 hosts"))
 		})
 
 		It("reports all hosts migrated PXF successfully", func() {
 			_ = cmd.GenerateOutput(&cmd.MigrateCommand, clusterData)
+			Expect(testLogFile).To(gbytes.Say("PXF configuration migrated successfully on 3 out of 3 hosts"))
 			Expect(testStdout).To(gbytes.Say("PXF configuration migrated successfully on 3 out of 3 hosts"))
 		})
 	})
@@ -256,61 +345,81 @@ var _ = Describe("GenerateOutput()", func() {
 		})
 		It("reports the number of hosts that failed to initialize", func() {
 			_ = cmd.GenerateOutput(&cmd.InitCommand, clusterData)
-			Expect(testStdout).Should(gbytes.Say("PXF failed to initialize on 1 out of 3 hosts"))
+			Expect(testLogFile).Should(gbytes.Say("PXF failed to initialize on 1 out of 3 hosts"))
+			Expect(testLogFile).Should(gbytes.Say("sdw2 ==> an error happened on sdw2"))
+			Expect(testStderr).Should(gbytes.Say("PXF failed to initialize on 1 out of 3 hosts"))
 			Expect(testStderr).Should(gbytes.Say("sdw2 ==> an error happened on sdw2"))
 		})
 
 		It("reports the number of hosts that failed to start", func() {
 			_ = cmd.GenerateOutput(&cmd.StartCommand, clusterData)
-			Expect(testStdout).Should(gbytes.Say("PXF failed to start on 1 out of 3 hosts"))
+			Expect(testLogFile).Should(gbytes.Say("PXF failed to start on 1 out of 3 hosts"))
+			Expect(testLogFile).Should(gbytes.Say("sdw2 ==> an error happened on sdw2"))
+			Expect(testStderr).Should(gbytes.Say("PXF failed to start on 1 out of 3 hosts"))
 			Expect(testStderr).Should(gbytes.Say("sdw2 ==> an error happened on sdw2"))
 		})
 
 		It("reports the number of hosts that failed to restart", func() {
 			_ = cmd.GenerateOutput(&cmd.RestartCommand, clusterData)
-			Expect(testStdout).Should(gbytes.Say("PXF failed to restart on 1 out of 3 hosts"))
+			Expect(testLogFile).Should(gbytes.Say("PXF failed to restart on 1 out of 3 hosts"))
+			Expect(testLogFile).Should(gbytes.Say("sdw2 ==> an error happened on sdw2"))
+			Expect(testStderr).Should(gbytes.Say("PXF failed to restart on 1 out of 3 hosts"))
 			Expect(testStderr).Should(gbytes.Say("sdw2 ==> an error happened on sdw2"))
 		})
 
 		It("reports the number of hosts that failed to stop", func() {
 			_ = cmd.GenerateOutput(&cmd.StopCommand, clusterData)
-			Expect(testStdout).Should(gbytes.Say("PXF failed to stop on 1 out of 3 hosts"))
+			Expect(testLogFile).Should(gbytes.Say("PXF failed to stop on 1 out of 3 hosts"))
+			Expect(testLogFile).Should(gbytes.Say("sdw2 ==> an error happened on sdw2"))
+			Expect(testStderr).Should(gbytes.Say("PXF failed to stop on 1 out of 3 hosts"))
 			Expect(testStderr).Should(gbytes.Say("sdw2 ==> an error happened on sdw2"))
 		})
 
 		It("reports the number of hosts that failed to sync", func() {
 			_ = cmd.GenerateOutput(&cmd.SyncCommand, clusterData)
-			Expect(testStdout).Should(gbytes.Say("PXF configs failed to sync on 1 out of 3 hosts"))
+			Expect(testLogFile).Should(gbytes.Say("PXF configs failed to sync on 1 out of 3 hosts"))
+			Expect(testLogFile).Should(gbytes.Say("sdw2 ==> an error happened on sdw2"))
+			Expect(testStderr).Should(gbytes.Say("PXF configs failed to sync on 1 out of 3 hosts"))
 			Expect(testStderr).Should(gbytes.Say("sdw2 ==> an error happened on sdw2"))
 		})
 
 		It("reports the number of hosts that aren't running", func() {
 			_ = cmd.GenerateOutput(&cmd.StatusCommand, clusterData)
-			Expect(testStdout).Should(gbytes.Say("PXF is not running on 1 out of 3 hosts"))
+			Expect(testLogFile).Should(gbytes.Say("PXF is not running on 1 out of 3 hosts"))
+			Expect(testLogFile).Should(gbytes.Say("sdw2 ==> an error happened on sdw2"))
+			Expect(testStderr).Should(gbytes.Say("PXF is not running on 1 out of 3 hosts"))
 			Expect(testStderr).Should(gbytes.Say("sdw2 ==> an error happened on sdw2"))
 		})
 
 		It("reports the number of hosts that failed to reset", func() {
 			_ = cmd.GenerateOutput(&cmd.ResetCommand, clusterData)
-			Expect(testStdout).Should(gbytes.Say("Failed to reset PXF on 1 out of 3 hosts"))
+			Expect(testLogFile).Should(gbytes.Say("Failed to reset PXF on 1 out of 3 hosts"))
+			Expect(testLogFile).Should(gbytes.Say("sdw2 ==> an error happened on sdw2"))
+			Expect(testStderr).Should(gbytes.Say("Failed to reset PXF on 1 out of 3 hosts"))
 			Expect(testStderr).Should(gbytes.Say("sdw2 ==> an error happened on sdw2"))
 		})
 
 		It("reports the number of hosts that failed to register", func() {
 			_ = cmd.GenerateOutput(&cmd.RegisterCommand, clusterData)
-			Expect(testStdout).Should(gbytes.Say("Failed to install PXF extension on 1 out of 3 hosts"))
+			Expect(testLogFile).Should(gbytes.Say("Failed to install PXF extension on 1 out of 3 hosts"))
+			Expect(testLogFile).Should(gbytes.Say("sdw2 ==> an error happened on sdw2"))
+			Expect(testStderr).Should(gbytes.Say("Failed to install PXF extension on 1 out of 3 hosts"))
 			Expect(testStderr).Should(gbytes.Say("sdw2 ==> an error happened on sdw2"))
 		})
 
 		It("reports the number of hosts that failed to prepare", func() {
 			_ = cmd.GenerateOutput(&cmd.PrepareCommand, clusterData)
-			Expect(testStdout).Should(gbytes.Say("PXF failed to prepare on 1 out of 3 hosts"))
+			Expect(testLogFile).Should(gbytes.Say("PXF failed to prepare on 1 out of 3 hosts"))
+			Expect(testLogFile).Should(gbytes.Say("sdw2 ==> an error happened on sdw2"))
+			Expect(testStderr).Should(gbytes.Say("PXF failed to prepare on 1 out of 3 hosts"))
 			Expect(testStderr).Should(gbytes.Say("sdw2 ==> an error happened on sdw2"))
 		})
 
 		It("reports the number of hosts that failed to migrate", func() {
 			_ = cmd.GenerateOutput(&cmd.MigrateCommand, clusterData)
-			Expect(testStdout).Should(gbytes.Say("PXF failed to migrate configuration on 1 out of 3 hosts"))
+			Expect(testLogFile).Should(gbytes.Say("PXF failed to migrate configuration on 1 out of 3 hosts"))
+			Expect(testLogFile).Should(gbytes.Say("sdw2 ==> an error happened on sdw2"))
+			Expect(testStderr).Should(gbytes.Say("PXF failed to migrate configuration on 1 out of 3 hosts"))
 			Expect(testStderr).Should(gbytes.Say("sdw2 ==> an error happened on sdw2"))
 		})
 	})
@@ -341,7 +450,9 @@ var _ = Describe("GenerateOutput()", func() {
 				},
 			}
 			_ = cmd.GenerateOutput(&cmd.StopCommand, clusterData)
+			Expect(testLogFile).To(gbytes.Say("PXF stopped successfully on 3 out of 3 hosts"))
 			Expect(testStdout).To(gbytes.Say("PXF stopped successfully on 3 out of 3 hosts"))
+			Expect(testStderr).To(gbytes.Say(""))
 		})
 	})
 
@@ -378,7 +489,10 @@ stderr line three`
 				},
 			}
 			_ = cmd.GenerateOutput(&cmd.StopCommand, clusterData)
-			Expect(testStdout).Should(gbytes.Say("PXF failed to stop on 1 out of 3 hosts"))
+			Expect(testLogFile).Should(gbytes.Say("PXF failed to stop on 1 out of 3 hosts"))
+			Expect(testLogFile).Should(gbytes.Say("sdw2 ==> stderr line one\nstderr line two..."))
+			Expect(testStdout).Should(gbytes.Say(""))
+			Expect(testStderr).Should(gbytes.Say("PXF failed to stop on 1 out of 3 hosts"))
 			Expect(testStderr).Should(gbytes.Say("sdw2 ==> stderr line one\nstderr line two..."))
 		})
 	})
@@ -413,7 +527,10 @@ stderr line three`
 				},
 			}
 			_ = cmd.GenerateOutput(&cmd.StopCommand, clusterData)
-			Expect(testStdout).Should(gbytes.Say("PXF failed to stop on 1 out of 3 hosts"))
+			Expect(testLogFile).Should(gbytes.Say("PXF failed to stop on 1 out of 3 hosts"))
+			Expect(testLogFile).Should(gbytes.Say("sdw2 ==> something wrong on sdw2\nstderr line2..."))
+			Expect(testStdout).Should(gbytes.Say(""))
+			Expect(testStderr).Should(gbytes.Say("PXF failed to stop on 1 out of 3 hosts"))
 			Expect(testStderr).Should(gbytes.Say("sdw2 ==> something wrong on sdw2\nstderr line2..."))
 		})
 	})
@@ -438,54 +555,65 @@ stderr line three`
 		Context("when host is successful", func() {
 			It("reports host initialized successfully", func() {
 				_ = cmd.GenerateOutput(&cmd.InitCommand, clusterDataWithOneHost)
+				Expect(testLogFile).To(gbytes.Say("PXF initialized successfully on 1 out of 1 host"))
 				Expect(testStdout).To(gbytes.Say("PXF initialized successfully on 1 out of 1 host"))
 			})
 
 			It("reports host started successfully", func() {
 				_ = cmd.GenerateOutput(&cmd.StartCommand, clusterDataWithOneHost)
+				Expect(testLogFile).To(gbytes.Say("PXF started successfully on 1 out of 1 host"))
 				Expect(testStdout).To(gbytes.Say("PXF started successfully on 1 out of 1 host"))
 			})
 
 			It("reports host restarted successfully", func() {
 				_ = cmd.GenerateOutput(&cmd.RestartCommand, clusterDataWithOneHost)
+				Expect(testLogFile).To(gbytes.Say("PXF restarted successfully on 1 out of 1 host"))
 				Expect(testStdout).To(gbytes.Say("PXF restarted successfully on 1 out of 1 host"))
 			})
 
 			It("reports host stopped successfully", func() {
 				_ = cmd.GenerateOutput(&cmd.StopCommand, clusterDataWithOneHost)
+				Expect(testLogFile).To(gbytes.Say("PXF stopped successfully on 1 out of 1 host"))
 				Expect(testStdout).To(gbytes.Say("PXF stopped successfully on 1 out of 1 host"))
 			})
 
 			It("reports host synced successfully", func() {
 				_ = cmd.GenerateOutput(&cmd.SyncCommand, clusterDataWithOneHost)
+				Expect(testLogFile).To(gbytes.Say("PXF configs synced successfully on 1 out of 1 host"))
 				Expect(testStdout).To(gbytes.Say("PXF configs synced successfully on 1 out of 1 host"))
 			})
 
 			It("reports host running", func() {
 				_ = cmd.GenerateOutput(&cmd.StatusCommand, clusterDataWithOneHost)
+				Expect(testLogFile).To(gbytes.Say("PXF is running on 1 out of 1 host"))
 				Expect(testStdout).To(gbytes.Say("PXF is running on 1 out of 1 host"))
 			})
 
 			It("reports host reset successfully", func() {
 				_ = cmd.GenerateOutput(&cmd.ResetCommand, clusterDataWithOneHost)
+				Expect(testLogFile).To(gbytes.Say("PXF has been reset on 1 out of 1 host"))
 				Expect(testStdout).To(gbytes.Say("PXF has been reset on 1 out of 1 host"))
 			})
 
 			It("reports host registered successfully", func() {
 				_ = cmd.GenerateOutput(&cmd.RegisterCommand, clusterDataWithOneHost)
+				Expect(testLogFile).To(gbytes.Say("PXF extension has been installed on 1 out of 1 host"))
 				Expect(testStdout).To(gbytes.Say("PXF extension has been installed on 1 out of 1 host"))
 			})
 
 			It("reports host prepared successfully", func() {
 				_ = cmd.GenerateOutput(&cmd.PrepareCommand, clusterDataWithOneHost)
+				Expect(testLogFile).To(gbytes.Say("PXF prepared successfully on 1 out of 1 host"))
 				Expect(testStdout).To(gbytes.Say("PXF prepared successfully on 1 out of 1 host"))
 			})
 
 			It("reports host migrated successfully", func() {
 				_ = cmd.GenerateOutput(&cmd.MigrateCommand, clusterDataWithOneHost)
+				Expect(testLogFile).To(gbytes.Say("PXF configuration migrated successfully on 1 out of 1 host"))
 				Expect(testStdout).To(gbytes.Say("PXF configuration migrated successfully on 1 out of 1 host"))
 			})
 		})
+
 		Context("when host is not successful", func() {
 			BeforeEach(func() {
 				failedCommand := cluster.ShellCommand{
@@ -504,63 +632,84 @@ stderr line three`
 					},
 				}
 			})
+
 			It("reports the number of hosts that failed to initialize", func() {
 				_ = cmd.GenerateOutput(&cmd.InitCommand, clusterDataWithOneHost)
-				Expect(testStdout).Should(gbytes.Say("PXF failed to initialize on 1 out of 1 host"))
+				Expect(testLogFile).Should(gbytes.Say("PXF failed to initialize on 1 out of 1 host"))
+				Expect(testLogFile).Should(gbytes.Say("mdw ==> an error happened on mdw"))
+				Expect(testStderr).Should(gbytes.Say("PXF failed to initialize on 1 out of 1 host"))
 				Expect(testStderr).Should(gbytes.Say("mdw ==> an error happened on mdw"))
 			})
 
 			It("reports the number of hosts that failed to start", func() {
 				_ = cmd.GenerateOutput(&cmd.StartCommand, clusterDataWithOneHost)
-				Expect(testStdout).Should(gbytes.Say("PXF failed to start on 1 out of 1 host"))
+				Expect(testLogFile).Should(gbytes.Say("PXF failed to start on 1 out of 1 host"))
+				Expect(testLogFile).Should(gbytes.Say("mdw ==> an error happened on mdw"))
+				Expect(testStderr).Should(gbytes.Say("PXF failed to start on 1 out of 1 host"))
 				Expect(testStderr).Should(gbytes.Say("mdw ==> an error happened on mdw"))
 			})
 
 			It("reports the number of hosts that failed to restart", func() {
 				_ = cmd.GenerateOutput(&cmd.RestartCommand, clusterDataWithOneHost)
-				Expect(testStdout).Should(gbytes.Say("PXF failed to restart on 1 out of 1 host"))
+				Expect(testLogFile).Should(gbytes.Say("PXF failed to restart on 1 out of 1 host"))
+				Expect(testLogFile).Should(gbytes.Say("mdw ==> an error happened on mdw"))
+				Expect(testStderr).Should(gbytes.Say("PXF failed to restart on 1 out of 1 host"))
 				Expect(testStderr).Should(gbytes.Say("mdw ==> an error happened on mdw"))
 			})
 
 			It("reports the number of hosts that failed to stop", func() {
 				_ = cmd.GenerateOutput(&cmd.StopCommand, clusterDataWithOneHost)
-				Expect(testStdout).Should(gbytes.Say("PXF failed to stop on 1 out of 1 host"))
+				Expect(testLogFile).Should(gbytes.Say("PXF failed to stop on 1 out of 1 host"))
+				Expect(testLogFile).Should(gbytes.Say("mdw ==> an error happened on mdw"))
+				Expect(testStderr).Should(gbytes.Say("PXF failed to stop on 1 out of 1 host"))
 				Expect(testStderr).Should(gbytes.Say("mdw ==> an error happened on mdw"))
 			})
 
 			It("reports the number of hosts that failed to sync", func() {
 				_ = cmd.GenerateOutput(&cmd.SyncCommand, clusterDataWithOneHost)
-				Expect(testStdout).Should(gbytes.Say("PXF configs failed to sync on 1 out of 1 host"))
+				Expect(testLogFile).Should(gbytes.Say("PXF configs failed to sync on 1 out of 1 host"))
+				Expect(testLogFile).Should(gbytes.Say("mdw ==> an error happened on mdw"))
+				Expect(testStderr).Should(gbytes.Say("PXF configs failed to sync on 1 out of 1 host"))
 				Expect(testStderr).Should(gbytes.Say("mdw ==> an error happened on mdw"))
 			})
 
 			It("reports the number of hosts that aren't running", func() {
 				_ = cmd.GenerateOutput(&cmd.StatusCommand, clusterDataWithOneHost)
-				Expect(testStdout).Should(gbytes.Say("PXF is not running on 1 out of 1 host"))
+				Expect(testLogFile).Should(gbytes.Say("PXF is not running on 1 out of 1 host"))
+				Expect(testLogFile).Should(gbytes.Say("mdw ==> an error happened on mdw"))
+				Expect(testStderr).Should(gbytes.Say("PXF is not running on 1 out of 1 host"))
 				Expect(testStderr).Should(gbytes.Say("mdw ==> an error happened on mdw"))
 			})
 
 			It("reports the number of hosts that failed to reset", func() {
 				_ = cmd.GenerateOutput(&cmd.ResetCommand, clusterDataWithOneHost)
-				Expect(testStdout).Should(gbytes.Say("Failed to reset PXF on 1 out of 1 host"))
+				Expect(testLogFile).Should(gbytes.Say("Failed to reset PXF on 1 out of 1 host"))
+				Expect(testLogFile).Should(gbytes.Say("mdw ==> an error happened on mdw"))
+				Expect(testStderr).Should(gbytes.Say("Failed to reset PXF on 1 out of 1 host"))
 				Expect(testStderr).Should(gbytes.Say("mdw ==> an error happened on mdw"))
 			})
 
 			It("reports the number of hosts that failed to register", func() {
 				_ = cmd.GenerateOutput(&cmd.RegisterCommand, clusterDataWithOneHost)
-				Expect(testStdout).Should(gbytes.Say("Failed to install PXF extension on 1 out of 1 host"))
+				Expect(testLogFile).Should(gbytes.Say("Failed to install PXF extension on 1 out of 1 host"))
+				Expect(testLogFile).Should(gbytes.Say("mdw ==> an error happened on mdw"))
+				Expect(testStderr).Should(gbytes.Say("Failed to install PXF extension on 1 out of 1 host"))
 				Expect(testStderr).Should(gbytes.Say("mdw ==> an error happened on mdw"))
 			})
 
 			It("reports the number of hosts that failed to prepare", func() {
 				_ = cmd.GenerateOutput(&cmd.PrepareCommand, clusterDataWithOneHost)
-				Expect(testStdout).Should(gbytes.Say("PXF failed to prepare on 1 out of 1 host"))
+				Expect(testLogFile).Should(gbytes.Say("PXF failed to prepare on 1 out of 1 host"))
+				Expect(testLogFile).Should(gbytes.Say("mdw ==> an error happened on mdw"))
+				Expect(testStderr).Should(gbytes.Say("PXF failed to prepare on 1 out of 1 host"))
 				Expect(testStderr).Should(gbytes.Say("mdw ==> an error happened on mdw"))
 			})
 
 			It("reports the number of hosts that failed to migrate", func() {
 				_ = cmd.GenerateOutput(&cmd.MigrateCommand, clusterDataWithOneHost)
-				Expect(testStdout).Should(gbytes.Say("PXF failed to migrate configuration on 1 out of 1 host"))
+				Expect(testLogFile).Should(gbytes.Say("PXF failed to migrate configuration on 1 out of 1 host"))
+				Expect(testLogFile).Should(gbytes.Say("mdw ==> an error happened on mdw"))
+				Expect(testStderr).Should(gbytes.Say("PXF failed to migrate configuration on 1 out of 1 host"))
 				Expect(testStderr).Should(gbytes.Say("mdw ==> an error happened on mdw"))
 			})
 		})

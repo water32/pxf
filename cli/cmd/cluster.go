@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -51,6 +52,9 @@ var (
 	migrateCmd  = createCobraCommand("migrate", "Migrates configurations from older installations of PXF", &MigrateCommand)
 	// DeleteOnSync is a boolean for determining whether to use rsync with --delete, exported for tests
 	DeleteOnSync bool
+
+	stdout io.Writer
+	stderr io.Writer
 )
 
 func init() {
@@ -66,6 +70,17 @@ func init() {
 	clusterCmd.AddCommand(restartCmd)
 	clusterCmd.AddCommand(prepareCmd)
 	clusterCmd.AddCommand(migrateCmd)
+
+	stdout = os.Stdout
+	stderr = os.Stderr
+}
+
+func SetStdout(w io.Writer) {
+	stdout = w
+}
+
+func SetStderr(w io.Writer) {
+	stderr = w
 }
 
 func exitWithReturnCode(err error) {
@@ -87,7 +102,7 @@ func GenerateStatusReport(cmd *command, clusterData *ClusterData) {
 	if _, ok := cmd.messages[standby]; !ok {
 		// this command cares not about standby
 		msg := fmt.Sprintf(cmd.messages[status], clusterData.NumHosts, handlePlurality(clusterData.NumHosts))
-		fmt.Fprintln(os.Stdout, msg)
+		fmt.Fprintln(stdout, msg)
 		gplog.Info(msg)
 		return
 	}
@@ -101,7 +116,7 @@ func GenerateStatusReport(cmd *command, clusterData *ClusterData) {
 		numHosts--
 	}
 	msg := fmt.Sprintf(cmd.messages[status], standbyMsg, numHosts, handlePlurality(numHosts))
-	fmt.Fprintln(os.Stdout, msg)
+	fmt.Fprintln(stdout, msg)
 	gplog.Info(msg)
 }
 
@@ -110,7 +125,7 @@ func GenerateOutput(cmd *command, clusterData *ClusterData) error {
 	numErrors := clusterData.Output.NumErrors
 	if numErrors == 0 {
 		msg := fmt.Sprintf(cmd.messages[success], clusterData.NumHosts-numErrors, clusterData.NumHosts, handlePlurality(clusterData.NumHosts))
-		fmt.Fprintln(os.Stdout, msg)
+		fmt.Fprintln(stdout, msg)
 		gplog.Info(msg)
 		return nil
 	}
@@ -134,11 +149,11 @@ func GenerateOutput(cmd *command, clusterData *ClusterData) error {
 		}
 		response += fmt.Sprintf("%s ==> %s\n", host, errorMessage)
 	}
-	msg := fmt.Sprintf("ERROR: "+cmd.messages[err], numErrors, clusterData.NumHosts, handlePlurality(clusterData.NumHosts))
-	gplog.Info(msg)
-	gplog.Info(response)
-	fmt.Fprintln(os.Stderr, msg)
-	fmt.Fprintln(os.Stderr, response)
+	msg := fmt.Sprintf(cmd.messages[err], numErrors, clusterData.NumHosts, handlePlurality(clusterData.NumHosts))
+	gplog.Error(msg)
+	gplog.Error(response)
+	fmt.Fprintln(stderr, msg)
+	fmt.Fprintln(stderr, response)
 	return errors.New(response)
 }
 
@@ -146,17 +161,17 @@ func doSetup() (*ClusterData, error) {
 	connection := dbconn.NewDBConnFromEnvironment("postgres")
 	err := connection.Connect(1)
 	if err != nil {
-		msg := fmt.Sprintf("ERROR: Could not connect to GPDB.\n%s\n"+
+		msg := fmt.Sprintf("Could not connect to GPDB.\n%s\n"+
 			"Please make sure that your Greenplum database is running and you are on the master node.", err.Error())
-		fmt.Fprintln(os.Stderr, msg)
-		gplog.Info(msg)
+		fmt.Fprintln(stderr, msg)
+		gplog.Error(msg)
 		return nil, err
 	}
 	segConfigs, err := cluster.GetSegmentConfiguration(connection, true)
 	if err != nil {
-		msg := fmt.Sprintf("ERROR: Could not retrieve segment information from GPDB.\n%s\n" + err.Error())
-		fmt.Fprintln(os.Stderr, msg)
-		gplog.Info(msg)
+		msg := fmt.Sprintf("Could not retrieve segment information from GPDB.\n%s\n" + err.Error())
+		fmt.Fprintln(stderr, msg)
+		gplog.Error(msg)
 		return nil, err
 	}
 	clusterData := &ClusterData{Cluster: cluster.NewCluster(segConfigs), connection: connection}
@@ -169,15 +184,15 @@ func clusterRun(cmd *command, clusterData *ClusterData) error {
 
 	err := cmd.Warn(os.Stdin)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(stderr, err.Error())
 		gplog.Info(err.Error())
 		return err
 	}
 
 	functionToExecute, err := cmd.GetFunctionToExecute()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		gplog.Info(err.Error())
+		fmt.Fprintln(stderr, err.Error())
+		gplog.Error(err.Error())
 		return err
 	}
 

@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"fmt"
+	"io"
 	"os"
+	"os/user"
 	"path"
 
 	"github.com/greenplum-db/gp-common-go-libs/gplog"
@@ -28,23 +31,7 @@ func Execute() {
 }
 
 func init() {
-	// InitializeLogging must be called before we attempt to log with gplog.
-	executablePath, err := os.Executable()
-	if err != nil {
-		executablePath = "pxf_cli"
-	}
-	program := path.Base(executablePath)
-
-	pxfLogDir, ok := os.LookupEnv("PXF_LOGDIR")
-	if !ok {
-		pxfLogDir = ""
-	} else {
-		pxfLogDir = path.Join(pxfLogDir, "admin")
-	}
-
-	gplog.InitializeLogging(program, pxfLogDir)
-	gplog.SetVerbosity(gplog.LOGERROR)
-
+	initializeLogging()
 	rootCmd.SetHelpCommand(&cobra.Command{
 		Use:    "no-help",
 		Hidden: true,
@@ -72,4 +59,52 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("version", "v", false, "show the version of PXF server")
+}
+
+func initializeLogging() {
+	executablePath, err := os.Executable()
+	if err != nil {
+		executablePath = "pxf_cli"
+	}
+	program := path.Base(executablePath)
+
+	pxfLogDir, ok := os.LookupEnv("PXF_LOGDIR")
+	if !ok || pxfLogDir == "" {
+		currentUser, _ := user.Current()
+		pxfLogDir = path.Join(currentUser.HomeDir, "gpAdminLogs")
+	} else {
+		pxfLogDir = path.Join(pxfLogDir, "admin")
+	}
+
+	createLogDirectory(pxfLogDir)
+	logfile := gplog.GenerateLogFileName(program, pxfLogDir)
+	logfileHandle := openLogFile(logfile)
+	logger := gplog.NewLogger(io.Discard, io.Discard, logfileHandle, logfile, gplog.LOGINFO, program)
+	gplog.SetLogger(logger)
+}
+
+func createLogDirectory(dirname string) {
+	info, err := os.Stat(dirname)
+	if err != nil {
+		if os.IsNotExist(err) {
+			err = os.MkdirAll(dirname, 0755)
+			if err != nil {
+				panic(fmt.Sprintf("Cannot create log directory %s: %v", dirname, err))
+			}
+		} else {
+			panic(fmt.Sprintf("Cannot stat log directory %s: %v", dirname, err))
+		}
+	} else if !info.IsDir() {
+		panic(fmt.Sprintf("%s is a file, not a directory", dirname))
+	}
+}
+
+func openLogFile(filename string) io.WriteCloser {
+	flags := os.O_APPEND | os.O_CREATE | os.O_WRONLY
+	fileHandle, err := os.OpenFile(filename, flags, 0644)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	return fileHandle
 }
