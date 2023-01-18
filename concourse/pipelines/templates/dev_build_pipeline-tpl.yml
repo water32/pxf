@@ -73,7 +73,7 @@ anchors:
 ## ======================================================================
 resource_types:
 
-{% if multinode or multinode_no_impersonation or file %}
+{% if multinode or multinode_no_impersonation or file or cli%}
 - name: terraform
   type: registry-image
   source:
