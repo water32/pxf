@@ -86,7 +86,9 @@ func handlePlurality(num int) string {
 func GenerateStatusReport(cmd *command, clusterData *ClusterData) {
 	if _, ok := cmd.messages[standby]; !ok {
 		// this command cares not about standby
-		gplog.Info(fmt.Sprintf(cmd.messages[status], clusterData.NumHosts, handlePlurality(clusterData.NumHosts)))
+		msg := fmt.Sprintf(cmd.messages[status], clusterData.NumHosts, handlePlurality(clusterData.NumHosts))
+		fmt.Fprintln(os.Stdout, msg)
+		gplog.Info(msg)
 		return
 	}
 	standbyMsg := ""
@@ -98,14 +100,18 @@ func GenerateStatusReport(cmd *command, clusterData *ClusterData) {
 		standbyMsg = cmd.messages[standby]
 		numHosts--
 	}
-	gplog.Info(fmt.Sprintf(cmd.messages[status], standbyMsg, numHosts, handlePlurality(numHosts)))
+	msg := fmt.Sprintf(cmd.messages[status], standbyMsg, numHosts, handlePlurality(numHosts))
+	fmt.Fprintln(os.Stdout, msg)
+	gplog.Info(msg)
 }
 
 // GenerateOutput is exported for testing
 func GenerateOutput(cmd *command, clusterData *ClusterData) error {
 	numErrors := clusterData.Output.NumErrors
 	if numErrors == 0 {
-		gplog.Info(cmd.messages[success], clusterData.NumHosts-numErrors, clusterData.NumHosts, handlePlurality(clusterData.NumHosts))
+		msg := fmt.Sprintf(cmd.messages[success], clusterData.NumHosts-numErrors, clusterData.NumHosts, handlePlurality(clusterData.NumHosts))
+		fmt.Fprintln(os.Stdout, msg)
+		gplog.Info(msg)
 		return nil
 	}
 	response := ""
@@ -128,8 +134,11 @@ func GenerateOutput(cmd *command, clusterData *ClusterData) error {
 		}
 		response += fmt.Sprintf("%s ==> %s\n", host, errorMessage)
 	}
-	gplog.Info("ERROR: "+cmd.messages[err], numErrors, clusterData.NumHosts, handlePlurality(clusterData.NumHosts))
-	gplog.Error("%s", response)
+	msg := fmt.Sprintf("ERROR: "+cmd.messages[err], numErrors, clusterData.NumHosts, handlePlurality(clusterData.NumHosts))
+	gplog.Info(msg)
+	gplog.Info(response)
+	fmt.Fprintln(os.Stderr, msg)
+	fmt.Fprintln(os.Stderr, response)
 	return errors.New(response)
 }
 
@@ -137,13 +146,17 @@ func doSetup() (*ClusterData, error) {
 	connection := dbconn.NewDBConnFromEnvironment("postgres")
 	err := connection.Connect(1)
 	if err != nil {
-		gplog.Error(fmt.Sprintf("ERROR: Could not connect to GPDB.\n%s\n"+
-			"Please make sure that your Greenplum database is running and you are on the master node.", err.Error()))
+		msg := fmt.Sprintf("ERROR: Could not connect to GPDB.\n%s\n"+
+			"Please make sure that your Greenplum database is running and you are on the master node.", err.Error())
+		fmt.Fprintln(os.Stderr, msg)
+		gplog.Info(msg)
 		return nil, err
 	}
 	segConfigs, err := cluster.GetSegmentConfiguration(connection, true)
 	if err != nil {
-		gplog.Error(fmt.Sprintf("ERROR: Could not retrieve segment information from GPDB.\n%s\n" + err.Error()))
+		msg := fmt.Sprintf("ERROR: Could not retrieve segment information from GPDB.\n%s\n" + err.Error())
+		fmt.Fprintln(os.Stderr, msg)
+		gplog.Info(msg)
 		return nil, err
 	}
 	clusterData := &ClusterData{Cluster: cluster.NewCluster(segConfigs), connection: connection}
@@ -156,13 +169,15 @@ func clusterRun(cmd *command, clusterData *ClusterData) error {
 
 	err := cmd.Warn(os.Stdin)
 	if err != nil {
-		gplog.Info(fmt.Sprintf("%s", err))
+		fmt.Fprintln(os.Stderr, err.Error())
+		gplog.Info(err.Error())
 		return err
 	}
 
 	functionToExecute, err := cmd.GetFunctionToExecute()
 	if err != nil {
-		gplog.Error(fmt.Sprintf("Error: %s", err))
+		fmt.Fprintln(os.Stderr, err.Error())
+		gplog.Info(err.Error())
 		return err
 	}
 

@@ -24,6 +24,7 @@ SLACK                       ?= true
 # below are dev-build specific vars
 MULTINODE                   ?= false
 MULTINODE_NO_IMPERSONATION  ?= false
+CLI                         ?= false
 JDK11                       ?= false
 CDH                         ?= false
 HDP2                        ?= false
@@ -99,6 +100,7 @@ set-dev-build-pipeline:
 		slack_notification=$(SLACK) \
 		multinode=$(MULTINODE) \
 		multinode_no_impersonation=$(MULTINODE_NO_IMPERSONATION) \
+		cli=$(CLI) \
 		jdk11=$(JDK11) \
 		cdh=$(CDH) \
 		hdp2=$(HDP2) \

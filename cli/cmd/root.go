@@ -2,6 +2,9 @@ package cmd
 
 import (
 	"os"
+	"path"
+
+	"github.com/greenplum-db/gp-common-go-libs/gplog"
 
 	"github.com/greenplum-db/gp-common-go-libs/gplog"
 
@@ -26,10 +29,21 @@ func Execute() {
 
 func init() {
 	// InitializeLogging must be called before we attempt to log with gplog.
-	gplog.InitializeLogging("pxf_cli", "")
-	gplog.SetLogPrefixFunc(func(s string) string {
-		return ""
-	})
+	executablePath, err := os.Executable()
+	if err != nil {
+		executablePath = "pxf_cli"
+	}
+	program := path.Base(executablePath)
+
+	pxfLogDir, ok := os.LookupEnv("PXF_LOGDIR")
+	if !ok {
+		pxfLogDir = ""
+	} else {
+		pxfLogDir = path.Join(pxfLogDir, "admin")
+	}
+
+	gplog.InitializeLogging(program, pxfLogDir)
+	gplog.SetVerbosity(gplog.LOGERROR)
 
 	rootCmd.SetHelpCommand(&cobra.Command{
 		Use:    "no-help",
