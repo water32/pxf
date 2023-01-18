@@ -169,7 +169,7 @@ resources:
     branch: ((pxf-git-branch))
     uri: ((ud/pxf/common/git-remote))
 
-{% if multinode or multinode_no_impersonation or file %}
+{% if multinode or multinode_no_impersonation or file or cli %}
 - name: ccp_src
   type: git
   source:
@@ -237,7 +237,7 @@ resources:
 {% endif %}
 {% set gp_ver = None %}
 
-{% if multinode or multinode_no_impersonation or ambari or file %}
+{% if multinode or multinode_no_impersonation or ambari or file or cli %}
 - name: ccp-7-image
   type: registry-image
   icon: docker
@@ -351,7 +351,7 @@ resources:
 {% endfor %}
 
 ## ---------- Auxiliary Resources ----------
-{% if multinode or multinode_no_impersonation or file %}
+{% if multinode or multinode_no_impersonation or file or cli %}
 - name: terraform
   type: terraform
   source:
@@ -1371,8 +1371,6 @@ jobs:
       - get: pxf_src
         passed: [Build PXF-GP[[gp_ver]] on RHEL7]
         trigger: true
-      - get: pxf_artifact
-        resource: pxf5_gp6_rhel7_released # for upgrade test
       - get: pxf_tarball
         resource: pxf_gp[[gp_ver]]_tarball_rhel7
         passed: [Build PXF-GP[[gp_ver]] on RHEL7]
@@ -1415,19 +1413,16 @@ jobs:
       GPDB_RPM: true
   - task: Initialize Greenplum
     file: ccp_src/ci/tasks/gpinitsystem.yml
-  - task: Setup PXF 5 Latest
+  - task: Setup PXF
     input_mapping:
       terraform: terraform_gpdb
-      pxf_tarball: pxf_tarball_ignore # do not install from the artifact
     file: pxf_src/concourse/tasks/install_pxf_on_ccp.yml
     image: ccp-7-image
     params:
       GP_VER: [[gp_ver]]
-      IMPERSONATION: true
+      IMPERSONATION: false
       INSTALL_GPHDFS: false
-      KERBEROS: ((kerberos-enabled))
       PXF_JVM_OPTS: ((pxf-jvm-opts))
-      PXF_VERSION: 5
   - task: Upgrade to PXF 6
     input_mapping:
       terraform: terraform_gpdb
