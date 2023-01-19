@@ -1423,15 +1423,6 @@ jobs:
       IMPERSONATION: false
       INSTALL_GPHDFS: false
       PXF_JVM_OPTS: ((pxf-jvm-opts))
-  - task: Upgrade to PXF 6
-    input_mapping:
-      terraform: terraform_gpdb
-    file: pxf_src/concourse/tasks/upgrade_pxf_on_ccp.yml
-    image: ccp-7-image
-    params:
-      GOOGLE_PROJECT_ID: ((ud/pxf/common/google-project-id))
-      GP_VER: [[gp_ver]]
-      PXF_BASE_DIR: /home/gpadmin/pxf-boot
   - task: Test PXF CLI
     on_success:
       *destroy_gpdb_cluster

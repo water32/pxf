@@ -102,7 +102,7 @@ func GenerateStatusReport(cmd *command, clusterData *ClusterData) {
 	if _, ok := cmd.messages[standby]; !ok {
 		// this command cares not about standby
 		msg := fmt.Sprintf(cmd.messages[status], clusterData.NumHosts, handlePlurality(clusterData.NumHosts))
-		fmt.Fprintln(stdout, msg)
+		fmt.Fprint(stdout, msg)
 		gplog.Info(msg)
 		return
 	}
@@ -116,7 +116,7 @@ func GenerateStatusReport(cmd *command, clusterData *ClusterData) {
 		numHosts--
 	}
 	msg := fmt.Sprintf(cmd.messages[status], standbyMsg, numHosts, handlePlurality(numHosts))
-	fmt.Fprintln(stdout, msg)
+	fmt.Fprint(stdout, msg)
 	gplog.Info(msg)
 }
 
