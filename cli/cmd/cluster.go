@@ -152,8 +152,8 @@ func GenerateOutput(cmd *command, clusterData *ClusterData) error {
 	msg := fmt.Sprintf(cmd.messages[err], numErrors, clusterData.NumHosts, handlePlurality(clusterData.NumHosts))
 	gplog.Error(msg)
 	gplog.Error(response)
-	fmt.Fprintln(stderr, msg)
-	fmt.Fprintln(stderr, response)
+	fmt.Fprintf(stderr, "ERROR: %s", msg)
+	fmt.Fprint(stderr, response)
 	return errors.New(response)
 }
 
