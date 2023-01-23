@@ -48,7 +48,7 @@ func (cmd *command) Warn(input io.Reader) error {
 }
 
 func (cmd *command) GetFunctionToExecute() (func(string) string, error) {
-	inputs, err := makeValidCliInputs(cmd)
+	inputs, err := cmd.makeValidCliInputs()
 	if err != nil {
 		return nil, err
 	}
@@ -269,8 +269,20 @@ var (
 	}
 )
 
-func makeValidCliInputs(cmd *command) (map[envVar]string, error) {
-	envVars := make(map[envVar]string)
+// func makeValidCliInputs(cmd *command) (map[envVar]string, error) {
+// 	envVars := make(map[envVar]string)
+// 	for _, e := range cmd.envVars {
+// 		val, err := validateEnvVar(e)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		envVars[e] = val
+// 	}
+// 	return envVars, nil
+// }
+
+func (cmd *command) makeValidCliInputs() (map[envVar]string, error) {
+	envVars := make(map[envVar]string, len(cmd.envVars))
 	for _, e := range cmd.envVars {
 		val, err := validateEnvVar(e)
 		if err != nil {
@@ -278,6 +290,7 @@ func makeValidCliInputs(cmd *command) (map[envVar]string, error) {
 		}
 		envVars[e] = val
 	}
+
 	return envVars, nil
 }
 

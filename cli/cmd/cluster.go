@@ -198,8 +198,17 @@ func clusterRun(cmd *command, clusterData *ClusterData) error {
 
 	commandList := clusterData.Cluster.GenerateSSHCommandList(cmd.whereToRun, functionToExecute)
 	clusterData.NumHosts = len(commandList)
+	gplog.Debug(fmt.Sprintf("Running %q on %d hosts", functionToExecute("HOSTNAME"), clusterData.NumHosts))
 	GenerateStatusReport(cmd, clusterData)
 	clusterData.Output = clusterData.Cluster.ExecuteClusterCommand(cmd.whereToRun, commandList)
+	gplog.Debug("Remote command output - scope=%d", clusterData.Output.Scope)
+	for _, command := range clusterData.Output.Commands {
+		isFailed := command.Error != nil
+		gplog.Debug("host=%s, command=%q, failed=%t, stdout=%q", command.Host, command.CommandString, isFailed, command.Stdout)
+		if isFailed {
+			gplog.Debug("stderr=%q", command.Stderr)
+		}
+	}
 	return GenerateOutput(cmd, clusterData)
 }
 
