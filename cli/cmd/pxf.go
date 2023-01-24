@@ -41,7 +41,7 @@ type command struct {
 }
 
 func (cmd *command) Warn(input io.Reader) error {
-	if cmd.warn == false || promptUser(input, cmd.messages[warning]) {
+	if !cmd.warn || promptUser(input, cmd.messages[warning]) {
 		return nil
 	}
 	return fmt.Errorf("pxf %s cancelled", cmd.name)
@@ -108,7 +108,7 @@ func (cmd *command) GetFunctionToExecute() (func(string) string, error) {
 
 func promptUser(input io.Reader, prompt string) bool {
 	reader := bufio.NewReader(input)
-	fmt.Printf(prompt)
+	fmt.Print(prompt)
 	text, _ := reader.ReadString('\n')
 	text = strings.TrimRight(text, "\r\n")
 	return strings.ToLower(text) == "y"
