@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/user"
 	"path"
+	"strings"
 
 	"github.com/greenplum-db/gp-common-go-libs/gplog"
 
@@ -81,6 +82,29 @@ func initializeLogging() {
 	logfileHandle := openLogFile(logfile)
 	logger := gplog.NewLogger(io.Discard, io.Discard, logfileHandle, logfile, gplog.LOGINFO, program)
 	gplog.SetLogger(logger)
+
+	pxfLogLevel, ok := os.LookupEnv("PXF_LOG_LEVEL")
+	if !ok || pxfLogLevel == "" {
+		pxfLogLevel = "info"
+	}
+	gplog.SetLogFileVerbosity(mapToGpLogLevel(pxfLogLevel))
+}
+
+// mapToGpLogLevel converts a Log4j log level to a corresponding level from the gplog package
+func mapToGpLogLevel(logLevel string) int {
+	gplogLevel := gplog.LOGINFO
+	// FIXME: need to handle: off, fatal, warn, trace, all
+	if strings.EqualFold("error", logLevel) {
+		gplogLevel = gplog.LOGERROR
+	}
+	if strings.EqualFold("info", logLevel) {
+		gplogLevel = gplog.LOGINFO
+	}
+	if strings.EqualFold("debug", logLevel) {
+		gplogLevel = gplog.LOGDEBUG
+	}
+
+	return gplogLevel
 }
 
 func createLogDirectory(dirname string) {

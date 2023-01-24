@@ -198,15 +198,28 @@ func clusterRun(cmd *command, clusterData *ClusterData) error {
 
 	commandList := clusterData.Cluster.GenerateSSHCommandList(cmd.whereToRun, functionToExecute)
 	clusterData.NumHosts = len(commandList)
-	gplog.Debug(fmt.Sprintf("Running %q on %d hosts", functionToExecute("HOSTNAME"), clusterData.NumHosts))
+	if isDebugEnabled() {
+		for _, c := range commandList {
+			gplog.Debug("Running %s on %s", c.CommandString, c.Host)
+		}
+	} else {
+		gplog.Info("Running %q on hosts: %s", functionToExecute("HOSTNAME"), strings.Join(clusterData.Cluster.Hostnames, ", "))
+	}
 	GenerateStatusReport(cmd, clusterData)
 	clusterData.Output = clusterData.Cluster.ExecuteClusterCommand(cmd.whereToRun, commandList)
 	gplog.Debug("Remote command output - scope=%d", clusterData.Output.Scope)
-	for _, command := range clusterData.Output.Commands {
-		isFailed := command.Error != nil
-		gplog.Debug("host=%s, command=%q, failed=%t, stdout=%q", command.Host, command.CommandString, isFailed, command.Stdout)
-		if isFailed {
-			gplog.Debug("stderr=%q", command.Stderr)
+
+	if isDebugEnabled() {
+		for _, command := range clusterData.Output.Commands {
+			isFailed := command.Error != nil
+			gplog.Debug("host=%s, command=%q, failed=%t, stdout=%q", command.Host, command.CommandString, isFailed, command.Stdout)
+			if isFailed {
+				gplog.Debug("stderr=%q", command.Stderr)
+			}
+		}
+	} else {
+		for _, failedCommand := range clusterData.Output.FailedCommands {
+			gplog.Error("host=%s, command=%q, error=%s, stdout=%q, stderr=%q", failedCommand.Host, failedCommand.CommandString, failedCommand.Error.Error(), failedCommand.Stdout, failedCommand.Stderr)
 		}
 	}
 	return GenerateOutput(cmd, clusterData)
@@ -218,4 +231,8 @@ func isStandbyAloneOnHost(clusterData *ClusterData) bool {
 		return false // there is no standby master
 	}
 	return len(clusterData.Cluster.GetContentsForHost(standbyHost)) == 1
+}
+
+func isDebugEnabled() bool {
+	return gplog.GetLogFileVerbosity() >= gplog.LOGDEBUG
 }

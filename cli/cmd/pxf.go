@@ -55,7 +55,7 @@ func (cmd *command) GetFunctionToExecute() (func(string) string, error) {
 
 	switch cmd.name {
 	case sync:
-		rsyncCommand := "rsync -az%s -e 'ssh -o StrictHostKeyChecking=no' '%s/conf' '%s/lib' '%s/servers' '%s:%s'"
+		rsyncCommand := "rsync -az%[1]s -e 'ssh -o StrictHostKeyChecking=no' '%[2]s/conf' '%[2]s/lib' '%[2]s/servers' '%[3]s:%[2]s'"
 		deleteString := ""
 		if DeleteOnSync {
 			deleteString = " --delete"
@@ -65,10 +65,7 @@ func (cmd *command) GetFunctionToExecute() (func(string) string, error) {
 				rsyncCommand,
 				deleteString,
 				inputs[pxfBase],
-				inputs[pxfBase],
-				inputs[pxfBase],
-				hostname,
-				inputs[pxfBase])
+				hostname)
 		}, nil
 	default:
 		var effectivePxfBase string
@@ -104,6 +101,19 @@ func (cmd *command) GetFunctionToExecute() (func(string) string, error) {
 		}
 		return func(_ string) string { return pxfCommand }, nil
 	}
+}
+
+func (cmd *command) makeValidCliInputs() (map[envVar]string, error) {
+	envVars := make(map[envVar]string, len(cmd.envVars))
+	for _, e := range cmd.envVars {
+		val, err := validateEnvVar(e)
+		if err != nil {
+			return nil, err
+		}
+		envVars[e] = val
+	}
+
+	return envVars, nil
 }
 
 func promptUser(input io.Reader, prompt string) bool {
@@ -268,31 +278,6 @@ var (
 		whereToRun: cluster.ON_REMOTE | cluster.ON_HOSTS | cluster.INCLUDE_MASTER | cluster.INCLUDE_MIRRORS,
 	}
 )
-
-// func makeValidCliInputs(cmd *command) (map[envVar]string, error) {
-// 	envVars := make(map[envVar]string)
-// 	for _, e := range cmd.envVars {
-// 		val, err := validateEnvVar(e)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 		envVars[e] = val
-// 	}
-// 	return envVars, nil
-// }
-
-func (cmd *command) makeValidCliInputs() (map[envVar]string, error) {
-	envVars := make(map[envVar]string, len(cmd.envVars))
-	for _, e := range cmd.envVars {
-		val, err := validateEnvVar(e)
-		if err != nil {
-			return nil, err
-		}
-		envVars[e] = val
-	}
-
-	return envVars, nil
-}
 
 func validateEnvVar(envVariable envVar) (string, error) {
 	envVarValue, isEnvVarSet := os.LookupEnv(string(envVariable))
