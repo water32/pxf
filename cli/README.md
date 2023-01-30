@@ -19,7 +19,7 @@
    ```
    make
    ```
-   This will put the binary at `pxf/cli/build/pxf-cli`. You can also install the binary into `${PXF_HOME}/bin/pxf-cli` with:
+   This will put the binary `pxf-cli` into `pxf/cli/build/`. You can also install the binary into `${PXF_HOME}/bin/pxf-cli` with:
    ```
    make install
    ```
