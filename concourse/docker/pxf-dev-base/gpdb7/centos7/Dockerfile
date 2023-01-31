@@ -3,7 +3,6 @@ ARG BASE_IMAGE=gcr.io/data-gpdb-public-images/gpdb7-centos7-test:latest
 FROM ${BASE_IMAGE}
 
 ARG GO_VERSION
-ARG GINKGO_VERSION
 
 # install Go utilities
 RUN mkdir -p /tmp/pxf_src/ && cd /tmp \
