@@ -40,7 +40,7 @@ steps:
         mkdir -p ./.go-mod-cached-sources
         cp -r ./.go-mod-cached-sources $(go env GOMODCACHE)
         cd ./cli
-        go install github.com/onsi/ginkgo/ginkgo
+        make install-tools
         make build
         cd -
         rm -rf ./.go-mod-cached-sources

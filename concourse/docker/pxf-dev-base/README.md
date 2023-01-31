@@ -21,7 +21,7 @@ gcloud builds submit . --config=concourse/docker/pxf-dev-base/cloudbuild.yaml \
 -- or if you would like to modify the go and ginkgo versions, you can do so by doing the following --
 
 gcloud builds submit . --config=concourse/docker/pxf-dev-base/cloudbuild.yaml \
---substitutions=_BASE_IMAGE_REPOSITORY=gcr.io/data-gpdb-public-images,_PRIVATE_BASE_IMAGE_REPOSITORY=gcr.io/data-gpdb-private-images,_GO_VERSION=<test-version>,_GINKGO_VERSION=<test-version>,COMMIT_SHA=dev-build-<test-name>
+--substitutions=_BASE_IMAGE_REPOSITORY=gcr.io/data-gpdb-public-images,_PRIVATE_BASE_IMAGE_REPOSITORY=gcr.io/data-gpdb-private-images,_GO_VERSION=<test-version>,COMMIT_SHA=dev-build-<test-name>
 ```
 
 This guide assumes the PXF repository lives under the `~/workspace/pxf`
@@ -30,7 +30,6 @@ directory. The `cloudbuild.yaml` file produces the following docker images:
 You can build these images individually by first setting these local variables:
 ```
 export GO_VERSION=1.19
-export GINKGO_VERSION=1.16.5
 ```
 ## Greenplum 5 Images
 

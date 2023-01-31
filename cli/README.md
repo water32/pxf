@@ -4,12 +4,6 @@
 
 1. Ensure you are set up for PXF development by following the README.md at the root of this repository. This tool requires Go version 1.9 or higher. Follow the directions [here](https://golang.org/doc/) to get the language set up.
 
-1. Go to the cli folder and install dependencies
-   ```
-   cd pxf/cli
-   go install github.com/onsi/ginkgo/ginkgo
-   ```
-
 1. Run the tests
    ```
    make test
