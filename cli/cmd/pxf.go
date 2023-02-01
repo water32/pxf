@@ -22,29 +22,20 @@ const (
 	pxfConf envVar = "PXF_CONF"
 )
 
-type messageType int
-
-const (
-	success messageType = iota
-	status
-	err
-	warning
-	standby
-)
-
-type command struct {
-	name       commandName
-	messages   map[messageType]string
-	whereToRun cluster.Scope
-	envVars    []envVar
-	warn       bool // whether the command requires a warning/prompt
+type messages struct {
+	success string
+	status  string
+	err     string
+	standby string
 }
 
-func (cmd *command) Warn(input io.Reader) error {
-	if !cmd.warn || promptUser(input, cmd.messages[warning]) {
-		return nil
-	}
-	return fmt.Errorf("pxf %s cancelled", cmd.name)
+type command struct {
+	name commandName
+	// if messages contains an entry for 'standby', then 'status'  is a printf-style format string that takes three arguments
+	// if messages does not contain an entry for 'standby', then 'status' is a printf-style format string that takes
+	messages   messages
+	whereToRun cluster.Scope
+	envVars    []envVar
 }
 
 func (cmd *command) GetFunctionToExecute() (func(string) string, error) {
@@ -143,7 +134,7 @@ const (
 var (
 	InitCommand = command{
 		name: pxfInit,
-		messages: map[messageType]string{
+		messages: messages{
 			success: "PXF initialized successfully on %d out of %d host%s\n",
 			status: "*****************************************************************************\n" +
 				"* DEPRECATION NOTICE:\n" +
@@ -157,43 +148,39 @@ var (
 			standby: ", standby master host,",
 			err:     "PXF failed to initialize on %d out of %d host%s\n",
 		},
-		warn:       false,
 		envVars:    []envVar{gpHome, pxfHome, javaHome},
 		whereToRun: cluster.ON_REMOTE | cluster.ON_HOSTS | cluster.INCLUDE_MASTER | cluster.INCLUDE_MIRRORS,
 	}
 	StartCommand = command{
 		name: start,
-		messages: map[messageType]string{
+		messages: messages{
 			success: "PXF started successfully on %d out of %d host%s\n",
 			status:  "Starting PXF on master host%s and %d segment host%s...\n",
 			standby: ", standby master host,",
 			err:     "PXF failed to start on %d out of %d host%s\n",
 		},
-		warn:       false,
 		envVars:    []envVar{pxfHome, pxfBase},
 		whereToRun: cluster.ON_REMOTE | cluster.ON_HOSTS | cluster.INCLUDE_MASTER | cluster.INCLUDE_MIRRORS,
 	}
 	StopCommand = command{
 		name: stop,
-		messages: map[messageType]string{
+		messages: messages{
 			success: "PXF stopped successfully on %d out of %d host%s\n",
 			status:  "Stopping PXF on master host%s and %d segment host%s...\n",
 			standby: ", standby master host,",
 			err:     "PXF failed to stop on %d out of %d host%s\n",
 		},
-		warn:       false,
 		envVars:    []envVar{pxfHome, pxfBase},
 		whereToRun: cluster.ON_REMOTE | cluster.ON_HOSTS | cluster.INCLUDE_MASTER | cluster.INCLUDE_MIRRORS,
 	}
 	SyncCommand = command{
 		name: sync,
-		messages: map[messageType]string{
+		messages: messages{
 			success: "PXF configs synced successfully on %d out of %d host%s\n",
 			status:  "Syncing PXF configuration files from master host to%s %d segment host%s...\n",
 			standby: " standby master host and",
 			err:     "PXF configs failed to sync on %d out of %d host%s\n",
 		},
-		warn:    false,
 		envVars: []envVar{pxfBase},
 		// cluster.ON_LOCAL | cluster.ON_HOSTS: the command will target host%s, but be run from master
 		// this is ideal for copying files from master to segment host(s) using rsync.
@@ -202,31 +189,29 @@ var (
 	}
 	StatusCommand = command{
 		name: statuses,
-		messages: map[messageType]string{
+		messages: messages{
 			success: "PXF is running on %d out of %d host%s\n",
 			status:  "Checking status of PXF servers on master host%s and %d segment host%s...\n",
 			standby: ", standby master host,",
 			err:     "PXF is not running on %d out of %d host%s\n",
 		},
-		warn:       false,
 		envVars:    []envVar{pxfHome, pxfBase},
 		whereToRun: cluster.ON_REMOTE | cluster.ON_HOSTS | cluster.INCLUDE_MASTER | cluster.INCLUDE_MIRRORS,
 	}
 	RegisterCommand = command{
 		name: register,
-		messages: map[messageType]string{
+		messages: messages{
 			success: "PXF extension has been installed on %d out of %d host%s\n",
 			status:  "Installing PXF extension on master host%s and %d segment host%s...\n",
 			standby: ", standby master host,",
 			err:     "Failed to install PXF extension on %d out of %d host%s\n",
 		},
-		warn:       false,
 		envVars:    []envVar{gpHome, pxfHome},
 		whereToRun: cluster.ON_REMOTE | cluster.ON_HOSTS | cluster.INCLUDE_MASTER | cluster.INCLUDE_MIRRORS,
 	}
 	ResetCommand = command{
 		name: reset,
-		messages: map[messageType]string{
+		messages: messages{
 			success: "PXF has been reset on %d out of %d host%s\n",
 			status: "*****************************************************************************\n" +
 				"* DEPRECATION NOTICE:\n" +
@@ -237,43 +222,39 @@ var (
 			standby: ", standby master host,",
 			err:     "Failed to reset PXF on %d out of %d host%s\n",
 		},
-		warn:       false,
 		envVars:    []envVar{pxfHome},
 		whereToRun: cluster.ON_REMOTE | cluster.ON_HOSTS | cluster.INCLUDE_MASTER | cluster.INCLUDE_MIRRORS,
 	}
 	RestartCommand = command{
 		name: restart,
-		messages: map[messageType]string{
+		messages: messages{
 			success: "PXF restarted successfully on %d out of %d host%s\n",
 			status:  "Restarting PXF on master host%s and %d segment host%s...\n",
 			standby: ", standby master host,",
 			err:     "PXF failed to restart on %d out of %d host%s\n",
 		},
-		warn:       false,
 		envVars:    []envVar{pxfHome, pxfBase},
 		whereToRun: cluster.ON_REMOTE | cluster.ON_HOSTS | cluster.INCLUDE_MASTER | cluster.INCLUDE_MIRRORS,
 	}
 	PrepareCommand = command{
 		name: prepare,
-		messages: map[messageType]string{
+		messages: messages{
 			success: "PXF prepared successfully on %d out of %d host%s\n",
 			status:  "Preparing PXF on master host%s and %d segment host%s...\n",
 			standby: ", standby master host,",
 			err:     "PXF failed to prepare on %d out of %d host%s\n",
 		},
-		warn:       false,
 		envVars:    []envVar{pxfHome, pxfBase},
 		whereToRun: cluster.ON_REMOTE | cluster.ON_HOSTS | cluster.INCLUDE_MASTER | cluster.INCLUDE_MIRRORS,
 	}
 	MigrateCommand = command{
 		name: migrate,
-		messages: map[messageType]string{
+		messages: messages{
 			success: "PXF configuration migrated successfully on %d out of %d host%s\n",
 			status:  "Migrating PXF configuration on master host%s and %d segment host%s...\n",
 			standby: ", standby master host,",
 			err:     "PXF failed to migrate configuration on %d out of %d host%s\n",
 		},
-		warn:       false,
 		envVars:    []envVar{pxfHome, pxfConf, pxfBase},
 		whereToRun: cluster.ON_REMOTE | cluster.ON_HOSTS | cluster.INCLUDE_MASTER | cluster.INCLUDE_MIRRORS,
 	}

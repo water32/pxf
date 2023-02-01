@@ -1,7 +1,6 @@
 package cmd_test
 
 import (
-	"bytes"
 	"errors"
 	"os"
 	"pxf-cli/cmd"
@@ -360,23 +359,4 @@ var _ = Describe("CommandFunc", func() {
 			Expect("PXF_BASE=/test/pxfconf /test/pxfhome/bin/pxf prepare").To(Equal(commandFunc("foo")))
 		})
 	})
-
-	Context("when the user tries to run a warn command and they answer y", func() {
-		It("Returns an error", func() {
-			var input bytes.Buffer
-			input.Write([]byte("Y"))
-			err := cmd.ResetCommand.Warn(&input)
-			Expect(err).To(BeNil())
-		})
-	})
-
-	Context("when the user tries to run a non-warn command", func() {
-		It("Returns an error", func() {
-			var input bytes.Buffer
-			input.Write([]byte("this input shouldn't matter!"))
-			err := cmd.StatusCommand.Warn(&input)
-			Expect(err).To(BeNil())
-		})
-	})
-
 })

@@ -99,32 +99,29 @@ func handlePlurality(num int) string {
 
 // GenerateStatusReport exported for testing
 func GenerateStatusReport(cmd *command, clusterData *ClusterData) {
-	if _, ok := cmd.messages[standby]; !ok {
-		// this command cares not about standby
-		msg := fmt.Sprintf(cmd.messages[status], clusterData.NumHosts, handlePlurality(clusterData.NumHosts))
-		fmt.Fprint(stdout, msg)
-		gplog.Info(msg)
-		return
-	}
 	standbyMsg := ""
 	numHosts := clusterData.NumHosts
-	if cmd.whereToRun&cluster.INCLUDE_MASTER == cluster.INCLUDE_MASTER {
+	if cmd.runOnMaster() {
 		numHosts--
 	}
 	if isStandbyAloneOnHost(clusterData) {
-		standbyMsg = cmd.messages[standby]
+		standbyMsg = cmd.messages.standby
 		numHosts--
 	}
-	msg := fmt.Sprintf(cmd.messages[status], standbyMsg, numHosts, handlePlurality(numHosts))
+	msg := fmt.Sprintf(cmd.messages.status, standbyMsg, numHosts, handlePlurality(numHosts))
 	fmt.Fprint(stdout, msg)
 	gplog.Info(msg)
+}
+
+func (cmd *command) runOnMaster() bool {
+	return cmd.whereToRun&cluster.INCLUDE_MASTER == cluster.INCLUDE_MASTER
 }
 
 // GenerateOutput is exported for testing
 func GenerateOutput(cmd *command, clusterData *ClusterData) error {
 	numErrors := clusterData.Output.NumErrors
 	if numErrors == 0 {
-		msg := fmt.Sprintf(cmd.messages[success], clusterData.NumHosts-numErrors, clusterData.NumHosts, handlePlurality(clusterData.NumHosts))
+		msg := fmt.Sprintf(cmd.messages.success, clusterData.NumHosts-numErrors, clusterData.NumHosts, handlePlurality(clusterData.NumHosts))
 		fmt.Fprintln(stdout, msg)
 		gplog.Info(msg)
 		return nil
@@ -149,7 +146,7 @@ func GenerateOutput(cmd *command, clusterData *ClusterData) error {
 		}
 		response += fmt.Sprintf("%s ==> %s\n", host, errorMessage)
 	}
-	msg := fmt.Sprintf(cmd.messages[err], numErrors, clusterData.NumHosts, handlePlurality(clusterData.NumHosts))
+	msg := fmt.Sprintf(cmd.messages.err, numErrors, clusterData.NumHosts, handlePlurality(clusterData.NumHosts))
 	gplog.Error(msg)
 	gplog.Error(response)
 	fmt.Fprintf(stderr, "ERROR: %s", msg)
@@ -181,13 +178,6 @@ func doSetup() (*ClusterData, error) {
 
 func clusterRun(cmd *command, clusterData *ClusterData) error {
 	defer clusterData.connection.Close()
-
-	err := cmd.Warn(os.Stdin)
-	if err != nil {
-		fmt.Fprintln(stderr, err.Error())
-		gplog.Info(err.Error())
-		return err
-	}
 
 	functionToExecute, err := cmd.GetFunctionToExecute()
 	if err != nil {
