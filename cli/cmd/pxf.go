@@ -1,12 +1,9 @@
 package cmd
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
-	"io"
 	"os"
-	"strings"
 
 	"github.com/greenplum-db/gp-common-go-libs/cluster"
 )
@@ -105,14 +102,6 @@ func (cmd *command) makeValidCliInputs() (map[envVar]string, error) {
 	}
 
 	return envVars, nil
-}
-
-func promptUser(input io.Reader, prompt string) bool {
-	reader := bufio.NewReader(input)
-	fmt.Print(prompt)
-	text, _ := reader.ReadString('\n')
-	text = strings.TrimRight(text, "\r\n")
-	return strings.ToLower(text) == "y"
 }
 
 type commandName string
@@ -263,10 +252,10 @@ var (
 func validateEnvVar(envVariable envVar) (string, error) {
 	envVarValue, isEnvVarSet := os.LookupEnv(string(envVariable))
 	if !isEnvVarSet {
-		return "", errors.New(string(envVariable) + " must be set")
+		return "", fmt.Errorf("%s must be set", envVariable)
 	}
 	if envVarValue == "" {
-		return "", errors.New(string(envVariable) + " cannot be blank")
+		return "", fmt.Errorf("%s cannot be blank", envVariable)
 	}
 	return envVarValue, nil
 }

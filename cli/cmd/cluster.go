@@ -98,7 +98,7 @@ func handlePlurality(num int) string {
 }
 
 // GenerateStatusReport exported for testing
-func GenerateStatusReport(cmd *command, clusterData *ClusterData) {
+func (cmd *command) GenerateStatusReport(clusterData *ClusterData) {
 	standbyMsg := ""
 	numHosts := clusterData.NumHosts
 	if cmd.runOnMaster() {
@@ -118,7 +118,7 @@ func (cmd *command) runOnMaster() bool {
 }
 
 // GenerateOutput is exported for testing
-func GenerateOutput(cmd *command, clusterData *ClusterData) error {
+func (cmd *command) GenerateOutput(clusterData *ClusterData) error {
 	numErrors := clusterData.Output.NumErrors
 	if numErrors == 0 {
 		msg := fmt.Sprintf(cmd.messages.success, clusterData.NumHosts-numErrors, clusterData.NumHosts, handlePlurality(clusterData.NumHosts))
@@ -144,6 +144,7 @@ func GenerateOutput(cmd *command, clusterData *ClusterData) error {
 		if len(lines) > 2 {
 			errorMessage += "..."
 		}
+		// TODO: maybe use errors.Join()?
 		response += fmt.Sprintf("%s ==> %s\n", host, errorMessage)
 	}
 	msg := fmt.Sprintf(cmd.messages.err, numErrors, clusterData.NumHosts, handlePlurality(clusterData.NumHosts))
@@ -195,7 +196,7 @@ func clusterRun(cmd *command, clusterData *ClusterData) error {
 	} else {
 		gplog.Info("Running %q on hosts: %s", functionToExecute("HOSTNAME"), strings.Join(clusterData.Cluster.Hostnames, ", "))
 	}
-	GenerateStatusReport(cmd, clusterData)
+	cmd.GenerateStatusReport(clusterData)
 	clusterData.Output = clusterData.Cluster.ExecuteClusterCommand(cmd.whereToRun, commandList)
 	gplog.Debug("Remote command output - scope=%d", clusterData.Output.Scope)
 
@@ -212,7 +213,7 @@ func clusterRun(cmd *command, clusterData *ClusterData) error {
 			gplog.Error("host=%s, command=%q, error=%s, stdout=%q, stderr=%q", failedCommand.Host, failedCommand.CommandString, failedCommand.Error.Error(), failedCommand.Stdout, failedCommand.Stderr)
 		}
 	}
-	return GenerateOutput(cmd, clusterData)
+	return cmd.GenerateOutput(clusterData)
 }
 
 func isStandbyAloneOnHost(clusterData *ClusterData) bool {
