@@ -3,6 +3,7 @@ package org.greenplum.pxf.automation.components.tinc;
 import java.io.File;
 import java.io.IOException;
 
+import org.apache.commons.lang.StringUtils;
 import org.greenplum.pxf.automation.components.common.ShellSystemObject;
 import org.greenplum.pxf.automation.components.common.cli.ShellCommandErrorException;
 import org.greenplum.pxf.automation.utils.jsystem.report.ReportUtils;
@@ -30,6 +31,17 @@ public class Tinc extends ShellSystemObject {
 
 		runCommand("cd " + gphome);
 		runCommand("source greenplum_path.sh");
+
+		// Tinc runs with Python2 only, but GP7 environment includes Python3 libraries.
+		// In this case we have to set PXF_AUTOMATION_TINC_DEPS environment variable to point to Python2 libraries
+		// and use it here to set PYTHONPATH dynamically to the same value.
+		String pxfAutomationTincDeps = System.getenv("PXF_AUTOMATION_TINC_DEPS");
+		if (StringUtils.isNotBlank(pxfAutomationTincDeps)) {
+			ReportUtils.report(report, getClass(),
+					String.format("Overriding PYTHONPATH to '%s' (from environment variable PXF_AUTOMATION_TINC_DEPS)", pxfAutomationTincDeps));
+			runCommand("export PYTHONPATH=" + pxfAutomationTincDeps);
+		}
+
 		runCommand("cd " + new File(tincFolder).getAbsolutePath());
 		runCommand("source tinc_env.sh");
 		runCommand("cd " + new File(tincTestsFolder).getAbsolutePath());

@@ -46,6 +46,9 @@
 #include "utils/lsyscache.h"
 
 #include <unistd.h>
+#if PG_VERSION_NUM >= 120000
+#include "access/external.h"
+#endif
 
 PG_FUNCTION_INFO_V1(gpdbwritableformatter_export);
 PG_FUNCTION_INFO_V1(gpdbwritableformatter_import);
@@ -97,6 +100,8 @@ typedef struct
 /* for backward compatibility */
 #define GPDBWRITABLE_PREV_VERSION 1
 
+#define FORMATTER_ENCODING_ERR_MSG "pxfwritable_%1$s formatter can only %1$s UTF8 formatted data. Define the external table with ENCODING UTF8"
+
 /* Bit flag */
 #define GPDBWRITABLE_BITFLAG_ISNULL 1	/* Column is null */
 
@@ -141,6 +146,12 @@ appendStringInfoFill(StringInfo str, int occurrences, char ch)
 			                       (buf_len) - (buf_idx), (len_wanted)))); \
 		} \
 	} while (0)
+
+#if PG_VERSION_NUM < 90400
+// Copied from tupdesc.h (6.x), since this is not present in GPDB 5
+/* Accessor for the i'th attribute of tupdesc. */
+#define TupleDescAttr(tupdesc, i) ((tupdesc)->attrs[(i)])
+#endif
 
 /*
  * Write a int4 to the buffer
@@ -335,7 +346,10 @@ boolArrayToByteArray(bool *data, int len, int validlen, int *outlen, TupleDesc t
 	for (i = 0, j = 0, k = 7; i < len; i++)
 	{
 		/* Ignore dropped attributes. */
-		if (tupdesc->attrs[i]->attisdropped) continue;
+		Form_pg_attribute attr = TupleDescAttr(tupdesc, i);
+
+		if (attr->attisdropped)
+			continue;
 
 		result[j] |= (data[i] ? 1 : 0) << k--;
 		if (k < 0)
@@ -378,7 +392,9 @@ byteArrayToBoolArray(bits8 *data, int data_len, int len, bool **booldata, int bo
 	for (i = 0, j = 0, k = 7; i < boollen; i++)
 	{
 		/* Ignore dropped attributes. */
-		if (tupdesc->attrs[i]->attisdropped)
+		Form_pg_attribute attr = TupleDescAttr(tupdesc, i);
+
+		if (attr->attisdropped)
 		{
 			(*booldata)[i] = true;
 			continue;
@@ -416,11 +432,14 @@ verifyExternalTableDefinition(int16 ncolumns_remote, AttrNumber nvalidcolumns, A
 	/* Extract Column Type and check against External Table definition */
 	for (i = 0; i < ncolumns; i++)
 	{
+		Form_pg_attribute attr = TupleDescAttr(tupdesc, i);
+
 		/* Ignore dropped attributes. */
-		if (tupdesc->attrs[i]->attisdropped) continue;
+		if (attr->attisdropped)
+			continue;
 
 		input_type = 0;
-		defined_type = tupdesc->attrs[i]->atttypid;
+		defined_type = attr->atttypid;
 		enumType = readInt1FromBuffer(data_buf, data_len, bufidx);
 
 		/* Convert enumType to type oid */
@@ -430,7 +449,7 @@ verifyExternalTableDefinition(int16 ncolumns_remote, AttrNumber nvalidcolumns, A
 		{
 			char	   *intype = format_type_be(input_type);
 			char	   *deftype = format_type_be(defined_type);
-			char	   *attname = NameStr(tupdesc->attrs[i]->attname);
+			char	   *attname = NameStr(attr->attname);
 
 			if (errMsg.len > 0)
 				appendStringInfoString(&errMsg, ", ");
@@ -481,8 +500,12 @@ gpdbwritableformatter_export(PG_FUNCTION_ARGS)
 	/* Get the number of valid columns, excludes dropped columns */
 	nvalidcolumns = 0;
 	for (i = 0; i < ncolumns; i++)
-		if (!tupdesc->attrs[i]->attisdropped)
+	{
+		Form_pg_attribute attr = TupleDescAttr(tupdesc, i);
+
+		if (!attr->attisdropped)
 			nvalidcolumns++;
+	}
 
 	/*
 	 * Initialize the context structure
@@ -490,8 +513,10 @@ gpdbwritableformatter_export(PG_FUNCTION_ARGS)
 	if (myData == NULL)
 	{
 		if (FORMATTER_GET_EXTENCODING(fcinfo) != PG_UTF8)
-			ereport(ERROR, (errcode(ERRCODE_EXTERNAL_ROUTINE_EXCEPTION),
-							errmsg("gpdbwritable formatter can only export UTF8 formatted data. Define the external table with ENCODING UTF8")));
+		{
+		     ereport(ERROR, (errcode(ERRCODE_EXTERNAL_ROUTINE_EXCEPTION),
+		            errmsg(FORMATTER_ENCODING_ERR_MSG, "export")));
+		}
 
 		myData = palloc(sizeof(format_t));
 		myData->values = palloc(sizeof(Datum) * ncolumns);
@@ -505,12 +530,14 @@ gpdbwritableformatter_export(PG_FUNCTION_ARGS)
 		/* setup the text/binary input function */
 		for (i = 0; i < ncolumns; i++)
 		{
-			Oid			type = tupdesc->attrs[i]->atttypid;
+			Form_pg_attribute attr = TupleDescAttr(tupdesc, i);
+
+			Oid			type = attr->atttypid;
 			bool		isvarlena;
 			Oid			functionId;
 
 			/* Ignore dropped attributes. */
-			if (tupdesc->attrs[i]->attisdropped)
+			if (attr->attisdropped)
 				continue;
 
 			/* Get the text/binary "send" function */
@@ -561,7 +588,7 @@ gpdbwritableformatter_export(PG_FUNCTION_ARGS)
 	 */
 	for (i = 0; i < ncolumns; i++)
 	{
-		Form_pg_attribute attr = tupdesc->attrs[i];
+		Form_pg_attribute attr = TupleDescAttr(tupdesc, i);
 
 		/* Ignore dropped attributes. */
 		if (attr->attisdropped) continue;
@@ -647,29 +674,33 @@ gpdbwritableformatter_export(PG_FUNCTION_ARGS)
 	/* Write col type for columns that have not been dropped */
 	for (i = 0; i < ncolumns; i++)
 	{
+		Form_pg_attribute attr = TupleDescAttr(tupdesc, i);
+
 		/* Ignore dropped attributes. */
-		if (!tupdesc->attrs[i]->attisdropped)
+		if (!attr->attisdropped)
 		{
 			appendInt1ToBuffer(myData->export_format_tuple,
-							   getJavaEnumOrdinal(tupdesc->attrs[i]->atttypid));
+							   getJavaEnumOrdinal(attr->atttypid));
 		}
 	}
 
 	/* Write Nullness */
 	nullBit = boolArrayToByteArray(myData->nulls, ncolumns, nvalidcolumns, &nullBitLen, tupdesc);
-	appendBinaryStringInfo(myData->export_format_tuple, nullBit, nullBitLen);
+	appendBinaryStringInfo(myData->export_format_tuple, (char *) nullBit, nullBitLen);
 
 	/* Column Value */
 	for (i = 0; i < ncolumns; i++)
 	{
+		Form_pg_attribute attr = TupleDescAttr(tupdesc, i);
+
 		/* Ignore dropped attributes and null values. */
-		if (!tupdesc->attrs[i]->attisdropped && !myData->nulls[i])
+		if (!attr->attisdropped && !myData->nulls[i])
 		{
 			/* Pad the alignment byte first */
 			appendStringInfoFill(myData->export_format_tuple, myData->outpadlen[i], '\0');
 
 			/* For variable length type, we added a 4 byte length header */
-			if (isVariableLength(tupdesc->attrs[i]->atttypid))
+			if (isVariableLength(attr->atttypid))
 				appendIntToBuffer(myData->export_format_tuple, myData->outlen[i]);
 
 			/* Now, write the actual column value */
@@ -681,7 +712,12 @@ gpdbwritableformatter_export(PG_FUNCTION_ARGS)
 	/* End padding */
 	appendStringInfoFill(myData->export_format_tuple, endpadding, '\0');
 
-	Insist(myData->export_format_tuple->len == datlen + VARHDRSZ);
+	if (myData->export_format_tuple->len != datlen + VARHDRSZ)
+	{
+		ereport(ERROR, (errcode(ERRCODE_EXTERNAL_ROUTINE_EXCEPTION),
+					errmsg("Tuple length doesn't match the data length")));
+	}
+
 	SET_VARSIZE(myData->export_format_tuple->data, datlen + VARHDRSZ);
 	PG_RETURN_BYTEA_P(myData->export_format_tuple->data);
 }
@@ -721,8 +757,11 @@ gpdbwritableformatter_import(PG_FUNCTION_ARGS)
 
 	/* Get the number of valid columns, excluding dropped columns */
 	for (i = 0; i < ncolumns; i++)
-		if (!tupdesc->attrs[i]->attisdropped)
+	{
+		Form_pg_attribute attr = TupleDescAttr(tupdesc, i);
+		if (!attr->attisdropped)
 			nvalidcolumns++;
+	}
 
 	/*
 	 * Initialize the context structure
@@ -730,8 +769,10 @@ gpdbwritableformatter_import(PG_FUNCTION_ARGS)
 	if (myData == NULL)
 	{
 		if (FORMATTER_GET_EXTENCODING(fcinfo) != PG_UTF8)
+		{
 			ereport(ERROR, (errcode(ERRCODE_EXTERNAL_ROUTINE_EXCEPTION),
-							errmsg("gpdbwritable formatter can only import UTF8 formatted data. Define the external table with ENCODING UTF8")));
+							errmsg(FORMATTER_ENCODING_ERR_MSG, "import")));
+		}
 
 		myData = palloc(sizeof(format_t));
 		myData->values = palloc(sizeof(Datum) * ncolumns);
@@ -743,11 +784,14 @@ gpdbwritableformatter_import(PG_FUNCTION_ARGS)
 
 		for (i = 0; i < ncolumns; i++)
 		{
-			Oid			type = tupdesc->attrs[i]->atttypid;
+			Form_pg_attribute attr = TupleDescAttr(tupdesc, i);
+
+			Oid type = attr->atttypid;
+
 			Oid			functionId;
 
 			/* Ignore dropped attributes. */
-			if (tupdesc->attrs[i]->attisdropped)
+			if (attr->attisdropped)
 				continue;
 
 			/* Get the text/binary "receive" function */
@@ -839,7 +883,7 @@ gpdbwritableformatter_import(PG_FUNCTION_ARGS)
 	if (error_flag) {
 		bufidx += ERR_COL_OFFSET;
 		ereport(ERROR, (errcode(ERRCODE_DATA_EXCEPTION),
-		                errmsg("%.*s", tupleEndIdx - bufidx, data_buf + bufidx)));
+						errmsg("%.*s", tupleEndIdx - bufidx, data_buf + bufidx)));
 	}
 
 	ncolumns_remote = readInt2FromBuffer(data_buf, tupleEndIdx, &bufidx);
@@ -858,10 +902,11 @@ gpdbwritableformatter_import(PG_FUNCTION_ARGS)
 	/* extract column value */
 	for (i = 0; i < ncolumns; i++)
 	{
-		Form_pg_attribute attr = tupdesc->attrs[i];
+		Form_pg_attribute attr = TupleDescAttr(tupdesc, i);
 
 		/* Ignore dropped attributes. */
-		if (attr->attisdropped) continue;
+		if (attr->attisdropped)
+			continue;
 
 		if (!myData->nulls[i])
 		{
@@ -962,4 +1007,3 @@ gpdbwritableformatter_import(PG_FUNCTION_ARGS)
 	FORMATTER_SET_TUPLE(fcinfo, tuple);
 	FORMATTER_RETURN_TUPLE(tuple);
 }
-

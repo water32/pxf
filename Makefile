@@ -1,37 +1,54 @@
 include common.mk
 
-PG_CONFIG = pg_config
-
 PXF_VERSION ?= $(shell cat version)
 export PXF_VERSION
 
-FDW_SUPPORT = $(shell $(PG_CONFIG) --version | egrep "PostgreSQL 12")
+PG_CONFIG ?= pg_config
+PGXS := $(shell $(PG_CONFIG) --pgxs)
+ifndef PGXS
+	$(error Make sure the Greenplum installation binaries are in your PATH. i.e. export PATH=<path to your Greenplum installation>/bin:$$PATH)
+endif
+include $(PGXS)
 
-SOURCE_EXTENSION_DIR = external-table
-TARGET_EXTENSION_DIR = gpextable
-ifneq ($(FDW_SUPPORT),)
-	SOURCE_EXTENSION_DIR = fdw
-	TARGET_EXTENSION_DIR = fdw
+# variables that control whether the FDW extension will be built and packaged,
+# if left empty there is no skipping, otherwise a value should contain a reason for skipping
+ifeq ($(shell test $(GP_MAJORVERSION) -lt 6; echo $$?),0)
+	SKIP_FDW_BUILD_REASON := "GPDB version $(GP_MAJORVERSION) is less than 6."
+endif
+ifeq ($(shell test $(GP_MAJORVERSION) -lt 7; echo $$?),0)
+	SKIP_FDW_PACKAGE_REASON := "GPDB version $(GP_MAJORVERSION) is less than 7."
 endif
 
+ifeq ($(BLD_ARCH),)
+	GP_BUILD_ARCH := $(PORTNAME)-$(subst _,-,$(host_cpu))
+else
+	GP_BUILD_ARCH := $(subst _,-,$(BLD_ARCH))
+endif
+
+export SKIP_FDW_BUILD_REASON
+export SKIP_FDW_PACKAGE_REASON
+export GP_MAJORVERSION
+export GP_BUILD_ARCH
 
 LICENSE ?= ASL 2.0
 VENDOR ?= Open Source
 
 default: all
 
-.PHONY: all external-table fdw cli server install install-server stage tar rpm rpm-tar deb deb-tar clean test it help
+.PHONY: all extensions external-table fdw cli server install install-server stage tar rpm rpm-tar deb deb-tar clean test it help
 
-all: fdw external-table cli server
+all: extensions cli server
+
+extensions: external-table fdw
 
 external-table:
 	make -C external-table
 
 fdw:
-ifneq ($(FDW_SUPPORT),)
+ifeq ($(SKIP_FDW_BUILD_REASON),)
 	make -C fdw
 else
-	@echo "The variable FDW_SUPPORT was empty; skipping building the fdw/ directory"
+	@echo "Skipping building FDW extension because $(SKIP_FDW_BUILD_REASON)"
 endif
 
 cli:
@@ -42,15 +59,16 @@ server:
 
 clean:
 	rm -rf build
-	make -C $(SOURCE_EXTENSION_DIR) clean-all
+	make -C external-table clean-all
+	make -C fdw clean-all
 	make -C cli/go/src/pxf-cli clean
 	make -C server clean
 
 test:
-ifneq ($(FDW_SUPPORT),)
-	make -C fdw test
+ifeq ($(SKIP_FDW_BUILD_REASON),)
+	make -C fdw installcheck
 else
-	@echo "The variable FDW_SUPPORT was empty; skipping fdw tests"
+	@echo "Skipping testing FDW extension because $(SKIP_FDW_BUILD_REASON)"
 endif
 	make -C cli/go/src/pxf-cli test
 	make -C server test
@@ -59,7 +77,12 @@ it:
 	make -C automation TEST=$(TEST)
 
 install:
-	make -C $(SOURCE_EXTENSION_DIR) install
+	make -C external-table install
+ifeq ($(SKIP_FDW_BUILD_REASON),)
+	make -C fdw install
+else
+	@echo "Skipping installing FDW extension because $(SKIP_FDW_BUILD_REASON)"
+endif
 	make -C cli/go/src/pxf-cli install
 	make -C server install
 
@@ -68,15 +91,21 @@ install-server:
 
 stage:
 	rm -rf build/stage
-	make -C $(SOURCE_EXTENSION_DIR) stage
+	make -C external-table stage
+ifeq ($(SKIP_FDW_PACKAGE_REASON),)
+	make -C fdw stage
+else
+	@echo "Skipping staging FDW extension because $(SKIP_FDW_PACKAGE_REASON)"
+endif
 	make -C cli/go/src/pxf-cli stage
 	make -C server stage
 	set -e ;\
-	GP_MAJOR_VERSION=$$(cat $(SOURCE_EXTENSION_DIR)/build/metadata/gp_major_version) ;\
-	GP_BUILD_ARCH=$$(cat $(SOURCE_EXTENSION_DIR)/build/metadata/build_arch) ;\
-	PXF_PACKAGE_NAME=pxf-gpdb$${GP_MAJOR_VERSION}-$${PXF_VERSION}-$${GP_BUILD_ARCH} ;\
+	PXF_PACKAGE_NAME=pxf-gpdb$${GP_MAJORVERSION}-$${PXF_VERSION}-$${GP_BUILD_ARCH} ;\
 	mkdir -p build/stage/$${PXF_PACKAGE_NAME} ;\
-	cp -a $(SOURCE_EXTENSION_DIR)/build/stage/* build/stage/$${PXF_PACKAGE_NAME} ;\
+	cp -a external-table/build/stage/* build/stage/$${PXF_PACKAGE_NAME} ;\
+	if [[ -z $${SKIP_FDW_PACKAGE_REASON} ]]; then \
+	cp -a fdw/build/stage/* build/stage/$${PXF_PACKAGE_NAME} ;\
+	fi;\
 	cp -a cli/build/stage/* build/stage/$${PXF_PACKAGE_NAME} ;\
 	cp -a server/build/stage/* build/stage/$${PXF_PACKAGE_NAME} ;\
 	echo $$(git rev-parse --verify HEAD) > build/stage/$${PXF_PACKAGE_NAME}/pxf/commit.sha ;\
@@ -88,17 +117,25 @@ tar: stage
 	tar -czf build/dist/$(shell ls build/stage).tar.gz -C build/stage $(shell ls build/stage)
 
 rpm:
-	make -C $(SOURCE_EXTENSION_DIR) stage
+	make -C external-table stage
+ifeq ($(SKIP_FDW_PACKAGE_REASON),)
+	make -C fdw stage
+else
+	@echo "Skipping packaging FDW extension because $(SKIP_FDW_PACKAGE_REASON)"
+endif
 	make -C cli/go/src/pxf-cli stage
 	make -C server stage
 	set -e ;\
-	GP_MAJOR_VERSION=$$(cat $(SOURCE_EXTENSION_DIR)/build/metadata/gp_major_version) ;\
 	PXF_MAIN_VERSION=$${PXF_VERSION//-SNAPSHOT/} ;\
 	if [[ $${PXF_VERSION} == *"-SNAPSHOT" ]]; then PXF_RELEASE=SNAPSHOT; else PXF_RELEASE=1; fi ;\
 	rm -rf build/rpmbuild ;\
 	mkdir -p build/rpmbuild/{BUILD,RPMS,SOURCES,SPECS} ;\
-	mkdir -p build/rpmbuild/SOURCES/$(TARGET_EXTENSION_DIR) ;\
-	cp -a $(SOURCE_EXTENSION_DIR)/build/stage/* build/rpmbuild/SOURCES/$(TARGET_EXTENSION_DIR) ;\
+	mkdir -p build/rpmbuild/SOURCES/gpextable ;\
+	cp -a external-table/build/stage/* build/rpmbuild/SOURCES/gpextable ;\
+	if [[ -z $${SKIP_FDW_PACKAGE_REASON} ]]; then \
+	mkdir -p build/rpmbuild/SOURCES/fdw ;\
+	cp -a fdw/build/stage/* build/rpmbuild/SOURCES/fdw ;\
+	fi;\
 	cp -a cli/build/stage/pxf/* build/rpmbuild/SOURCES ;\
 	cp -a server/build/stage/pxf/* build/rpmbuild/SOURCES ;\
 	echo $$(git rev-parse --verify HEAD) > build/rpmbuild/SOURCES/commit.sha ;\
@@ -109,14 +146,13 @@ rpm:
 	--define "pxf_release $${PXF_RELEASE}" \
 	--define "license ${LICENSE}" \
 	--define "vendor ${VENDOR}" \
-	-bb $${PWD}/build/rpmbuild/SPECS/pxf-gp$${GP_MAJOR_VERSION}.spec
+	-bb $${PWD}/build/rpmbuild/SPECS/pxf-gp$${GP_MAJORVERSION}.spec
 
 rpm-tar: rpm
 	rm -rf build/{stagerpm,distrpm}
 	mkdir -p build/{stagerpm,distrpm}
 	set -e ;\
-	GP_MAJOR_VERSION=$$(cat $(SOURCE_EXTENSION_DIR)/build/metadata/gp_major_version) ;\
-	PXF_RPM_FILE=$$(find build/rpmbuild/RPMS -name pxf-gp$${GP_MAJOR_VERSION}-*.rpm) ;\
+	PXF_RPM_FILE=$$(find build/rpmbuild/RPMS -name pxf-gp$${GP_MAJORVERSION}-*.rpm) ;\
 	PXF_RPM_BASE_NAME=$$(basename $${PXF_RPM_FILE%*.rpm}) ;\
 	PXF_PACKAGE_NAME=$${PXF_RPM_BASE_NAME%.*} ;\
 	mkdir -p build/stagerpm/$${PXF_PACKAGE_NAME} ;\
@@ -125,31 +161,38 @@ rpm-tar: rpm
 	tar -czf build/distrpm/$${PXF_PACKAGE_NAME}.tar.gz -C build/stagerpm $${PXF_PACKAGE_NAME}
 
 deb:
-	make -C $(SOURCE_EXTENSION_DIR) stage
+	make -C external-table stage
+ifeq ($(SKIP_FDW_PACKAGE_REASON),)
+	make -C fdw stage
+else
+	@echo "Skipping packaging FDW extension because $(SKIP_FDW_PACKAGE_REASON)"
+endif
 	make -C cli/go/src/pxf-cli stage
 	make -C server stage
 	set -e ;\
-	GP_MAJOR_VERSION=$$(cat $(SOURCE_EXTENSION_DIR)/build/metadata/gp_major_version) ;\
 	PXF_MAIN_VERSION=$${PXF_VERSION//-SNAPSHOT/} ;\
 	if [[ $${PXF_VERSION} == *"-SNAPSHOT" ]]; then PXF_RELEASE=SNAPSHOT; else PXF_RELEASE=1; fi ;\
 	rm -rf build/debbuild ;\
-	mkdir -p build/debbuild/usr/local/pxf-gp$${GP_MAJOR_VERSION}/$(TARGET_EXTENSION_DIR) ;\
-	cp -a $(SOURCE_EXTENSION_DIR)/build/stage/* build/debbuild/usr/local/pxf-gp$${GP_MAJOR_VERSION}/$(TARGET_EXTENSION_DIR) ;\
-	cp -a cli/build/stage/pxf/* build/debbuild/usr/local/pxf-gp$${GP_MAJOR_VERSION} ;\
-	cp -a server/build/stage/pxf/* build/debbuild/usr/local/pxf-gp$${GP_MAJOR_VERSION} ;\
-	echo $$(git rev-parse --verify HEAD) > build/debbuild/usr/local/pxf-gp$${GP_MAJOR_VERSION}/commit.sha ;\
+	mkdir -p build/debbuild/usr/local/pxf-gp$${GP_MAJORVERSION}/gpextable ;\
+	cp -a external-table/build/stage/* build/debbuild/usr/local/pxf-gp$${GP_MAJORVERSION}/gpextable ;\
+	if [[ -z $${SKIP_FDW_PACKAGE_REASON} ]]; then \
+	mkdir -p build/debbuild/usr/local/pxf-gp$${GP_MAJORVERSION}/fdw ;\
+	cp -a fdw/build/stage/* build/debbuild/usr/local/pxf-gp$${GP_MAJORVERSION}/fdw ;\
+	fi;\
+	cp -a cli/build/stage/pxf/* build/debbuild/usr/local/pxf-gp$${GP_MAJORVERSION} ;\
+	cp -a server/build/stage/pxf/* build/debbuild/usr/local/pxf-gp$${GP_MAJORVERSION} ;\
+	echo $$(git rev-parse --verify HEAD) > build/debbuild/usr/local/pxf-gp$${GP_MAJORVERSION}/commit.sha ;\
 	mkdir build/debbuild/DEBIAN ;\
 	cp -a package/DEBIAN/* build/debbuild/DEBIAN/ ;\
 	sed -i -e "s/%VERSION%/$${PXF_MAIN_VERSION}-$${PXF_RELEASE}/" -e "s/%MAINTAINER%/${VENDOR}/" build/debbuild/DEBIAN/control ;\
 	dpkg-deb --build build/debbuild ;\
-	mv build/debbuild.deb build/pxf-gp$${GP_MAJOR_VERSION}-$${PXF_MAIN_VERSION}-$${PXF_RELEASE}-ubuntu18.04-amd64.deb
+	mv build/debbuild.deb build/pxf-gp$${GP_MAJORVERSION}-$${PXF_MAIN_VERSION}-$${PXF_RELEASE}-ubuntu18.04-amd64.deb
 
 deb-tar: deb
 	rm -rf build/{stagedeb,distdeb}
 	mkdir -p build/{stagedeb,distdeb}
 	set -e ;\
-	GP_MAJOR_VERSION=$$(cat $(SOURCE_EXTENSION_DIR)/build/metadata/gp_major_version) ;\
-	PXF_DEB_FILE=$$(find build/ -name pxf-gp$${GP_MAJOR_VERSION}*.deb) ;\
+	PXF_DEB_FILE=$$(find build/ -name pxf-gp$${GP_MAJORVERSION}*.deb) ;\
 	PXF_PACKAGE_NAME=$$(dpkg-deb --field $${PXF_DEB_FILE} Package)-$$(dpkg-deb --field $${PXF_DEB_FILE} Version)-ubuntu18.04 ;\
 	mkdir -p build/stagedeb/$${PXF_PACKAGE_NAME} ;\
 	cp $${PXF_DEB_FILE} build/stagedeb/$${PXF_PACKAGE_NAME} ;\
@@ -160,7 +203,8 @@ deb-tar: deb
 help:
 	@echo
 	@echo 'Possible targets'
-	@echo	'  - all (external-table, cli, server)'
+	@echo	'  - all (extensions, cli, server)'
+	@echo	'  - extensions - build external table, fdw extensions'
 	@echo	'  - external-table - build Greenplum external table extension'
 	@echo	'  - fdw - build PXF Foreign-Data Wrapper Greenplum extension'
 	@echo	'  - cli - install Go CLI dependencies and build Go CLI'

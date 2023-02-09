@@ -23,11 +23,7 @@ normalize_key_name(const char *key)
 				 errmsg("internal error in pxfutils.c:normalize_key_name. Parameter key is null or empty.")));
 	}
 
-#if PG_VERSION_NUM >= 90400
 	return psprintf("X-GP-OPTIONS-%s", asc_toupper(pstrdup(key), strlen(key)));
-#else
-	return psprintf("X-GP-OPTIONS-%s", str_toupper(pstrdup(key), strlen(key)));
-#endif
 }
 
 /*

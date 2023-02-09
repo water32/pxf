@@ -560,6 +560,9 @@ jobs:
       - get: gpdb_package
         resource: gpdb[[gp_ver]]_rhel8_rpm_latest-0
         passed: [Build PXF-GP[[gp_ver]] on RHEL8]
+{% if gp_ver == 7 %}
+      - get: gp6-python-libs
+{% endif %}
       - get: gpdb[[gp_ver]]-pxf-dev-rhel8-image
         passed: [Build PXF-GP[[gp_ver]] on RHEL8]
       - get: pxf-automation-dependencies
