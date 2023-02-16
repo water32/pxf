@@ -1,6 +1,6 @@
 include ../common.mk
 
-.PHONY: all build stage install test clean help
+.PHONY: all build stage install test clean clean-all help
 .DEFAULT_GOAL := build
 
 MODULE_NAME    := $(shell go list -m)
@@ -21,7 +21,7 @@ help:
 	@echo	"  - all (build, test, stage, install)"
 	@echo	"  - build - build pxf-cli binary"
 	@echo	"  - test - runs tests for pxf-cli binary"
-	@echo	"  - stage - install pxf-cli binary into build/stage/pxf/bin directory"
+	@echo	"  - stage - install pxf-cli binary into build/stage/bin directory"
 	@echo	"  - install - install pxf-cli binary into $PXF_HOME/bin/"
 	@echo	"  - clean - remove pxf-cli binary"
 
@@ -29,14 +29,14 @@ all: test stage install
 
 build:
 	@if [ -d ${HOME}/.go-mod-cached-sources ] && [ ! -d $(GOMODCACHE) ]; then \
-		mkdir -p $(GO_MOD_CACHE); \
+		mkdir -p $(GOMODCACHE); \
 		ln -s ${HOME}/.go-mod-cached-sources $(GOMODCACHE); \
 	fi
 	go build -v $(LDFLAGS) -o build/$(TARGET) $(MODULE_NAME)
 
 stage: test
-	mkdir -p $(PXF_CLI_DIR)/build/stage/pxf/bin
-	cp build/$(TARGET) build/stage/pxf/bin
+	mkdir -p $(PXF_CLI_DIR)/build/stage/bin
+	cp build/$(TARGET) build/stage/bin
 
 install: build
 	@if [ -z "$(PXF_HOME)" ]; then \
@@ -56,3 +56,5 @@ install-tools:
 clean:
 	rm -rf $(PXF_CLI_DIR)/build
 	go clean -i
+
+clean-all: clean
