@@ -197,7 +197,11 @@ resources:
   type: registry-image
   icon: docker
   source:
+{% if gp_ver == 6 %}
     repository: gcr.io/data-gpdb-ud/gpdb-pxf-dev/gpdb[[gp_ver]]-rhel8-test-pxf
+{% else %}
+    repository: gcr.io/data-gpdb-ud/gpdb-pxf-dev/gpdb[[gp_ver]]-rocky8-test-pxf
+{% endif %}
     tag: latest
     username: _json_key
     password: ((ud/pxf/secrets/pxf-cloudbuild-service-account-key))
@@ -290,14 +294,14 @@ resources:
     regexp: server/published/gpdb6/greenplum-db-(6.*)-rhel8-x86_64.rpm
 {% set gp_ver = None %}
 
-## ---------- Greenplum 7 Alpha Builds ----------
+## ---------- Greenplum 7 Beta Builds ----------
 - name: gpdb7_rhel8_rpm_latest-0
   type: gcs
   icon: google-drive
   source:
     bucket: ((ud/pxf/common/gpdb-concourse-resources-prod-bucket-name))
     json_key: ((concourse-gcs-resources-service-account-key))
-    regexp: server/published/master/greenplum-db-(7.*)-rhel8-x86_64.rpm
+    regexp: server/published/main/greenplum-db-(7.*)-rocky8-x86_64.rpm
 
 ## ---------- PXF 5 Artifact ---------------
 {% if multinode %}
@@ -522,7 +526,7 @@ jobs:
 {% endif %}
 {% set gp_ver = None %}
 
-## ---------- RHEL 8 Swimlane ----------
+## ---------- RHEL 8 Swimlane (uses Rocky 8 images) ----------
 {% for gp_ver in range(6, 8) %}
 - name: Build PXF-GP[[gp_ver]] on RHEL8
   plan:
@@ -560,12 +564,12 @@ jobs:
       - get: gpdb_package
         resource: gpdb[[gp_ver]]_rhel8_rpm_latest-0
         passed: [Build PXF-GP[[gp_ver]] on RHEL8]
-{% if gp_ver == 7 %}
-      - get: gp6-python-libs
-{% endif %}
       - get: gpdb[[gp_ver]]-pxf-dev-rhel8-image
         passed: [Build PXF-GP[[gp_ver]] on RHEL8]
       - get: pxf-automation-dependencies
+{% if gp_ver == 7 %}
+      - get: gp6-python-libs
+{% endif %}
       - get: singlecluster
         resource: singlecluster-hdp2
   - task: Test PXF-GP[[gp_ver]]-HDP2 on RHEL8
@@ -574,13 +578,7 @@ jobs:
     params:
       ACCESS_KEY_ID: ((tf-machine-access-key-id))
       GP_VER: [[gp_ver]]
-{% if gp_ver == 7 %}
-      GROUP: fdw_gpdb_schedule
-      HADOOP_JAVA_HOME: /usr/lib/jvm/jre-1.8.0-openjdk
-      PG_REGRESS: true
-{% else %}
       GROUP: gpdb,proxy,profile
-{% endif %}
       SECRET_ACCESS_KEY: ((tf-machine-secret-access-key))
 {% endfor %}
 {% set gp_ver = None %}
