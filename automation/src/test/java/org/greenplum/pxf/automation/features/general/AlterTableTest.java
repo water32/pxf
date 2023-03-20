@@ -1,5 +1,7 @@
 package org.greenplum.pxf.automation.features.general;
 
+import annotations.FailsWithFDW;
+import annotations.WorksWithFDW;
 import org.greenplum.pxf.automation.features.BaseFeature;
 import org.greenplum.pxf.automation.structures.tables.basic.Table;
 import org.greenplum.pxf.automation.structures.tables.pxf.ReadableExternalTable;
@@ -8,6 +10,7 @@ import org.greenplum.pxf.automation.structures.tables.utils.TableFactory;
 import org.greenplum.pxf.automation.utils.system.ProtocolUtils;
 import org.testng.annotations.Test;
 
+@WorksWithFDW
 public class AlterTableTest extends BaseFeature {
 
     private static final String AVRO_TYPES_FILE_NAME = "supported_primitive_types";
@@ -165,6 +168,7 @@ public class AlterTableTest extends BaseFeature {
      *
      * @throws Exception when the test execution fails
      */
+    @FailsWithFDW
     @Test(groups = {"features", "gpdb", "security"})
     public void dropAndAddColumsCsv() throws Exception {
 

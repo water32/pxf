@@ -1,5 +1,6 @@
 package org.greenplum.pxf.automation.features.hbase;
 
+import annotations.FailsWithFDW;
 import org.greenplum.pxf.automation.components.hbase.HBase;
 import org.greenplum.pxf.automation.structures.tables.hbase.HBaseTable;
 import org.greenplum.pxf.automation.structures.tables.hbase.LookupTable;
@@ -20,6 +21,7 @@ import java.io.File;
 /**
  * Functional cases for PXF HBase connector
  */
+@FailsWithFDW
 public class HBaseTest extends BaseFeature {
 
     // Components that are used in different cases

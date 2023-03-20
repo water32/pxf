@@ -1,5 +1,6 @@
 package org.greenplum.pxf.automation.features.hcfs;
 
+import annotations.WorksWithFDW;
 import org.greenplum.pxf.automation.features.BaseFeature;
 import org.greenplum.pxf.automation.structures.tables.pxf.ReadableExternalTable;
 import org.greenplum.pxf.automation.utils.system.ProtocolEnum;
@@ -9,6 +10,7 @@ import org.testng.annotations.Test;
 /**
  * Functional File as Row Test
  */
+@WorksWithFDW
 public class FileAsRowTest extends BaseFeature {
 
     private static final String emptyTextFile = "empty";

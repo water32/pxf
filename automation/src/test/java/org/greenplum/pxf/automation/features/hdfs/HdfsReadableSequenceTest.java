@@ -1,5 +1,6 @@
 package org.greenplum.pxf.automation.features.hdfs;
 
+import annotations.FailsWithFDW;
 import org.greenplum.pxf.automation.components.cluster.PhdCluster;
 import org.greenplum.pxf.automation.datapreparer.CustomSequencePreparer;
 import org.greenplum.pxf.automation.features.BaseFeature;
@@ -15,6 +16,7 @@ import java.io.File;
 /**
  * Collection of Test cases for PXF ability to read SequenceFile.
  */
+@FailsWithFDW
 public class HdfsReadableSequenceTest extends BaseFeature {
 
     private String hdfsPath;

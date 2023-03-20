@@ -1,5 +1,7 @@
 package org.greenplum.pxf.automation.features.hdfs;
 
+import annotations.FailsWithFDW;
+import annotations.WorksWithFDW;
 import org.greenplum.pxf.automation.components.cluster.PhdCluster;
 import org.greenplum.pxf.automation.datapreparer.CustomSequencePreparer;
 import org.greenplum.pxf.automation.datapreparer.CustomTextPreparer;
@@ -44,6 +46,7 @@ import java.sql.SQLWarning;
  * <li>performance 10TB.</li>
  * </ul>
  */
+@FailsWithFDW
 public class HdfsAnalyzeTest extends BaseFeature {
 
     private String resourcePath;

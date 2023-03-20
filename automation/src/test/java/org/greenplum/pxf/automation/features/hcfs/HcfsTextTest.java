@@ -1,6 +1,7 @@
 package org.greenplum.pxf.automation.features.hcfs;
 
 
+import annotations.WorksWithFDW;
 import org.greenplum.pxf.automation.features.BaseFeature;
 import org.greenplum.pxf.automation.structures.tables.pxf.ReadableExternalTable;
 import org.greenplum.pxf.automation.utils.system.ProtocolEnum;
@@ -10,6 +11,7 @@ import org.testng.annotations.Test;
 /**
  * Functional Text Files Test in HCFS
  */
+@WorksWithFDW
 public class HcfsTextTest extends BaseFeature {
 
     private static final String[] PXF_SINGLE_COL = {"text_blob text"};

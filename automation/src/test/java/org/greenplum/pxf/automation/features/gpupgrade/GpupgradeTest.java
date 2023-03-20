@@ -1,5 +1,6 @@
 package org.greenplum.pxf.automation.features.gpupgrade;
 
+import annotations.SkipForFDW;
 import org.greenplum.pxf.automation.BaseFunctionality;
 import org.greenplum.pxf.automation.structures.tables.basic.Table;
 import org.greenplum.pxf.automation.structures.tables.pxf.ReadableExternalTable;
@@ -7,6 +8,7 @@ import org.greenplum.pxf.automation.structures.tables.utils.TableFactory;
 import org.testng.SkipException;
 import org.testng.annotations.Test;
 
+@SkipForFDW
 public class GpupgradeTest extends BaseFunctionality {
 
     public static final String[] FIELDS = {

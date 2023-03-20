@@ -1,5 +1,6 @@
 package org.greenplum.pxf.automation.features.general;
 
+import annotations.FailsWithFDW;
 import org.greenplum.pxf.automation.features.BaseFeature;
 import org.greenplum.pxf.automation.components.cluster.PhdCluster;
 import org.greenplum.pxf.automation.structures.tables.basic.Table;
@@ -12,6 +13,7 @@ import org.greenplum.pxf.automation.utils.tables.ComparisonUtils;
 
 import java.io.File;
 
+@FailsWithFDW
 public class PluginTest extends BaseFeature {
 
     private String resourcePath;

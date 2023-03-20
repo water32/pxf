@@ -1,5 +1,7 @@
 package org.greenplum.pxf.automation.features.hcfs;
 
+import annotations.FailsWithFDW;
+import annotations.WorksWithFDW;
 import org.greenplum.pxf.automation.features.BaseFeature;
 import org.greenplum.pxf.automation.structures.tables.basic.Table;
 import org.greenplum.pxf.automation.structures.tables.utils.TableFactory;
@@ -11,6 +13,7 @@ import org.testng.annotations.Test;
  * Functional Globbing Tests. Tests are based on Hadoop Glob Tests
  * https://github.com/apache/hadoop/blob/rel/release-3.2.1/hadoop-hdfs-project/hadoop-hdfs/src/test/java/org/apache/hadoop/fs/TestGlobPaths.java
  */
+@WorksWithFDW
 public class HcfsGlobbingTest extends BaseFeature {
 
     public static final String[] FIELDS = {
@@ -56,12 +59,14 @@ public class HcfsGlobbingTest extends BaseFeature {
         runTestScenario("match_single_character_set_exclusion");
     }
 
+    @FailsWithFDW
     @Test(groups = {"gpdb", "hcfs", "security"})
     public void testEscapeSpecialCharacters() throws Exception {
         prepareTestScenario("escape_special_characters", "ab[c.d", null, null, null, "ab\\\\[c.d");
         runTestScenario("escape_special_characters");
     }
 
+    @FailsWithFDW
     @Test(groups = {"gpdb", "hcfs", "security"})
     public void testMatchAStringFromStringSet() throws Exception {
         prepareTestScenario("match_string_from_string_set_1", "a.abcxx", "a.abxy", "a.hlp", "a.jhyy", "a.{abc,jh}??");
