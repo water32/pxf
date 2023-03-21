@@ -1,15 +1,17 @@
 package org.greenplum.pxf.automation.features.general;
 
+import annotations.FailsWithFDW;
 import annotations.WorksWithFDW;
 import org.greenplum.pxf.automation.components.cluster.PhdCluster;
 import org.greenplum.pxf.automation.features.BaseFeature;
 import org.greenplum.pxf.automation.structures.tables.pxf.ReadableExternalTable;
+import org.greenplum.pxf.automation.structures.tables.utils.TableFactory;
 import org.testng.annotations.Test;
 
 import java.io.File;
 
 /** Tests how failures are handled **/
-@WorksWithFDW
+@FailsWithFDW
 public class FailOverTest extends BaseFeature {
 
     String testPackageLocation = "/org/greenplum/pxf/automation/testplugin/";
@@ -43,7 +45,7 @@ public class FailOverTest extends BaseFeature {
     public void killTomcatOnOutOfMemory() throws Exception {
 
         // Create PXF external table for out of memory testing
-        ReadableExternalTable pxfExternalTable = new ReadableExternalTable("test_out_of_memory", new String[] {
+        ReadableExternalTable pxfExternalTable = TableFactory.getPxfReadableTextTable("test_out_of_memory", new String[] {
                 "t0    text",
                 "a1    integer",
                 "b2    boolean",

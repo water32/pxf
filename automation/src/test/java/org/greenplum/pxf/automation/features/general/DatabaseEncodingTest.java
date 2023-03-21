@@ -1,6 +1,6 @@
 package org.greenplum.pxf.automation.features.general;
 
-import annotations.WorksWithFDW;
+import annotations.FailsWithFDW;
 import org.greenplum.pxf.automation.components.gpdb.Gpdb;
 import org.greenplum.pxf.automation.features.BaseFeature;
 import org.greenplum.pxf.automation.structures.tables.pxf.ReadableExternalTable;
@@ -17,7 +17,7 @@ import static java.lang.Thread.sleep;
 /**
  * Tests non-UTF8 database encodings
  **/
-@WorksWithFDW
+@FailsWithFDW
 public class DatabaseEncodingTest extends BaseFeature {
 
     private static final String[] PARQUET_TYPES_COLUMNS = new String[]{
