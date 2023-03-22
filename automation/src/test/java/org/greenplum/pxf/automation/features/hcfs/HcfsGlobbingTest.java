@@ -1,10 +1,10 @@
 package org.greenplum.pxf.automation.features.hcfs;
 
-import annotations.FailsWithFDW;
 import annotations.WorksWithFDW;
 import org.greenplum.pxf.automation.features.BaseFeature;
 import org.greenplum.pxf.automation.structures.tables.basic.Table;
 import org.greenplum.pxf.automation.structures.tables.utils.TableFactory;
+import org.greenplum.pxf.automation.utils.system.FDWUtils;
 import org.greenplum.pxf.automation.utils.system.ProtocolEnum;
 import org.greenplum.pxf.automation.utils.system.ProtocolUtils;
 import org.testng.annotations.Test;
@@ -59,14 +59,14 @@ public class HcfsGlobbingTest extends BaseFeature {
         runTestScenario("match_single_character_set_exclusion");
     }
 
-    @FailsWithFDW
     @Test(groups = {"gpdb", "hcfs", "security"})
     public void testEscapeSpecialCharacters() throws Exception {
-        prepareTestScenario("escape_special_characters", "ab[c.d", null, null, null, "ab\\\\[c.d");
+        //FDW also adds an escape backslash from its side. If we are passing }\{bc, it will be }\\{bc in FDW. However, in external table it runs as expected.
+        String escapeGlob = FDWUtils.useFDW ? "ab\\[c.d" : "ab\\\\[c.d";
+        prepareTestScenario("escape_special_characters", "ab[c.d", null, null, null, escapeGlob);
         runTestScenario("escape_special_characters");
     }
 
-    @FailsWithFDW
     @Test(groups = {"gpdb", "hcfs", "security"})
     public void testMatchAStringFromStringSet() throws Exception {
         prepareTestScenario("match_string_from_string_set_1", "a.abcxx", "a.abxy", "a.hlp", "a.jhyy", "a.{abc,jh}??");
@@ -90,8 +90,11 @@ public class HcfsGlobbingTest extends BaseFeature {
         prepareTestScenario("match_string_from_string_set_4", "match_string_from_string_set_10", null, null, null, null, "}{ac,?}");
         // test ill-formed curly
         prepareTestScenario("match_string_from_string_set_4", "match_string_from_string_set_11", null, null, null, null, "}{bc");
+
+        //FDW also adds an escape backslash from its side. If we are passing }\{bc, it will be }\\{bc in FDW. However, in external table it runs as expected.
+        String escapeGlob = FDWUtils.useFDW ? "}\\{bc" : "}\\\\{bc";
         // test escape curly
-        prepareTestScenario("match_string_from_string_set_12", "}{bc", "}bc", null, null, "}\\\\{bc");
+        prepareTestScenario("match_string_from_string_set_12", "}{bc", "}bc", null, null, escapeGlob);
         runTestScenario("match_string_from_string_set");
     }
 

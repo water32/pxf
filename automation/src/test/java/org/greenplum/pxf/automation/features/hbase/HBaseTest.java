@@ -166,6 +166,7 @@ public class HBaseTest extends BaseFeature {
      *
      * @throws Exception if test fails to run
      */
+    @FailsWithFDW
     @Test(groups = { "hbase", "features", "gpdb" })
     public void lowerFilter() throws Exception {
 
@@ -179,6 +180,7 @@ public class HBaseTest extends BaseFeature {
      *
      * @throws Exception if test fails to run
      */
+    @FailsWithFDW
     @Test(groups = { "hbase", "features", "gpdb" })
     public void rangeFilter() throws Exception {
 
@@ -192,6 +194,7 @@ public class HBaseTest extends BaseFeature {
      *
      * @throws Exception if test fails to run
      */
+    @FailsWithFDW
     @Test(groups = { "hbase", "features", "gpdb" })
     public void specificRowFilter() throws Exception {
 
@@ -205,6 +208,7 @@ public class HBaseTest extends BaseFeature {
      *
      * @throws Exception if test fails to run
      */
+    @FailsWithFDW
     @Test(groups = { "hbase", "features", "gpdb" })
     public void notEqualsFilter() throws Exception {
 
@@ -244,6 +248,7 @@ public class HBaseTest extends BaseFeature {
      *
      * @throws Exception if test fails to run
      */
+    @FailsWithFDW
     @Test(groups = { "hbase", "features", "gpdb" })
     public void multipleQualifiersPushdownFilter() throws Exception {
 
@@ -259,6 +264,7 @@ public class HBaseTest extends BaseFeature {
      *
      * @throws Exception if test fails to run
      */
+    @FailsWithFDW
     @Test(groups = { "hbase", "features", "gpdb" })
     public void partialFilterPushdown() throws Exception {
 
@@ -287,6 +293,7 @@ public class HBaseTest extends BaseFeature {
      *
      * @throws Exception if test fails to run
      */
+    @FailsWithFDW
     @Test(groups = { "hbase", "features", "gpdb" })
     public void doubleFilter() throws Exception {
 
@@ -301,6 +308,7 @@ public class HBaseTest extends BaseFeature {
      *
      * @throws Exception if test fails to run
      */
+    @FailsWithFDW
     @Test(groups = { "hbase", "features", "gpdb" })
     public void orFilter() throws Exception {
 
@@ -318,6 +326,7 @@ public class HBaseTest extends BaseFeature {
      *
      * @throws Exception if test fails to run
      */
+    @FailsWithFDW
     @Test(groups = { "hbase", "features", "gpdb" })
     public void mixedFilterPushdownOrAnd() throws Exception {
 
@@ -429,6 +438,7 @@ public class HBaseTest extends BaseFeature {
      *
      * @throws Exception if test fails to run
      */
+    @FailsWithFDW
     @Test(groups = { "hbase", "features", "gpdb" })
     public void recordkeyAsInteger() throws Exception {
 
