@@ -155,6 +155,7 @@ public class HBaseTest extends BaseFeature {
      *
      * @throws Exception if test fails to run
      */
+    @FailsWithFDW
     @Test(groups = { "hbase", "features", "sanity", "gpdb" })
     public void sanity() throws Exception {
 
@@ -222,6 +223,7 @@ public class HBaseTest extends BaseFeature {
      *
      * @throws Exception if test fails to run
      */
+    @FailsWithFDW
     @Test(groups = { "hbase", "features", "gpdb" })
     public void rowkeyEqualsFilter() throws Exception {
 
@@ -235,6 +237,7 @@ public class HBaseTest extends BaseFeature {
      *
      * @throws Exception if test fails to run
      */
+    @FailsWithFDW
     @Test(groups = { "hbase", "features", "gpdb" })
     public void rowkeyRangeFilter() throws Exception {
 
@@ -280,6 +283,7 @@ public class HBaseTest extends BaseFeature {
      *
      * @throws Exception if test fails to run
      */
+    @FailsWithFDW
     @Test(groups = { "hbase", "features", "gpdb" })
     public void textFilter() throws Exception {
 
