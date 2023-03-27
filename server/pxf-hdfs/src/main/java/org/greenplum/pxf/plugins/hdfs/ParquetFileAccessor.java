@@ -323,11 +323,11 @@ public class ParquetFileAccessor extends BasePlugin implements Accessor {
             TRAVERSER.traverse(root, IN_OPERATOR_TRANSFORMER, pruner, bpCharTransformer, filterBuilder);
             return filterBuilder.getRecordFilter();
         } catch (Exception e) {
-            LOG.error(String.format("%s-%d: %s--%s Unable to generate Parquet Record Filter for filter",
+            LOG.error("{}-{}: {}--{} Unable to generate Parquet Record Filter for filter",
                     context.getTransactionId(),
                     context.getSegmentId(),
                     context.getDataSource(),
-                    context.getFilterString()), e);
+                    context.getFilterString(), e);
             return FilterCompat.NOOP;
         }
     }
@@ -448,7 +448,7 @@ public class ParquetFileAccessor extends BasePlugin implements Accessor {
      */
     private void validateParsedSchema(MessageType schema, List<ColumnDescriptor> columns) {
         if (schema.getFieldCount() != columns.size()) {
-            LOG.warn(String.format("Schema field count %s doesn't match column count %s", schema.getFieldCount(), columns.size()));
+            LOG.warn("Schema field count {} doesn't match column count {}", schema.getFieldCount(), columns.size());
         }
 
         for (Type type : schema.getFields()) {
@@ -552,6 +552,14 @@ public class ParquetFileAccessor extends BasePlugin implements Accessor {
                     precision = columnTypeModifiers[0];
                     scale = columnTypeModifiers[1];
                 }
+
+                // precision is defined but precision >  HiveDecimal.MAX_PRECISION i.e., 38
+                // this error will be thrown no matter what decimal overflow option is
+                if (precision > HiveDecimal.MAX_PRECISION) {
+                    throw new UnsupportedTypeException(String.format("Column %s is defined as NUMERIC with precision %d " +
+                            "which exceeds maximum supported precision %d.", columnName, precision, HiveDecimal.MAX_PRECISION));
+                }
+
                 primitiveTypeName = PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY;
                 logicalTypeAnnotation = DecimalLogicalTypeAnnotation.decimalType(scale, precision);
                 length = PRECISION_TO_BYTE_COUNT[precision - 1];
