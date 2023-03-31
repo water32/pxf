@@ -1,5 +1,7 @@
 package org.greenplum.pxf.automation.features.hive;
 
+import annotations.FailsWithFDW;
+import annotations.WorksWithFDW;
 import org.greenplum.pxf.automation.structures.tables.basic.Table;
 import org.greenplum.pxf.automation.structures.tables.hive.HiveExternalTable;
 import org.greenplum.pxf.automation.structures.tables.hive.HiveTable;
@@ -14,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+@WorksWithFDW
 public class HiveTextTest extends HiveBaseTest {
 
     private HiveExternalTable hiveHeteroTable;
@@ -114,6 +117,7 @@ public class HiveTextTest extends HiveBaseTest {
      *
      * @throws Exception if test fails to run
      */
+    @FailsWithFDW
     @Test(groups = {"hive", "features", "gpdb", "security"})
     public void mismatchedTypes() throws Exception {
 
@@ -170,6 +174,7 @@ public class HiveTextTest extends HiveBaseTest {
      *
      * @throws Exception if test fails to run
      */
+    @FailsWithFDW
     @Test(groups = {"hive", "features", "gpdb", "security"})
     public void hiveTextTable() throws Exception {
 
@@ -199,6 +204,7 @@ public class HiveTextTest extends HiveBaseTest {
      *
      * @throws Exception if test fails to run
      */
+    @FailsWithFDW
     @Test(groups = {"hive", "features", "gpdb", "security"})
     public void severalTextPartitions() throws Exception {
 
@@ -250,6 +256,7 @@ public class HiveTextTest extends HiveBaseTest {
      *
      * @throws Exception if test fails to run
      */
+    @FailsWithFDW
     @Test(groups = {"hive", "features", "gpdb", "security"})
     public void partitionFilterPushDown() throws Exception {
 
@@ -365,6 +372,7 @@ public class HiveTextTest extends HiveBaseTest {
      *
      * @throws Exception if test fails to run
      */
+    @FailsWithFDW
     @Test(groups = {"hive", "features", "gpdb", "security"})
     public void filterNonePartitions() throws Exception {
 
@@ -389,6 +397,7 @@ public class HiveTextTest extends HiveBaseTest {
      *
      * @throws Exception if test fails to run
      */
+    @FailsWithFDW
     @Test(groups = {"hive", "features", "gpdb", "security"})
     public void filterBetweenPartitions() throws Exception {
 
@@ -443,6 +452,7 @@ public class HiveTextTest extends HiveBaseTest {
      *
      * @throws Exception if test fails to run
      */
+    @FailsWithFDW
     @Test(groups = {"hive", "hcatalog", "features", "gpdb", "security"})
     public void aggregateQueries() throws Exception {
 
@@ -465,6 +475,7 @@ public class HiveTextTest extends HiveBaseTest {
      *
      * @throws Exception if test fails to run
      */
+    @FailsWithFDW
     @Test(groups = {"hive", "features", "gpdb", "security"})
     public void hiveTableWithSkipHeader() throws Exception {
         List<List<String>> tableProperties = new ArrayList<>();
