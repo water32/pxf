@@ -3,6 +3,7 @@ package org.greenplum.pxf.automation.structures.tables.utils;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.lang.StringUtils;
 import org.greenplum.pxf.automation.enums.EnumPartitionType;
 
 import org.greenplum.pxf.automation.enums.EnumPxfDefaultProfiles;
@@ -653,6 +654,33 @@ public abstract class TableFactory {
     public static ExternalTable getPxfJdbcWritableTable(String name, String[] fields, String dataSourcePath, String server) {
         String customParameter = server != null ? "SERVER=" + server : null;
         return getPxfJdbcWritableTable(name, fields, dataSourcePath, null, null, null, customParameter);
+    }
+
+    /**
+     * Generate a PXF External Writable or Foreign Table using Json profile.
+     *
+     * @param name name of the external table which will be generated
+     * @param fields fields of the external table
+     * @param path for external table path
+     * @param format for the external table
+     * @param profile for the external table
+     * @return PXF Writable External or Foreign table
+     */
+    public static ReadableExternalTable getPxfJsoneReadableTable(String name,
+                                                                String[] fields,
+                                                                String path,
+                                                                String format,
+                                                                 String profile) {
+
+        ReadableExternalTable exTable = getReadableExternalOrForeignTable(name,
+                fields, path, format);
+
+        if (StringUtils.equals(format, "custom")) {
+            exTable.setFormatter("pxfwritable_import");
+        }
+        exTable.setProfile(profile);
+
+        return exTable;
     }
 
     // ============ FDW Adapter ============
