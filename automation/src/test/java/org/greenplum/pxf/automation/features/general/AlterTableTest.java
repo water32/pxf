@@ -1,13 +1,14 @@
 package org.greenplum.pxf.automation.features.general;
 
+import annotations.FailsWithFDW;
+import annotations.WorksWithFDW;
 import org.greenplum.pxf.automation.features.BaseFeature;
 import org.greenplum.pxf.automation.structures.tables.basic.Table;
-import org.greenplum.pxf.automation.structures.tables.pxf.ReadableExternalTable;
-import org.greenplum.pxf.automation.structures.tables.pxf.WritableExternalTable;
 import org.greenplum.pxf.automation.structures.tables.utils.TableFactory;
 import org.greenplum.pxf.automation.utils.system.ProtocolUtils;
 import org.testng.annotations.Test;
 
+@WorksWithFDW
 public class AlterTableTest extends BaseFeature {
 
     private static final String AVRO_TYPES_FILE_NAME = "supported_primitive_types";
@@ -89,11 +90,12 @@ public class AlterTableTest extends BaseFeature {
     @Test(groups = {"features", "gpdb", "security"})
     public void dropAndAddColumnsPxfWritableImportWithColumnProjectionSupport() throws Exception {
 
-        exTable = new ReadableExternalTable(PXF_ALTER_PARQUET_TABLE,
-                PARQUET_TABLE_COLUMNS, hdfsPath + "/parquet/" + PARQUET_PRIMITIVE_TYPES, "custom");
+        exTable = TableFactory.getPxfReadableTextTable(PXF_ALTER_PARQUET_TABLE,
+                PARQUET_TABLE_COLUMNS, hdfsPath + "/parquet/" + PARQUET_PRIMITIVE_TYPES, null);
         exTable.setHost(pxfHost);
         exTable.setPort(pxfPort);
         exTable.setFormatter("pxfwritable_import");
+        exTable.setFormat("CUSTOM");
         exTable.setProfile(ProtocolUtils.getProtocol().value() + ":parquet");
 
         gpdb.createTableAndVerify(exTable);
@@ -101,34 +103,38 @@ public class AlterTableTest extends BaseFeature {
         runTincTest("pxf.features.general.alter.pxfwritable_import.with_column_projection.runTest");
     }
 
+    @FailsWithFDW
     @Test(groups = {"features", "gpdb", "security"})
     public void dropColumnsPxfWritableExport() throws Exception {
 
         // Create source table
-        exTable = new ReadableExternalTable(PXF_PARQUET_TABLE_SOURCE,
-                PARQUET_TABLE_COLUMNS, hdfsPath + "/parquet/" + PARQUET_PRIMITIVE_TYPES, "custom");
+        exTable = TableFactory.getPxfReadableTextTable(PXF_PARQUET_TABLE_SOURCE,
+                PARQUET_TABLE_COLUMNS, hdfsPath + "/parquet/" + PARQUET_PRIMITIVE_TYPES, null);
         exTable.setHost(pxfHost);
         exTable.setPort(pxfPort);
         exTable.setFormatter("pxfwritable_import");
         exTable.setProfile(ProtocolUtils.getProtocol().value() + ":parquet");
+        exTable.setFormat("CUSTOM");
         gpdb.createTableAndVerify(exTable);
 
         // Create writable table
-        exTable = new WritableExternalTable(PXF_ALTER_WRITE_PARQUET_TABLE,
-                PARQUET_TABLE_COLUMNS, hdfsPath + "/parquet-write/" + PARQUET_WRITE_PRIMITIVES, "custom");
+        exTable = TableFactory.getPxfWritableTextTable(PXF_ALTER_WRITE_PARQUET_TABLE,
+                PARQUET_TABLE_COLUMNS, hdfsPath + "/parquet-write/" + PARQUET_WRITE_PRIMITIVES, null);
         exTable.setHost(pxfHost);
         exTable.setPort(pxfPort);
         exTable.setFormatter("pxfwritable_export");
         exTable.setProfile(ProtocolUtils.getProtocol().value() + ":parquet");
+        exTable.setFormat("CUSTOM");
         gpdb.createTableAndVerify(exTable);
 
         // Create validation table
-        exTable = new ReadableExternalTable(PXF_ALTER_WRITE_PARQUET_TABLE + "_r",
-                PARQUET_TABLE_SUBSET_COLUMNS, hdfsPath + "/parquet-write/" + PARQUET_WRITE_PRIMITIVES, "custom");
+        exTable = TableFactory.getPxfReadableTextTable(PXF_ALTER_WRITE_PARQUET_TABLE + "_r",
+                PARQUET_TABLE_SUBSET_COLUMNS, hdfsPath + "/parquet-write/" + PARQUET_WRITE_PRIMITIVES, null);
         exTable.setHost(pxfHost);
         exTable.setPort(pxfPort);
         exTable.setFormatter("pxfwritable_import");
         exTable.setProfile(ProtocolUtils.getProtocol().value() + ":parquet");
+        exTable.setFormat("CUSTOM");
         gpdb.createTableAndVerify(exTable);
 
         runTincTest("pxf.features.general.alter.pxfwritable_export.parquet.runTest");
@@ -137,7 +143,7 @@ public class AlterTableTest extends BaseFeature {
     @Test(groups = {"features", "gpdb", "security"})
     public void dropAndAddColumnsPxfWritableImportWithoutColumnProjectionSupport() throws Exception {
         // default external table with common settings
-        exTable = new ReadableExternalTable(PXF_ALTER_AVRO_TABLE, new String[]{
+        exTable = TableFactory.getPxfReadableTextTable(PXF_ALTER_AVRO_TABLE, new String[]{
                 "type_int int",
                 "type_double float8",
                 "type_string text",
@@ -145,10 +151,11 @@ public class AlterTableTest extends BaseFeature {
                 "col_does_not_exist text",
                 "type_long bigint",
                 "type_bytes bytea",
-                "type_boolean bool"}, hdfsPath + "/avro/" + AVRO_TYPES_FILE_NAME + SUFFIX_AVRO, "custom");
+                "type_boolean bool"}, hdfsPath + "/avro/" + AVRO_TYPES_FILE_NAME + SUFFIX_AVRO, null);
         exTable.setHost(pxfHost);
         exTable.setPort(pxfPort);
         exTable.setFormatter("pxfwritable_import");
+        exTable.setFormat("CUSTOM");
         exTable.setProfile(ProtocolUtils.getProtocol().value() + ":avro");
 
         gpdb.createTableAndVerify(exTable);

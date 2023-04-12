@@ -172,6 +172,7 @@ static void
 AddTupleDescriptionToHttpHeader(CHURL_HEADERS headers, Relation rel)
 {
 	char		long_number[sizeof(int32) * 8];
+	int i, attrIx;
 	StringInfoData formatter;
 	TupleDesc	tuple;
 
@@ -180,29 +181,29 @@ AddTupleDescriptionToHttpHeader(CHURL_HEADERS headers, Relation rel)
 	/* Get tuple description itself */
 	tuple = RelationGetDescr(rel);
 
-	/* Convert the number of attributes to a string */
-	pg_ltoa(tuple->natts, long_number);
-	churl_headers_append(headers, "X-GP-ATTRS", long_number);
-
 	/* Iterate attributes */
-	for (int i = 0; i < tuple->natts; ++i)
+	for (i = 0, attrIx = 0; i < tuple->natts; ++i)
 	{
 		Form_pg_attribute attr = TupleDescAttr(tuple, i);
 
+		// Ignore dropped attributes
+        if(attr->attisdropped)
+            continue;
+
 		/* Add a key/value pair for attribute name */
 		resetStringInfo(&formatter);
-		appendStringInfo(&formatter, "X-GP-ATTR-NAME%u", i);
+		appendStringInfo(&formatter, "X-GP-ATTR-NAME%u", attrIx);
 		churl_headers_append(headers, formatter.data, attr->attname.data);
 
 		/* Add a key/value pair for attribute type */
 		resetStringInfo(&formatter);
-		appendStringInfo(&formatter, "X-GP-ATTR-TYPECODE%u", i);
+		appendStringInfo(&formatter, "X-GP-ATTR-TYPECODE%u", attrIx);
 		pg_ltoa(attr->atttypid, long_number);
 		churl_headers_append(headers, formatter.data, long_number);
 
 		/* Add a key/value pair for attribute type name */
 		resetStringInfo(&formatter);
-		appendStringInfo(&formatter, "X-GP-ATTR-TYPENAME%u", i);
+		appendStringInfo(&formatter, "X-GP-ATTR-TYPENAME%u", attrIx);
 		churl_headers_append(headers, formatter.data, TypeOidGetTypename(attr->atttypid));
 
 		/* Add attribute type modifiers if any */
@@ -213,20 +214,20 @@ AddTupleDescriptionToHttpHeader(CHURL_HEADERS headers, Relation rel)
 				case NUMERICOID:
 					{
 						resetStringInfo(&formatter);
-						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-COUNT", i);
+						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-COUNT", attrIx);
 						pg_ltoa(2, long_number);
 						churl_headers_append(headers, formatter.data, long_number);
 
 
 						/* precision */
 						resetStringInfo(&formatter);
-						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-%u", i, 0);
+						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-%u", attrIx, 0);
 						pg_ltoa((attr->atttypmod >> 16) & 0xffff, long_number);
 						churl_headers_append(headers, formatter.data, long_number);
 
 						/* scale */
 						resetStringInfo(&formatter);
-						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-%u", i, 1);
+						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-%u", attrIx, 1);
 						pg_ltoa((attr->atttypmod - VARHDRSZ) & 0xffff, long_number);
 						churl_headers_append(headers, formatter.data, long_number);
 						break;
@@ -236,12 +237,12 @@ AddTupleDescriptionToHttpHeader(CHURL_HEADERS headers, Relation rel)
 				case VARCHAROID:
 					{
 						resetStringInfo(&formatter);
-						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-COUNT", i);
+						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-COUNT", attrIx);
 						pg_ltoa(1, long_number);
 						churl_headers_append(headers, formatter.data, long_number);
 
 						resetStringInfo(&formatter);
-						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-%u", i, 0);
+						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-%u", attrIx, 0);
 						pg_ltoa((attr->atttypmod - VARHDRSZ), long_number);
 						churl_headers_append(headers, formatter.data, long_number);
 						break;
@@ -254,12 +255,12 @@ AddTupleDescriptionToHttpHeader(CHURL_HEADERS headers, Relation rel)
 				case TIMETZOID:
 					{
 						resetStringInfo(&formatter);
-						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-COUNT", i);
+						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-COUNT", attrIx);
 						pg_ltoa(1, long_number);
 						churl_headers_append(headers, formatter.data, long_number);
 
 						resetStringInfo(&formatter);
-						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-%u", i, 0);
+						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-%u", attrIx, 0);
 						pg_ltoa((attr->atttypmod), long_number);
 						churl_headers_append(headers, formatter.data, long_number);
 						break;
@@ -267,12 +268,12 @@ AddTupleDescriptionToHttpHeader(CHURL_HEADERS headers, Relation rel)
 				case INTERVALOID:
 					{
 						resetStringInfo(&formatter);
-						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-COUNT", i);
+						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-COUNT", attrIx);
 						pg_ltoa(1, long_number);
 						churl_headers_append(headers, formatter.data, long_number);
 
 						resetStringInfo(&formatter);
-						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-%u", i, 0);
+						appendStringInfo(&formatter, "X-GP-ATTR-TYPEMOD%u-%u", attrIx, 0);
 						pg_ltoa(INTERVAL_PRECISION(attr->atttypmod), long_number);
 						churl_headers_append(headers, formatter.data, long_number);
 						break;
@@ -282,7 +283,12 @@ AddTupleDescriptionToHttpHeader(CHURL_HEADERS headers, Relation rel)
 					break;
 			}
 		}
+		attrIx++;
 	}
+
+	/* Convert the number of attributes to a string */
+	pg_ltoa(attrIx, long_number);
+	churl_headers_append(headers, "X-GP-ATTRS", long_number);
 
 	pfree(formatter.data);
 }
