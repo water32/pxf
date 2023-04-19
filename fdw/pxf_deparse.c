@@ -33,7 +33,6 @@ deparseTargetList(Relation rel, Bitmapset *attrs_used, List **retrieved_attrs)
 
 	if (have_wholerow)
 		return;
-	int droppedAttrsCount = 0;
 
 	for (i = 1; i <= tupdesc->natts; i++)
 	{
@@ -41,23 +40,11 @@ deparseTargetList(Relation rel, Bitmapset *attrs_used, List **retrieved_attrs)
 
 		/* Ignore dropped attributes. */
 		if (attr->attisdropped)
-		{
-			droppedAttrsCount++;
 			continue;
-		}
 
 		if (bms_is_member(i - FirstLowInvalidHeapAttributeNumber, attrs_used))
 		{
-			// Dropped attributes count needs for proper indexing of the projected columns.
-			// For eg:
-			//  ---------------------------------------------
-			// |  col1  |  col2 (dropped)  |  col3  |  col4  |
-			//  ---------------------------------------------
-			//
-			// Let's assume that col1 and col4 are projected, the reported projected
-			// indices will be 0, 2. This is because we use 0-based indexing and because
-			// col2 was dropped, the indices for col3 and col4 get shifted by -1.
-			*retrieved_attrs = lappend_int(*retrieved_attrs, i - droppedAttrsCount);
+			*retrieved_attrs = lappend_int(*retrieved_attrs, i);
 		}
 	}
 }

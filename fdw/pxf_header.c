@@ -39,7 +39,7 @@
 static void AddAlignmentSizeHttpHeader(CHURL_HEADERS headers);
 static void AddTupleDescriptionToHttpHeader(CHURL_HEADERS headers, Relation rel);
 static void AddOptionsToHttpHeader(CHURL_HEADERS headers, List *options);
-static void AddProjectionDescHttpHeader(CHURL_HEADERS headers, List *retrieved_attrs);
+static void AddProjectionDescHttpHeader(CHURL_HEADERS headers, List *retrieved_attrs, Relation rel);
 static void AddProjectionIndexHeader(CHURL_HEADERS headers, int attno, char *long_number);
 static char *NormalizeKeyName(const char *key);
 static char *TypeOidGetTypename(Oid typid);
@@ -74,7 +74,7 @@ BuildHttpHeaders(CHURL_HEADERS headers,
 	if (retrieved_attrs != NULL)
 	{
 		/* add the list of attrs to the projection desc http headers */
-		AddProjectionDescHttpHeader(headers, retrieved_attrs);
+		AddProjectionDescHttpHeader(headers, retrieved_attrs, relation);
 	}
 
 	/* GP cluster configuration */
@@ -167,6 +167,17 @@ AddAlignmentSizeHttpHeader(CHURL_HEADERS headers)
  * X-GP-ATTR-TYPENAMEX - attribute X's type name (e.g, "boolean")
  * optional - X-GP-ATTR-TYPEMODX-COUNT - total number of modifier for attribute X
  * optional - X-GP-ATTR-TYPEMODX-Y - attribute X's modifiers Y (types which have precision info, like numeric(p,s))
+ *
+ * If a column has been dropped from the foreign table definition, that
+ * column will not be reported to the PXF server (as if it never existed).
+ * For example:
+ *
+ *  ---------------------------------------------
+ * |  col1  |  col2  |  col3 (dropped)  |  col4  |
+ *  ---------------------------------------------
+ *
+ * Col4 will appear as col3 to the PXF server as if col3 never existed, and
+ * only 3 columns will be reported to PXF server.
  */
 static void
 AddTupleDescriptionToHttpHeader(CHURL_HEADERS headers, Relation rel)
@@ -187,8 +198,8 @@ AddTupleDescriptionToHttpHeader(CHURL_HEADERS headers, Relation rel)
 		Form_pg_attribute attr = TupleDescAttr(tuple, i);
 
 		// Ignore dropped attributes
-        if(attr->attisdropped)
-            continue;
+		if (attr->attisdropped)
+			continue;
 
 		/* Add a key/value pair for attribute name */
 		resetStringInfo(&formatter);
@@ -297,24 +308,43 @@ AddTupleDescriptionToHttpHeader(CHURL_HEADERS headers, Relation rel)
  * Report projection description to the remote component
  */
 static void
-AddProjectionDescHttpHeader(CHURL_HEADERS headers, List *retrieved_attrs)
+AddProjectionDescHttpHeader(CHURL_HEADERS headers, List *retrieved_attrs, Relation rel)
 {
 	ListCell   *lc1 = NULL;
 	char		long_number[sizeof(int32) * 8];
+	TupleDesc	tupdesc = RelationGetDescr(rel);
+	int droppedCount = 0;
+	int headerCount = 0;
 
-	foreach(lc1, retrieved_attrs)
+	for (int i = 1; i <= tupdesc->natts; i++)
 	{
-		int			attno = lfirst_int(lc1);
+		// Dropped attributes count needs for proper indexing of the projected columns.
+		// For eg:
+		//  ---------------------------------------------
+		// |  col1  |  col2 (dropped)  |  col3  |  col4  |
+		//  ---------------------------------------------
+		//
+		// We use 0-based indexing and since col2 was dropped,
+		// the indices for col3 and col4 get shifted by -1.
+		// Let's assume that col1 and col4 are projected, the reported projected
+		// indices will then be 0, 2.
+		if(TupleDescAttr(tupdesc, i-1)->attisdropped)
+		{
+			/* keep a counter of the number of dropped attributes */
+			droppedCount++;
+			continue;
+		}
 
 		/* zero-based index in the server side */
-		AddProjectionIndexHeader(headers, attno - 1, long_number);
+		AddProjectionIndexHeader(headers, i - 1 - droppedCount, long_number);
+		headerCount++;
 	}
 
 	if (retrieved_attrs->length == 0)
 		return;
 
 	/* Convert the number of projection columns to a string */
-	pg_ltoa(retrieved_attrs->length, long_number);
+	pg_ltoa(headerCount, long_number);
 	churl_headers_append(headers, "X-GP-ATTRS-PROJ", long_number);
 }
 
