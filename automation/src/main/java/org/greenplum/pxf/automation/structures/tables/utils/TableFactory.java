@@ -657,7 +657,7 @@ public abstract class TableFactory {
     }
 
     /**
-     * Generate a PXF External Writable or Foreign Table using JDBC profile.
+     * Prepares PXF Readable External or Foreign Table for custom data format.
      *
      * @param name name of the external table which will be generated
      * @param fields fields of the external table
