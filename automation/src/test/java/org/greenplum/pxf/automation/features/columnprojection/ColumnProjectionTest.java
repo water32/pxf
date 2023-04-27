@@ -1,6 +1,6 @@
 package org.greenplum.pxf.automation.features.columnprojection;
 
-import annotations.FailsWithFDW;
+import annotations.WorksWithFDW;
 import org.greenplum.pxf.automation.components.cluster.PhdCluster;
 import org.greenplum.pxf.automation.features.BaseFeature;
 import org.greenplum.pxf.automation.structures.tables.pxf.ReadableExternalTable;
@@ -10,7 +10,7 @@ import org.testng.annotations.Test;
 import java.io.File;
 
 /** Functional PXF column projection cases */
-@FailsWithFDW
+@WorksWithFDW
 public class ColumnProjectionTest extends BaseFeature {
 
     String testPackageLocation = "/org/greenplum/pxf/automation/testplugin/";

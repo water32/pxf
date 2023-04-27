@@ -310,11 +310,22 @@ AddTupleDescriptionToHttpHeader(CHURL_HEADERS headers, Relation rel)
 static void
 AddProjectionDescHttpHeader(CHURL_HEADERS headers, List *retrieved_attrs, Relation rel)
 {
-	ListCell   *lc1 = NULL;
+	ListCell	*lc ;
 	char		long_number[sizeof(int32) * 8];
 	TupleDesc	tupdesc = RelationGetDescr(rel);
+	Bitmapset	*attrs_projected = NULL;
 	int droppedCount = 0;
-	int headerCount = 0;
+
+	if (retrieved_attrs == NIL || retrieved_attrs->length == 0)
+		return;
+
+	foreach(lc, retrieved_attrs)
+	{
+		int		attno = lfirst_int(lc);
+
+		attrs_projected = bms_add_member(attrs_projected,
+										 attno - FirstLowInvalidHeapAttributeNumber);
+	}
 
 	for (int i = 1; i <= tupdesc->natts; i++)
 	{
@@ -328,24 +339,24 @@ AddProjectionDescHttpHeader(CHURL_HEADERS headers, List *retrieved_attrs, Relati
 		// the indices for col3 and col4 get shifted by -1.
 		// Let's assume that col1 and col4 are projected, the reported projected
 		// indices will then be 0, 2.
-		if(TupleDescAttr(tupdesc, i-1)->attisdropped)
+		if (TupleDescAttr(tupdesc, i-1)->attisdropped)
 		{
 			/* keep a counter of the number of dropped attributes */
 			droppedCount++;
 			continue;
 		}
 
-		/* zero-based index in the server side */
-		AddProjectionIndexHeader(headers, i - 1 - droppedCount, long_number);
-		headerCount++;
+		if (bms_is_member(i - FirstLowInvalidHeapAttributeNumber, attrs_projected))
+		{
+			/* zero-based index in the server side */
+			AddProjectionIndexHeader(headers, i - 1 - droppedCount, long_number);
+		}
 	}
 
-	if (retrieved_attrs->length == 0)
-		return;
-
 	/* Convert the number of projection columns to a string */
-	pg_ltoa(headerCount, long_number);
+	pg_ltoa(retrieved_attrs->length, long_number);
 	churl_headers_append(headers, "X-GP-ATTRS-PROJ", long_number);
+	bms_free(attrs_projected);
 }
 
 /*
