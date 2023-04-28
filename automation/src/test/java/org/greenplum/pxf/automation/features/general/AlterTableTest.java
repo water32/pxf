@@ -99,6 +99,10 @@ public class AlterTableTest extends BaseFeature {
         runTincTest("pxf.features.general.alter.pxfwritable_import.with_column_projection.runTest");
     }
 
+    // It is failing with the below class cast exception:
+    //
+    // ERROR:  PXF server error : class java.io.DataInputStream cannot be cast to class java.lang.String
+    // (java.io.DataInputStream and java.lang.String are in module java.base of loader 'bootstrap')
     @FailsWithFDW
     @Test(groups = {"features", "gpdb", "security"})
     public void dropColumnsPxfWritableExport() throws Exception {
