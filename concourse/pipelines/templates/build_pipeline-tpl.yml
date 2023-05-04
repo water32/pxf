@@ -43,6 +43,7 @@ groups:
   - Test PXF-GP[[gp_ver]]-MINIO-NO-IMPERS on RHEL7
   - Test PXF-GP[[gp_ver]]-HDP2-SECURE-MULTI-IMPERS on RHEL7
   - Test PXF-GP[[gp_ver]]-HDP2-SECURE-MULTI-NO-IMPERS on RHEL7
+  - Test PXF-GP[[gp_ver]]-HDP2-Upgrade-Extension on RHEL7
 {% set gp_ver = None %}
   - Compatibility Gate for PXF-GP
   - Promote PXF-GP5 and PXF-GP6 Artifacts
@@ -89,6 +90,7 @@ groups:
   - Test PXF-GP[[gp_ver]]-MINIO-NO-IMPERS on RHEL7
   - Test PXF-GP[[gp_ver]]-HDP2-SECURE-MULTI-IMPERS on RHEL7
   - Test PXF-GP[[gp_ver]]-HDP2-SECURE-MULTI-NO-IMPERS on RHEL7
+  - Test PXF-GP[[gp_ver]]-HDP2-Upgrade-Extension on RHEL7
 {% set gp_ver = None %}
 - name: Backwards Compatibility
   jobs:
@@ -533,6 +535,15 @@ resources:
     json_key: ((concourse-gcs-resources-service-account-key))
     regexp: ((ud/pxf/common/releng-drop-path))/gpdb6/pxf-gp6-5.(.*)-2.el7.x86_64.rpm
 
+## ---------- PXF 6.6 (for GPDB 6) Artifact ---------------
+# This is for extension upgrade testing. PXF 6.6.X contains extension version 2.0. PXF 6.7.+ contains version 2.1
+- name: pxf6_6_gp6_rhel7_released
+  type: gcs
+  source:
+    bucket: ((ud/pxf/prod/releng-drop-bucket-name))
+    json_key: ((concourse-gcs-resources-service-account-key))
+    regexp: ((ud/pxf/common/releng-drop-path))/gpdb6/pxf-gp6-(6.6.*)-2.el7.x86_64.rpm
+
 ## ---------- PXF Build Artifacts ----------
 {% set gp_ver = None %}
 
@@ -976,6 +987,34 @@ jobs:
       GP_VER: [[gp_ver]]
       GROUP: gpdb,proxy,profile
       HADOOP_CLIENT: CDH
+      SECRET_ACCESS_KEY: ((tf-machine-secret-access-key))
+
+- name: Test PXF-GP[[gp_ver]]-HDP2-Upgrade-Extension on RHEL7
+  plan:
+  - in_parallel:
+    - get: pxf_src
+      passed: [Testing Gate for PXF-GP]
+      trigger: true
+    - get: pxf_package
+      resource: pxf6_6_gp6_rhel7_released # for upgrade test
+    - get: pxf_tarball
+      resource: pxf_gp[[gp_ver]]_tarball_rhel7
+      passed: [Testing Gate for PXF-GP]
+    - get: gpdb_package
+      resource: gpdb[[gp_ver]]_rhel7_rpm_latest-0
+      passed: [Testing Gate for PXF-GP]
+    - get: gpdb[[gp_ver]]-pxf-dev-centos7-image
+    - get: pxf-automation-dependencies
+    - get: singlecluster
+      resource: singlecluster-hdp2
+  - task: Test PXF-GP[[gp_ver]]-HDP2-New-Extension on RHEL7
+    file: pxf_src/concourse/tasks/upgrade_extension.yml
+    image: gpdb[[gp_ver]]-pxf-dev-centos7-image
+    params:
+      ACCESS_KEY_ID: ((tf-machine-access-key-id))
+      GP_VER: [[gp_ver]]
+      GROUP: pxfExtensionVersion2
+      SECOND_GROUP: upgradePxfExtension
       SECRET_ACCESS_KEY: ((tf-machine-secret-access-key))
 
 ## ---------- FILE tests -----------------
@@ -1512,6 +1551,7 @@ jobs:
       - Test PXF-GP[[gp_ver]]-MINIO-NO-IMPERS on RHEL7
       - Test PXF-GP[[gp_ver]]-HDP2-SECURE-MULTI-IMPERS on RHEL7
       - Test PXF-GP[[gp_ver]]-HDP2-SECURE-MULTI-NO-IMPERS on RHEL7
+      - Test PXF-GP[[gp_ver]]-HDP2-Upgrade-Extension on RHEL7
       trigger: true
 {% set gp_ver = None %}
 {% set gp_ver = 5 %}
