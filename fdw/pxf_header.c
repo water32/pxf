@@ -55,7 +55,8 @@ BuildHttpHeaders(CHURL_HEADERS headers,
 				 PxfOptions *options,
 				 Relation relation,
 				 char *filter_string,
-				 List *retrieved_attrs)
+				 List *retrieved_attrs,
+				 ProjectionInfo *projectionInfo)
 {
 	extvar_t	 ev;
 	char		 pxfPortString[sizeof(int32) * 8];
@@ -71,10 +72,11 @@ BuildHttpHeaders(CHURL_HEADERS headers,
 		relnamespace = GetNamespaceName(RelationGetNamespace(relation));
 	}
 
-	if (retrieved_attrs != NULL)
+	// If projectionInfo is Null, it means there should be no projection.
+	if (projectionInfo != NULL)
 	{
 		/* add the list of attrs to the projection desc http headers */
-		AddProjectionDescHttpHeader(headers, retrieved_attrs, relation);
+		AddProjectionDescHttpHeader(headers, retrieved_attrs,  relation);
 	}
 
 	/* GP cluster configuration */
@@ -315,6 +317,13 @@ AddProjectionDescHttpHeader(CHURL_HEADERS headers, List *retrieved_attrs, Relati
 	TupleDesc	tupdesc = RelationGetDescr(rel);
 	Bitmapset	*attrs_projected = NULL;
 	int droppedCount = 0;
+
+	// If projectionInfo is Null, the retrieved_attrs should be NULL,
+	// it means there should be no projection.
+	if(projectionInfo == NULL)
+	{
+		retrieved_attrs = NULL;
+	}
 
 	if (retrieved_attrs == NIL || retrieved_attrs->length == 0)
 		return;
