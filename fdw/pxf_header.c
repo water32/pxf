@@ -73,6 +73,7 @@ BuildHttpHeaders(CHURL_HEADERS headers,
 	}
 
 	// If projectionInfo is Null, it means there should be no projection.
+	// We can skip the whole logic of adding projection desc to headers.
 	if (projectionInfo != NULL)
 	{
 		/* add the list of attrs to the projection desc http headers */
@@ -318,19 +319,12 @@ AddProjectionDescHttpHeader(CHURL_HEADERS headers, List *retrieved_attrs, Relati
 	Bitmapset	*attrs_projected = NULL;
 	int droppedCount = 0;
 
-	// If projectionInfo is Null, the retrieved_attrs should be NULL,
-	// it means there should be no projection.
-	if(projectionInfo == NULL)
-	{
-		retrieved_attrs = NULL;
-	}
-
 	if (retrieved_attrs == NIL || retrieved_attrs->length == 0)
 		return;
 
 	foreach(lc, retrieved_attrs)
 	{
-		int		attno = lfirst_int(lc);
+		int attno = lfirst_int(lc);
 
 		attrs_projected = bms_add_member(attrs_projected,
 										 attno - FirstLowInvalidHeapAttributeNumber);
@@ -348,7 +342,7 @@ AddProjectionDescHttpHeader(CHURL_HEADERS headers, List *retrieved_attrs, Relati
 		// the indices for col3 and col4 get shifted by -1.
 		// Let's assume that col1 and col4 are projected, the reported projected
 		// indices will then be 0, 2.
-		if (TupleDescAttr(tupdesc, i-1)->attisdropped)
+		if (TupleDescAttr(tupdesc, i - 1)->attisdropped)
 		{
 			/* keep a counter of the number of dropped attributes */
 			droppedCount++;
