@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=gcr.io/data-gpdb-private-images/gpdb6-rhel8-test:latest
+ARG BASE_IMAGE=gcr.io/data-gpdb-public-images/gpdb6-rocky8-test:latest
 
 FROM ${BASE_IMAGE}
 

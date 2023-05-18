@@ -376,15 +376,11 @@ resources:
 {% endfor %} {# gp5, gp6 #}
 
 {% for gp_ver in range(6, 8) %}
-- name: gpdb[[gp_ver]]-pxf-dev-rhel8-image
+- name: gpdb[[gp_ver]]-pxf-dev-rocky8-image
   type: registry-image
   icon: docker
   source:
-{% if gp_ver == 6 %}
-    repository: gcr.io/data-gpdb-ud/gpdb-pxf-dev/gpdb[[gp_ver]]-rhel8-test-pxf
-{% else %}
     repository: gcr.io/data-gpdb-ud/gpdb-pxf-dev/gpdb[[gp_ver]]-rocky8-test-pxf
-{% endif %}
     tag: latest
     username: _json_key
     password: ((ud/pxf/secrets/pxf-cloudbuild-service-account-key))
@@ -425,15 +421,6 @@ resources:
   icon: docker
   source:
     repository: gcr.io/data-gpdb-ud/rpmrebuild-centos7
-    tag: latest
-    username: _json_key
-    password: ((ud/pxf/secrets/pxf-cloudbuild-service-account-key))
-
-- name: rpmrebuild-rhel8-image
-  type: registry-image
-  icon: docker
-  source:
-    repository: gcr.io/data-gpdb-ud/rpmrebuild-rhel8
     tag: latest
     username: _json_key
     password: ((ud/pxf/secrets/pxf-cloudbuild-service-account-key))
@@ -742,10 +729,10 @@ jobs:
       trigger: true
     - get: gpdb_package
       resource: gpdb[[gp_ver]]_rhel8_rpm_latest-0
-    - get: gpdb[[gp_ver]]-pxf-dev-rhel8-image
+    - get: gpdb[[gp_ver]]-pxf-dev-rocky8-image
     - get: pxf-build-dependencies
   - task: Build PXF-GP[[gp_ver]] on RHEL8
-    image: gpdb[[gp_ver]]-pxf-dev-rhel8-image
+    image: gpdb[[gp_ver]]-pxf-dev-rocky8-image
     file: pxf_src/concourse/tasks/build.yml
     params:
       LICENSE: ((ud/pxf/common/rpm-license))
@@ -766,7 +753,7 @@ jobs:
     - get: gpdb_package
       resource: gpdb[[gp_ver]]_rhel8_rpm_latest-0
       passed: [Build PXF-GP[[gp_ver]] on RHEL8]
-    - get: gpdb[[gp_ver]]-pxf-dev-rhel8-image
+    - get: gpdb[[gp_ver]]-pxf-dev-rocky8-image
       passed: [Build PXF-GP[[gp_ver]] on RHEL8]
     - get: pxf-automation-dependencies
 {% if gp_ver == 7 %}
@@ -776,7 +763,7 @@ jobs:
       resource: singlecluster-hdp2
   - task: Test PXF-GP[[gp_ver]]-HDP2 on RHEL8
     file: pxf_src/concourse/tasks/test.yml
-    image: gpdb[[gp_ver]]-pxf-dev-rhel8-image
+    image: gpdb[[gp_ver]]-pxf-dev-rocky8-image
     params:
       ACCESS_KEY_ID: ((tf-machine-access-key-id))
       GP_VER: [[gp_ver]]
@@ -1691,7 +1678,7 @@ jobs:
     - get: pxf_tarball
       passed: [Compatibility Gate for PXF-GP]
       resource: pxf_gp[[gp_ver]]_tarball_rhel8
-    - get: gpdb[[gp_ver]]-pxf-dev-rhel8-image
+    - get: gpdb[[gp_ver]]-pxf-dev-rocky8-image
     - get: singlecluster
       resource: singlecluster-hdp2
 {% for i in range(1, num_gpdb6_versions) %}
@@ -1704,7 +1691,7 @@ jobs:
       steps:
 {% for i in range(1, num_gpdb6_versions) %}
       - task: Test Against Greenplum Latest - [[i]] RHEL8
-        image: gpdb[[gp_ver]]-pxf-dev-rhel8-image
+        image: gpdb[[gp_ver]]-pxf-dev-rocky8-image
         config:
           platform: linux
           inputs:
@@ -1792,7 +1779,6 @@ jobs:
       trigger: true
     - get: google-cloud-sdk-slim-image
     - get: rpmrebuild-centos7-image
-    - get: rpmrebuild-rhel8-image
     - get: rpmrebuild-rocky8-image
     - get: gpdb6-pxf-dev-ubuntu18-image
   - task: Get PXF-GP5 and PXF-GP6 Artifacts from Releases Directory
@@ -1815,7 +1801,7 @@ jobs:
 {% endfor %}
 {% set gp_ver = 6 %}
   - task: Add OSL file to PXF-GP[[gp_ver]] RPM on RHEL8
-    image: rpmrebuild-rhel8-image
+    image: rpmrebuild-rocky8-image
     file: pxf_src/concourse/tasks/add_osl_rpm.yml
     params:
       GP_VER: [[gp_ver]]

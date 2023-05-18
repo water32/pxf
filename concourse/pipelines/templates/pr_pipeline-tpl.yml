@@ -58,15 +58,11 @@ resources:
 {% endfor %} {# gp5, gp6 #}
 
 {% for gp_ver in range(6, 8) %}
-- name: gpdb[[gp_ver]]-pxf-dev-rhel8-image
+- name: gpdb[[gp_ver]]-pxf-dev-rocky8-image
   type: registry-image
   icon: docker
   source:
-{% if gp_ver == 6 %}
-    repository: gcr.io/data-gpdb-ud/gpdb-pxf-dev/gpdb[[gp_ver]]-rhel8-test-pxf
-{% else %}
     repository: gcr.io/data-gpdb-ud/gpdb-pxf-dev/gpdb[[gp_ver]]-rocky8-test-pxf
-{% endif %}
     tag: latest
     username: _json_key
     password: ((ud/pxf/secrets/pxf-cloudbuild-service-account-key))
@@ -215,18 +211,18 @@ jobs:
       trigger: true
     - get: gpdb_package
       resource: gpdb[[gp_ver]]_rhel8_rpm_latest-0
-    - get: gpdb[[gp_ver]]-pxf-dev-rhel8-image
+    - get: gpdb[[gp_ver]]-pxf-dev-rocky8-image
     - get: pxf-build-dependencies
     - get: singlecluster
       resource: singlecluster-hdp2
   - task: Build PXF-GP[[gp_ver]] on RHEL8
-    image: gpdb[[gp_ver]]-pxf-dev-rhel8-image
+    image: gpdb[[gp_ver]]-pxf-dev-rocky8-image
     file: pxf_src/concourse/tasks/build.yml
     params:
       LICENSE: ((ud/pxf/common/rpm-license))
       VENDOR: ((ud/pxf/common/rpm-vendor))
   - task: Test Against Greenplum Latest RHEL8
-    image: gpdb[[gp_ver]]-pxf-dev-rhel8-image
+    image: gpdb[[gp_ver]]-pxf-dev-rocky8-image
     config:
       platform: linux
       inputs:
