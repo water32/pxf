@@ -1,5 +1,6 @@
 package org.greenplum.pxf.automation.features.orc;
 
+import annotations.WorksWithFDW;
 import org.greenplum.pxf.automation.features.BaseFeature;
 import org.greenplum.pxf.automation.structures.tables.pxf.ReadableExternalTable;
 import org.greenplum.pxf.automation.structures.tables.utils.TableFactory;
@@ -7,6 +8,7 @@ import org.greenplum.pxf.automation.utils.system.ProtocolEnum;
 import org.greenplum.pxf.automation.utils.system.ProtocolUtils;
 import org.testng.annotations.Test;
 
+@WorksWithFDW
 public class OrcReadTest extends BaseFeature {
 
     private static final String ORC_PRIMITIVE_TYPES = "orc_types.orc";
