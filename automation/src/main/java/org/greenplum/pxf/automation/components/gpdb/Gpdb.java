@@ -173,8 +173,11 @@ public class Gpdb extends DbSystemObject {
 		List<String> servers = Lists.newArrayList(
 		"default_hdfs",
 		"default_hive",
+		"db_hive_jdbc", // Needed for JdbcHiveTest
 		"default_hbase",
-		"default_jdbc",
+		"default_jdbc", // Needed for JdbcHiveTest and other JdbcTest which refers to the default server.
+		"database_jdbc",
+		"db-session-params_jdbc",
 		"default_file",
 		"default_s3",
 		"default_gs",

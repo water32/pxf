@@ -497,7 +497,7 @@ public abstract class TableFactory {
             userParameters.add("USER=" + user);
         }
         if (server != null) {
-            userParameters.add("SERVER=" + server);
+            exTable.setServer("SERVER=" + server);
         }
         if (customParameters != null) {
             userParameters.add(customParameters);
