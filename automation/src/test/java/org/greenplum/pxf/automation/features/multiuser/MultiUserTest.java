@@ -1,5 +1,6 @@
 package org.greenplum.pxf.automation.features.multiuser;
 
+import annotations.WorksWithFDW;
 import org.greenplum.pxf.automation.components.gpdb.Gpdb;
 import org.greenplum.pxf.automation.features.BaseFeature;
 import org.greenplum.pxf.automation.structures.tables.basic.Table;
@@ -9,6 +10,7 @@ import org.testng.annotations.Test;
 
 import java.io.File;
 
+@WorksWithFDW
 public class MultiUserTest extends BaseFeature {
 
     private static final String GPDB_PXF_AUTOMATION_DB_JDBC = "jdbc:postgresql://";

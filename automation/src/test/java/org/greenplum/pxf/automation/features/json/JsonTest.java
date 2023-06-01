@@ -1,8 +1,10 @@
 package org.greenplum.pxf.automation.features.json;
 
+import annotations.WorksWithFDW;
 import org.apache.commons.lang.StringUtils;
 import org.greenplum.pxf.automation.features.BaseFeature;
 import org.greenplum.pxf.automation.structures.tables.pxf.ReadableExternalTable;
+import org.greenplum.pxf.automation.structures.tables.utils.TableFactory;
 import org.greenplum.pxf.automation.utils.system.ProtocolEnum;
 import org.greenplum.pxf.automation.utils.system.ProtocolUtils;
 import org.testng.annotations.Test;
@@ -10,6 +12,7 @@ import org.testng.annotations.Test;
 /**
  * Tests for Json plugin to read HDFS files in JSON format.
  */
+@WorksWithFDW
 public class JsonTest extends BaseFeature {
 
     private String hdfsPath;
@@ -397,13 +400,9 @@ public class JsonTest extends BaseFeature {
 
     private void prepareExternalTable(String name, String[] fields, String path, String format) {
         ProtocolEnum protocol = ProtocolUtils.getProtocol();
-        exTable = new ReadableExternalTable(name, fields,
+        exTable = TableFactory.getPxfReadableJsonTable(name, fields,
                 protocol.getExternalTablePath(hdfs.getBasePath(), path), format);
         exTable.setHost(pxfHost);
         exTable.setPort(pxfPort);
-        if (StringUtils.equals(format, "custom")) {
-            exTable.setFormatter("pxfwritable_import");
-        }
-        exTable.setProfile(protocol.value() + ":json");
     }
 }
