@@ -39,6 +39,7 @@ public class ForeignTable extends WritableExternalTable {
         String[] serverParameters = StringUtils.defaultIfBlank(getServer(), "default").split("=");
         // getServer() might return a string "server=<..>", strip the prefix
         int index = serverParameters.length > 1 ? 1 : 0;
+        // foreign server names will have underscores instead of dashes
         return String.format(" SERVER %s_%s", serverParameters[index].replace("-","_"), getProtocol());
     }
 
@@ -53,6 +54,9 @@ public class ForeignTable extends WritableExternalTable {
             appendOption(joiner, "format", formatOption);
         }
 
+        if (getCompressionCodec() != null) {
+            appendOption(joiner, "compression_codec", getCompressionCodec());
+        }
         // process F/A/R as options, they are used in tests to test column projection / predicate pushdown
         if (getFragmenter() != null) {
             appendOption(joiner, "fragmenter", getFragmenter());
@@ -184,7 +188,8 @@ public class ForeignTable extends WritableExternalTable {
 
     private String[] getProfileParts() {
         if (getProfile() == null) {
-            // TODO: what will we do with tests that set F/A/R directly without a profile ?
+            // tests that set F/A/R directly without a profile need to be registered to 'test_fdw' created for testing
+            // specifically that defines pseudo protocol 'test'
             throw new IllegalStateException("Cannot create foreign table when profile is not specified");
         }
         return getProfile().split(":");

@@ -15,6 +15,7 @@ import java.util.Properties;
 import jsystem.framework.report.Reporter;
 
 import org.greenplum.pxf.automation.structures.tables.basic.Table;
+import org.greenplum.pxf.automation.structures.tables.pxf.ExternalTable;
 import org.postgresql.util.PSQLException;
 
 import org.greenplum.pxf.automation.utils.exception.ExceptionUtils;
@@ -158,7 +159,31 @@ public abstract class DbSystemObject extends BaseSystemObject implements IDbFunc
 				dataStringBuilder.append(",");
 			}
 		}
-		runQuery("INSERT INTO " + target.getName() + " VALUES " + dataStringBuilder);
+		insertData(dataStringBuilder.toString(), target);
+	}
+
+	/**
+	 * Inserts data from the provided string into the target Table. The string is expected to contain data
+	 * in SQL format that follows the 'INSERT INTO [table] VALUES ' clause.
+	 *
+	 * @param data string containing data to insert
+	 * @param target table to insert data into, can be an internal, an external or a foreign table
+	 * @throws Exception is operation fails
+	 */
+	public void insertData(String data, Table target) throws Exception {
+		if (!data.startsWith("(")) {
+			data = "(" + data;
+		}
+		if (!data.endsWith(")")) {
+			data = data + ")";
+		}
+
+		String query = "INSERT INTO " + target.getName() + " VALUES " + data;
+		if (target instanceof ExternalTable) {
+			runQueryInsertIntoExternalTable(query);
+		} else {
+			runQuery(query);
+		}
 	}
 
 	@Override
@@ -189,6 +214,16 @@ public abstract class DbSystemObject extends BaseSystemObject implements IDbFunc
 	    long startTimeInMillis = System.currentTimeMillis();
 	    runQuery(query, false, true);
 	    return System.currentTimeMillis() - startTimeInMillis;
+	}
+
+	/**
+	 * Run query that inserts data into an external or a foreign table and ignores a warning about not being able to
+	 * analyze a foreign table (if applicable) because PXF FDW does not yet support analyzing foreign tables.
+	 * @param query query to run
+	 * @throws Exception
+	 */
+	protected void runQueryInsertIntoExternalTable(String query) throws Exception {
+		runQueryWithExpectedWarning(query, ".* --- cannot analyze this foreign table", true, true);
 	}
 
 	/**

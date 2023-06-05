@@ -1,4 +1,4 @@
-package org.greenplum.pxf.api;
+package org.greenplum.pxf.service.serde;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -24,7 +24,7 @@ import org.greenplum.pxf.api.error.UnsupportedTypeException;
 import org.greenplum.pxf.api.io.DataType;
 import org.greenplum.pxf.api.io.GPDBWritable;
 
-/*
+/**
  * Class for mapping GPDBWritable get functions to java types.
  */
 public class GPDBWritableMapper {

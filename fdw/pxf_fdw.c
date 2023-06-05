@@ -82,8 +82,13 @@ static void pxfReScanForeignScan(ForeignScanState *node);
 static void pxfEndForeignScan(ForeignScanState *node);
 
 /* Foreign updates */
+static void pxfBeginForeignInsert(ModifyTableState *mtstate, ResultRelInfo *resultRelInfo);
+
 static void pxfBeginForeignModify(ModifyTableState *mtstate, ResultRelInfo *resultRelInfo, List *fdw_private, int subplan_index, int eflags);
+
 static TupleTableSlot *pxfExecForeignInsert(EState *estate, ResultRelInfo *resultRelInfo, TupleTableSlot *slot, TupleTableSlot *planSlot);
+
+static void pxfEndForeignInsert(EState *estate, ResultRelInfo *resultRelInfo);
 
 static void pxfEndForeignModify(EState *estate, ResultRelInfo *resultRelInfo);
 
@@ -92,6 +97,8 @@ static int	pxfIsForeignRelUpdatable(Relation rel);
 /*
  * Helper functions
  */
+static PxfFdwModifyState *InitForeignModify(Relation relation);
+static void FinishForeignModify(PxfFdwModifyState *pxfmstate);
 static void InitCopyState(PxfFdwScanState *pxfsstate);
 static void InitCopyStateForModify(PxfFdwModifyState *pxfmstate);
 static CopyState BeginCopyTo(Relation forrel, List *options);
@@ -139,6 +146,9 @@ pxf_fdw_handler(PG_FUNCTION_ARGS)
 	 * taken
 	 */
 	fdw_routine->PlanForeignModify = NULL;
+#if PG_VERSION_NUM >= 120000
+	fdw_routine->BeginForeignInsert = pxfBeginForeignInsert;
+#endif
 	fdw_routine->BeginForeignModify = pxfBeginForeignModify;
 	fdw_routine->ExecForeignInsert = pxfExecForeignInsert;
 
@@ -148,6 +158,9 @@ pxf_fdw_handler(PG_FUNCTION_ARGS)
 	 */
 	fdw_routine->ExecForeignUpdate = NULL;
 	fdw_routine->ExecForeignDelete = NULL;
+#if PG_VERSION_NUM >= 120000
+	fdw_routine->EndForeignInsert = pxfEndForeignInsert;
+#endif
 	fdw_routine->EndForeignModify = pxfEndForeignModify;
 	fdw_routine->IsForeignRelUpdatable = pxfIsForeignRelUpdatable;
 
@@ -427,7 +440,7 @@ pxfBeginForeignScan(ForeignScanState *node, int eflags)
     /* Set up callback to identify error foreign relation. */
     ErrorContextCallback errcallback;
     errcallback.callback = PxfBeginScanErrorCallback;
-    errcallback.arg = (void *) relation;
+    errcallback.arg = (void *) pxfsstate;
     errcallback.previous = error_context_stack;
     error_context_stack = &errcallback;
 
@@ -559,6 +572,24 @@ pxfEndForeignScan(ForeignScanState *node)
 }
 
 /*
+ * pxfBeginForeignInsert
+ *		Begin an insert operation on a foreign table, called in COPY <table> FROM <source> flow
+ */
+static void
+pxfBeginForeignInsert(ModifyTableState *mtstate,
+					  ResultRelInfo *resultRelInfo)
+{
+	/*
+	 * This would be the natural place to call external_insert_init(), but we
+	 * delay that until the first actual insert. That's because we don't want
+	 * to open the external resource if we don't end up actually inserting any
+	 * rows in this segment. In particular, we don't want to initialize the
+	 * external resource in the QD node, when all the actual insertions happen
+	 * in the segments.
+	 */
+}
+
+/*
  * pxfBeginForeignModify
  *		Begin an insert/update/delete operation on a foreign table
  */
@@ -569,24 +600,42 @@ pxfBeginForeignModify(ModifyTableState *mtstate,
 					  int subplan_index,
 					  int eflags)
 {
-	elog(DEBUG5, "pxf_fdw: pxfBeginForeignModify starts on segment: %d", PXF_SEGMENT_ID);
+	/*
+	 * This would be the natural place to call external_insert_init(), but we
+	 * delay that until the first actual insert. That's because we don't want
+	 * to open the external resource if we don't end up actually inserting any
+	 * rows in this segment. In particular, we don't want to initialize the
+	 * external resource in the QD node, when all the actual insertions happen
+	 * in the segments.
+	 */
+}
+
+/*
+ * InitForeignModify
+ * 		Initialize various structures before actually performing insertion / modification
+ * 		of data in an external system
+ */
+static PxfFdwModifyState *
+InitForeignModify(Relation relation)
+{
+	elog(DEBUG5, "pxf_fdw: InitForeignModify starts on segment: %d", PXF_SEGMENT_ID);
 
 	ForeignTable *rel;
 	Oid			foreigntableid;
 	PxfOptions *options = NULL;
 	PxfFdwModifyState *pxfmstate = NULL;
-	Relation	relation = resultRelInfo->ri_RelationDesc;
 	TupleDesc	tupDesc;
 
-	if (eflags & EXEC_FLAG_EXPLAIN_ONLY)
-		return;
+	// TODO: do we need to care about this ?
+//	if (eflags & EXEC_FLAG_EXPLAIN_ONLY)
+//		return;
 
 	foreigntableid = RelationGetRelid(relation);
 	rel = GetForeignTable(foreigntableid);
 
 	if (Gp_role == GP_ROLE_DISPATCH && rel->exec_location == FTEXECLOCATION_ALL_SEGMENTS)
 		/* master does not process any data when exec_location is all segments */
-		return;
+		return NULL;
 
 	tupDesc = RelationGetDescr(relation);
 	options = PxfGetOptions(foreigntableid);
@@ -602,9 +651,8 @@ pxfBeginForeignModify(ModifyTableState *mtstate,
 
 	InitCopyStateForModify(pxfmstate);
 
-	resultRelInfo->ri_FdwState = pxfmstate;
-
 	elog(DEBUG5, "pxf_fdw: pxfBeginForeignModify ends on segment: %d", PXF_SEGMENT_ID);
+	return pxfmstate;
 }
 
 /*
@@ -620,10 +668,15 @@ pxfExecForeignInsert(EState *estate,
 	elog(DEBUG5, "pxf_fdw: pxfExecForeignInsert starts on segment: %d", PXF_SEGMENT_ID);
 
 	PxfFdwModifyState *pxfmstate = (PxfFdwModifyState *) resultRelInfo->ri_FdwState;
-
-	/* If pxfmstate is NULL, we are in MASTER when exec_location is all segments; nothing to do */
-	if (pxfmstate == NULL)
-		return NULL;
+	if (!pxfmstate)
+	{
+		/* state has not been initialized yet, create and store it on the first call */
+		pxfmstate = InitForeignModify(resultRelInfo->ri_RelationDesc);
+		/* if initialization was a noop (ANALYZE case or execution on COORDINATOR, exit */
+		if (!pxfmstate)
+			return slot;
+		resultRelInfo->ri_FdwState = pxfmstate;
+	}
 
 	CopyState	cstate = pxfmstate->cstate;
 #if PG_VERSION_NUM < 90600
@@ -665,6 +718,21 @@ pxfExecForeignInsert(EState *estate,
 }
 
 /*
+ * pxfEndForeignInsert
+ *		Finish an insert operation on a foreign table
+ */
+static void
+pxfEndForeignInsert(EState *estate,
+					ResultRelInfo *resultRelInfo)
+{
+	elog(DEBUG5, "pxf_fdw: pxfEndForeignInsert starts on segment: %d", PXF_SEGMENT_ID);
+
+	FinishForeignModify(resultRelInfo->ri_FdwState);
+
+	elog(DEBUG5, "pxf_fdw: pxfEndForeignInsert ends on segment: %d", PXF_SEGMENT_ID);
+}
+
+/*
  * pxfEndForeignModify
  *		Finish an insert/update/delete operation on a foreign table
  */
@@ -674,8 +742,14 @@ pxfEndForeignModify(EState *estate,
 {
 	elog(DEBUG5, "pxf_fdw: pxfEndForeignModify starts on segment: %d", PXF_SEGMENT_ID);
 
-	PxfFdwModifyState *pxfmstate = (PxfFdwModifyState *) resultRelInfo->ri_FdwState;
+	FinishForeignModify(resultRelInfo->ri_FdwState);
 
+	elog(DEBUG5, "pxf_fdw: pxfEndForeignModify ends on segment: %d", PXF_SEGMENT_ID);
+}
+
+static void
+FinishForeignModify(PxfFdwModifyState *pxfmstate)
+{
 	/* If pxfmstate is NULL, we are in EXPLAIN or MASTER when exec_location is all segments; nothing to do */
 	if (pxfmstate == NULL)
 		return;
@@ -684,7 +758,6 @@ pxfEndForeignModify(EState *estate,
 	pxfmstate->cstate = NULL;
 	PxfBridgeCleanup(pxfmstate);
 
-	elog(DEBUG5, "pxf_fdw: pxfEndForeignModify ends on segment: %d", PXF_SEGMENT_ID);
 }
 
 /*
@@ -793,8 +866,7 @@ InitCopyStateForModify(PxfFdwModifyState *pxfmstate)
 	PxfBridgeExportStart(pxfmstate);
 
 	/*
-	 * Create CopyState from FDW options.  We always acquire all columns, so
-	 * as to match the expected ScanTupleSlot signature.
+	 * Create CopyState from FDW options.  We always acquire all columns to match the expected ScanTupleSlot signature.
 	 */
 	cstate = BeginCopyTo(pxfmstate->relation, copy_options);
 
@@ -881,15 +953,23 @@ BeginCopyTo(Relation forrel, List *options)
 /*
  * PXF specific error context callback for "begin foreign scan" operation.
  * It replaces the "COPY" term in the error message context with
- * the "Foreign table" term and provides the name of the foreign table
+ * the "Foreign table" term and provides the name of the foreign table and its resource option
  */
 static void
 PxfBeginScanErrorCallback(void *arg) {
-    Relation relation = (Relation) arg;
-    if (relation) {
-        errcontext("Foreign table %s", RelationGetRelationName(relation));
-        return;
-    }
+	PxfFdwScanState *pxfsstate = (PxfFdwScanState *) arg;
+	if (pxfsstate && pxfsstate->relation) {
+		if (pxfsstate->options && pxfsstate->options->resource)
+		{
+			errcontext("Foreign table %s, resource %s",
+					   RelationGetRelationName(pxfsstate->relation), pxfsstate->options->resource);
+		}
+		else
+		{
+			errcontext("Foreign table %s", RelationGetRelationName(pxfsstate->relation));
+		}
+		return;
+	}
 }
 
 /*

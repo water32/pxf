@@ -5,6 +5,7 @@ import org.apache.commons.lang.StringUtils;
 import org.greenplum.pxf.automation.components.common.DbSystemObject;
 import org.greenplum.pxf.automation.components.common.ShellSystemObject;
 import org.greenplum.pxf.automation.structures.tables.basic.Table;
+import org.greenplum.pxf.automation.structures.tables.pxf.ExternalTable;
 import org.greenplum.pxf.automation.utils.jsystem.report.ReportUtils;
 import org.greenplum.pxf.automation.utils.system.FDWUtils;
 import org.springframework.util.Assert;
@@ -106,16 +107,94 @@ public class Gpdb extends DbSystemObject {
 
 	/**
 	 * Copies data from source table into target table
-	 * @param source
-	 * @param target
-	 * @throws Exception
+	 * @param source source table
+	 * @param target target table
+	 * @throws Exception if the operation fails
 	 */
-    public void copyData(Table source, Table target) throws Exception {
+	public void copyData(Table source, Table target) throws Exception {
 
+		copyData(source, target, false);
+	}
 
-        runQuery("INSERT INTO " + target.getName() + " SELECT * FROM "
-                + source.getName());
-    }
+	/**
+	 * Copies data from source table into target table
+	 * @param sourceName name of the source table
+	 * @param target target table
+	 * @throws Exception if the operation fails
+	 */
+	public void copyData(String sourceName, Table target) throws Exception {
+
+		copyData(sourceName, target, false);
+	}
+
+	/**
+	 * Copies data from source table into target table
+	 * @param sourceName name of the source table
+	 * @param target target table
+	 * @param columns columns to select from the source table, if null then all columns will be selected
+	 * @throws Exception if the operation fails
+	 */
+	public void copyData(String sourceName, Table target, String[] columns) throws Exception {
+
+		copyData(sourceName, target, columns,false, null);
+	}
+
+	/**
+	 * Copies data from source table into target table
+	 * @param sourceName name of the source table
+	 * @param target target table
+	 * @param columns columns to select from the source table, if null then all columns will be selected
+	 * @param context extra context to add before the SQL query
+	 * @throws Exception if the operation fails
+	 */
+	public void copyData(String sourceName, Table target, String[] columns, String context) throws Exception {
+
+		copyData(sourceName, target, columns, false, context);
+	}
+
+	/**
+	 * Copies data from source table into target table
+	 * @param source source table
+	 * @param target target table
+	 * @param ignoreFail whether to ignore any failures
+	 * @throws Exception if the operation fails
+	 */
+	public void copyData(Table source, Table target, boolean ignoreFail) throws Exception {
+		copyData(source.getName(), target, ignoreFail);
+	}
+
+	/**
+	 * Copies data from source table into target table
+	 * @param sourceName name of the source table
+	 * @param target target table
+	 * @param ignoreFail whether to ignore any failures
+	 * @throws Exception if the operation fails
+	 */
+	public void copyData(String sourceName, Table target, boolean ignoreFail) throws Exception {
+		copyData(sourceName, target, null, ignoreFail, null);
+	}
+
+	/**
+	 * Copies data from the source table into the target table with a possibility of selecting specific columns.
+	 * If the columns are specified, the schema of the target table should correspond to the projection achieved
+	 * by specifying the columns. If the columns are not provided, all columns are selected from the source table.
+	 * @param sourceName name of the source table
+	 * @param target target table
+	 * @param columns columns to select from the source table, if null then all columns will be selected
+	 * @param ignoreFail whether to ignore any failures
+	 * @param context extra context to add before the SQL query
+	 * @throws Exception if the operation fails
+	 */
+	public void copyData(String sourceName, Table target, String[] columns, boolean ignoreFail, String context) throws Exception {
+		String columnList = (columns == null || columns.length == 0) ? "*" : String.join(",", columns);
+		String query = String.format("%sINSERT INTO %s SELECT %s FROM %s",
+				StringUtils.isBlank(context) ? "" : context + "; " ,target.getName(), columnList, sourceName);
+		if (target instanceof ExternalTable) {
+			runQueryInsertIntoExternalTable(query);
+		} else {
+			runQuery(query, ignoreFail, false);
+		}
+	}
 
 	public void connectToDataBase(String dbName) throws Exception {
 		super.close();
@@ -184,6 +263,8 @@ public class Gpdb extends DbSystemObject {
 		"default_adl",
 		"default_wasbs",
 		"s3_s3",
+		"s3-invalid_s3",
+		"s3-non-existent_s3",
 		"hdfs-non-secure_hdfs",
 		"hdfs-secure_hdfs",
 		"hdfs-ipa_hdfs",
@@ -301,29 +382,20 @@ public class Gpdb extends DbSystemObject {
 		}
 
 		StringBuilder dataStringBuilder = new StringBuilder();
-
 		List<List<String>> data = from.getData();
-
 		for (int i = 0; i < data.size(); i++) {
-
 			List<String> row = data.get(i);
-
 			for (int j = 0; j < row.size(); j++) {
-
 				dataStringBuilder.append(row.get(j));
-
 				if (j != row.size() - 1) {
 					dataStringBuilder.append(delimeter);
 				}
 			}
-
 			dataStringBuilder.append("\n");
-
 		}
-
 		dataStringBuilder.append("\\.");
 
-		copy(to.getName(), "STDIN", dataStringBuilder.toString(), delim, null, csv);
+		copyWithOptionalCTAS("STDIN", to, dataStringBuilder.toString(), delim, null, csv);
 	}
 
 	/**
@@ -338,7 +410,21 @@ public class Gpdb extends DbSystemObject {
 	public void copyFromFile(Table to, File path, String delim, boolean csv) throws Exception {
 		String from = "'" + path.getAbsolutePath() + "'";
 		copyLocalFileToRemoteGpdb(from);
-		copy(to.getName(), from, null, delim, null, csv);
+		copyWithOptionalCTAS(from, to, null, delim, null, csv);
+	}
+
+	private void copyWithOptionalCTAS(String from, Table to, String dataToCopy, String delim, String nullChar, boolean csv) throws Exception {
+		// COPY TO <foreign table> is not supported in PXF FDW with GP6, so we will have to do a workaround by
+		// creating a native table, copying data from the file into it and then performing a CTAS into the foreign table
+		if (FDWUtils.useFDW && getVersion() < 7) {
+			Table nativeTable = createTableLike(to.getName() + "_native", to);
+			// copy data into the native table
+			copy(nativeTable.getName(), from, dataToCopy, delim, null, csv);
+			// CTAS into the foreign table
+			copyData(nativeTable, to, true);
+		} else {
+			copy(to.getName(), from, dataToCopy, delim, null, csv);
+		}
 	}
 
 	private void copyLocalFileToRemoteGpdb(String from) throws Exception {
@@ -496,6 +582,27 @@ public class Gpdb extends DbSystemObject {
 		int count = res.getInt(1);
 		ReportUtils.report(report, getClass(), "Retrieved from Greenplum: [" + count + "] servers");
 		return count > 0;
+	}
+
+	/**
+	 * Create a table like the other table, only schema / distribution is copied, not the data.
+	 * @param name name of table to create
+	 * @param source source table
+	 * @return table that got created
+	 * @throws Exception if the operation fails
+	 */
+	private Table createTableLike(String name, Table source) throws Exception {
+		Table table = new Table(name, source.getFields());
+		String[] distributionFields = source.getDistributionFields();
+		if (distributionFields != null && distributionFields.length > 0) {
+			table.setDistributionFields(distributionFields);
+		} else {
+			// set distribution field as the first one so that PSQL does not issue a warning
+			// extract the name of the first table field and type, split off the type that follows the name after whitespace
+			table.setDistributionFields(new String[]{table.getFields()[0].split("\\s+")[0]});
+		}
+		createTableAndVerify(table);
+		return table;
 	}
 
 }
