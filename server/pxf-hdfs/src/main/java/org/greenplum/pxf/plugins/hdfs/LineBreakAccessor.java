@@ -20,7 +20,6 @@ package org.greenplum.pxf.plugins.hdfs;
  */
 
 
-import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -129,7 +128,25 @@ public class LineBreakAccessor extends HdfsSplittableDataAccessor {
             // match same buffer size to read data from the input stream. The
             // buffer size can be configured externally.
             int bufferSize = configuration.getInt("io.file.buffer.size", DEFAULT_BUFFER_SIZE);
-            long count = IOUtils.copyLarge((InputStream) onerow.getData(), dos, new byte[bufferSize]);
+
+            long count = 0;
+
+            // Copying the logic from IOUtils.copyLarge to here to add logging
+            // In case things go wrong, this logging will help with further investigation.
+            InputStream inputStream = (InputStream) onerow.getData();
+            final byte[] buffer = new byte[bufferSize];
+            final int EOF = -1;
+            int n, byteCount;
+            while (EOF != (n = inputStream.read(buffer))) {
+                dos.write(buffer, 0, n);
+                byteCount = n;
+                if(byteCount % 2*DEFAULT_BUFFER_SIZE == 0){
+                    // Log this message after every 2*8K Bytes
+                    LOG.trace("Successfully Wrote {} bytes to outputStream using a buffer of size {}", byteCount, bufferSize);
+                }
+                count += n;
+            }
+
             LOG.debug("Wrote {} bytes to outputStream using a buffer of size {}", count, bufferSize);
             return count > 0;
         } else {
