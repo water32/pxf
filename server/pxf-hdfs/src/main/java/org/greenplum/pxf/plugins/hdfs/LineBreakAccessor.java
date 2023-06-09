@@ -129,22 +129,20 @@ public class LineBreakAccessor extends HdfsSplittableDataAccessor {
             // buffer size can be configured externally.
             int bufferSize = configuration.getInt("io.file.buffer.size", DEFAULT_BUFFER_SIZE);
 
-            long count = 0;
-
-            // Copying the logic from IOUtils.copyLarge to here to add logging
-            // In case things go wrong, this logging will help with further investigation.
             InputStream inputStream = (InputStream) onerow.getData();
             final byte[] buffer = new byte[bufferSize];
-            final int EOF = -1;
-            int n, byteCount;
-            while (EOF != (n = inputStream.read(buffer))) {
+            final int frequency = 5000 * bufferSize;
+
+            // The logic below is copied from IOUtils.copyLarge to add logging
+            long count = 0;
+            int n;
+            while (-1 != (n = inputStream.read(buffer))) {
                 dos.write(buffer, 0, n);
-                byteCount = n;
-                if(byteCount % 2*DEFAULT_BUFFER_SIZE == 0){
-                    // Log this message after every 2*8K Bytes
-                    LOG.trace("Successfully Wrote {} bytes to outputStream using a buffer of size {}", byteCount, bufferSize);
-                }
                 count += n;
+                if (LOG.isTraceEnabled() && n % frequency == 0) {
+                    // Log this message after every frequency*8K (default) bytes
+                    LOG.trace("wrote {} additional bytes, total so far {} (buffer size {})", n, count, bufferSize);
+                }
             }
 
             LOG.debug("Wrote {} bytes to outputStream using a buffer of size {}", count, bufferSize);
