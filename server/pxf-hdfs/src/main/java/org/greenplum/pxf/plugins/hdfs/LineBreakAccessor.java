@@ -131,6 +131,9 @@ public class LineBreakAccessor extends HdfsSplittableDataAccessor {
 
             InputStream inputStream = (InputStream) onerow.getData();
             final byte[] buffer = new byte[bufferSize];
+
+            // We want to log it about every 5 secs.
+            // We have seen the upload speed of 8MB/sec, so it is like 1000 buffers per sec or 5000 buffers per 5 sec
             final int frequency = 5000 * bufferSize;
 
             // The logic below is copied from IOUtils.copyLarge to add logging
@@ -139,9 +142,9 @@ public class LineBreakAccessor extends HdfsSplittableDataAccessor {
             while (-1 != (n = inputStream.read(buffer))) {
                 dos.write(buffer, 0, n);
                 count += n;
-                if (LOG.isTraceEnabled() && n % frequency == 0) {
+                if (LOG.isDebugEnabled() && n % frequency == 0) {
                     // Log this message after every frequency*8K (default) bytes
-                    LOG.trace("wrote {} additional bytes, total so far {} (buffer size {})", n, count, bufferSize);
+                    LOG.debug("wrote {} additional bytes, total so far {} (buffer size {})", n, count, bufferSize);
                 }
             }
 
