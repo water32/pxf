@@ -10,5 +10,8 @@
 -- m/DETAIL/
 -- s/DETAIL/CONTEXT/
 --
+-- m/CONTEXT:.*file.*/
+-- s/, file.*//g
+--
 -- end_matchsubs
 SELECT *  FROM pxf_none_hive_table;

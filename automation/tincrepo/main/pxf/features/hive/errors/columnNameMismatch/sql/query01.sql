@@ -10,5 +10,8 @@
 -- m/DETAIL/
 -- s/DETAIL/CONTEXT/
 --
+-- m/CONTEXT:.*file.*/
+-- s/, file.*//g
+--
 -- end_matchsubs
 SELECT * from pxf_hive_small_data ORDER BY t1;
