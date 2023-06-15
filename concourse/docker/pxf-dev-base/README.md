@@ -29,7 +29,8 @@ directory. The `cloudbuild.yaml` file produces the following docker images:
 
 You can build these images individually by first setting these local variables:
 ```
-export GO_VERSION=1.19
+export GO_VERSION=1.19.6
+export MAVEN_VERSION=3.9.2
 ```
 ## Greenplum 5 Images
 
@@ -60,6 +61,7 @@ command to build the image:
     docker build \
       --build-arg=BASE_IMAGE=gcr.io/data-gpdb-public-images/gpdb6-centos7-test:latest \
       --build-arg=GO_VERSION=${GO_VERSION} \
+      --build-arg=MAVEN_VERSION=${MAVEN_VERSION} \
       --tag=gpdb6-centos7-test-pxf \
       -f ~/workspace/pxf/concourse/docker/pxf-dev-base/gpdb6/centos7/Dockerfile \
       .
@@ -73,6 +75,8 @@ command to build the image:
     pushd ~/workspace/pxf/concourse/docker/pxf-dev-base/
     docker build \
       --build-arg=BASE_IMAGE=gcr.io/data-gpdb-public-images/gpdb6-rocky8-test:latest \
+      --build-arg=GO_VERSION=${GO_VERSION} \
+      --build-arg=MAVEN_VERSION=${MAVEN_VERSION} \
       --tag=gpdb6-rocky8-test-pxf \
       -f ~/workspace/pxf/concourse/docker/pxf-dev-base/gpdb6/rocky8/Dockerfile \
       .
@@ -87,6 +91,7 @@ command to build the image:
     docker build \
       --build-arg=BASE_IMAGE=gcr.io/data-gpdb-public-images/gpdb6-ubuntu18.04-test:latest \
       --build-arg=GO_VERSION=${GO_VERSION} \
+      --build-arg=MAVEN_VERSION=${MAVEN_VERSION} \
       --tag=gpdb6-ubuntu18.04-test-pxf \
       -f ~/workspace/pxf/concourse/docker/pxf-dev-base/gpdb6/ubuntu18.04/Dockerfile \
       .
@@ -101,6 +106,7 @@ following command to build the image:
     docker build \
       --build-arg=BASE_IMAGE=gcr.io/data-gpdb-public-images/gpdb6-oel7-test:latest \
       --build-arg=GO_VERSION=${GO_VERSION} \
+      --build-arg=MAVEN_VERSION=${MAVEN_VERSION} \
       --tag=gpdb6-oel7-test-pxf \
       -f ~/workspace/pxf/concourse/docker/pxf-dev-base/gpdb6/oel7/Dockerfile \
       .
@@ -116,6 +122,8 @@ command to build the image:
     pushd ~/workspace/pxf/concourse/docker/pxf-dev-base/
     docker build \
       --build-arg=BASE_IMAGE=gcr.io/data-gpdb-public-images/gpdb7-rocky8-test:latest \
+      --build-arg=GO_VERSION=${GO_VERSION} \
+      --build-arg=MAVEN_VERSION=${MAVEN_VERSION} \
       --tag=gpdb7-rocky8-test-pxf \
       -f ~/workspace/pxf/concourse/docker/pxf-dev-base/gpdb7/rocky8/Dockerfile \
       .
