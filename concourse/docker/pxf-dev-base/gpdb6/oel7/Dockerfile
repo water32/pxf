@@ -9,7 +9,7 @@ RUN mkdir -p /tmp/pxf_src/ && cd /tmp \
     && wget -O go.tgz -q https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz \
     && rm -rf /usr/local/go && tar -C /usr/local -xzf go.tgz && rm go.tgz
 
-ARG MAVEN_VERSION=3.6.3
+ARG MAVEN_VERSION
 ARG USER_HOME_DIR="/root"
 ARG BASE_URL=https://apache.osuosl.org/maven/maven-3/${MAVEN_VERSION}/binaries
 
