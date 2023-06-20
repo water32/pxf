@@ -12,7 +12,7 @@ RUN mkdir -p /tmp/pxf_src/ && cd /tmp \
 # install dependencies that are missing on the base images
 # install a specific version of perl for tinc
 
-ARG MAVEN_VERSION=3.6.3
+ARG MAVEN_VERSION
 ARG USER_HOME_DIR="/root"
 ARG BASE_URL=https://apache.osuosl.org/maven/maven-3/${MAVEN_VERSION}/binaries
 

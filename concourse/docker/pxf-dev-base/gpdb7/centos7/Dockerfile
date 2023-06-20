@@ -18,7 +18,7 @@ RUN useradd -s /sbin/nologin -d /opt/minio minio \
     && chmod +x /opt/minio/bin/minio \
     && chown -R minio:minio /opt/minio
 
-ARG MAVEN_VERSION=3.6.3
+ARG MAVEN_VERSION
 ARG USER_HOME_DIR="/root"
 ARG BASE_URL=https://apache.osuosl.org/maven/maven-3/${MAVEN_VERSION}/binaries
 
