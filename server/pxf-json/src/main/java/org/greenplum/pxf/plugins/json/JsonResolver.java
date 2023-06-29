@@ -20,6 +20,7 @@ package org.greenplum.pxf.plugins.json;
  */
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.greenplum.pxf.api.OneField;
@@ -33,6 +34,7 @@ import org.greenplum.pxf.api.utilities.SpringContext;
 import org.greenplum.pxf.plugins.hdfs.utilities.PgUtilities;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -42,10 +44,21 @@ import java.util.StringJoiner;
  * This JSON resolver for PXF will decode a given object from the {@link JsonAccessor} into a row for GPDB. It will
  * decode this data into a JsonNode and walk the tree for each column. It supports normal value mapping via projections
  * and JSON array indexing.
+ * <p>
+ * For the writing use case the resolver will just pass the list of OneField objects to the {@link JsonAccessor} and will
+ * not perform a serialization of the list into a Json string as it might have been expected. This is due to the nature
+ * of accessor's implementation, where a streaming writing is performed to avoid creating intermediate Java objects.
+ * The actual deserialization logic is placed into {@link JsonUtilities} class.
  */
 public class JsonResolver extends BasePlugin implements Resolver {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    static {
+        // JSON has only floating point numbers of arbitrary precision and scale, when parsing them into Java we want
+        // to use BigDecimal to preserve precision larger than a `double` allows, especially if GP table has NUMERIC columns
+        MAPPER.configure(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, true);
+    }
 
     private PgUtilities pgUtilities;
 
@@ -123,13 +136,14 @@ public class JsonResolver extends BasePlugin implements Resolver {
      */
     @Override
     public OneRow setFields(List<OneField> record) throws UnsupportedOperationException {
-        throw new UnsupportedOperationException("JSON resolver does not support write operation.");
+        // wrap the list into OneRow, the accessor will convert data directly to avoid creating extra objects for every row
+        return new OneRow(null, record);
     }
 
     /**
      * Iterates down the root node to the child JSON node defined by the projs path.
      *
-     * @param root  node to to start the traversal from.
+     * @param root  node to start the traversal from.
      * @param projs defines the path from the root to the desired child node.
      * @return Returns the child node defined by the root and projs path.
      */
@@ -213,7 +227,8 @@ public class JsonResolver extends BasePlugin implements Resolver {
                 oneField.val = val.asBoolean();
                 break;
             case BYTEA:
-                oneField.val = val.asText().getBytes();
+                // we assume that this is binary data that is stored as Base64 encoded in Json
+                oneField.val = val.binaryValue();
                 break;
             case FLOAT8:
                 oneField.val = val.asDouble();
@@ -230,13 +245,34 @@ public class JsonResolver extends BasePlugin implements Resolver {
             case BPCHAR:
             case TEXT:
             case VARCHAR:
+            case NUMERIC:
+            case DATE:
+            case TIME:
+            case TIMESTAMP:
+            case TIMESTAMP_WITH_TIME_ZONE:
+            case UUID:
                 oneField.val = val.isTextual() ? val.asText() : MAPPER.writeValueAsString(val);
                 break;
+            case INT2ARRAY:
+            case INT4ARRAY:
+            case INT8ARRAY:
+            case BOOLARRAY:
             case TEXTARRAY:
+            case FLOAT4ARRAY:
+            case FLOAT8ARRAY:
+            case BYTEAARRAY:
+            case BPCHARARRAY:
+            case VARCHARARRAY:
+            case DATEARRAY:
+            case UUIDARRAY:
+            case NUMERICARRAY:
+            case TIMEARRAY:
+            case TIMESTAMPARRAY:
+            case TIMESTAMP_WITH_TIMEZONE_ARRAY:
                 if (!val.isArray()) {
                     throw new BadRecordException(String.format("error while reading column '%s': invalid array value '%s'", columnMetadata.getColumnName(), val));
                 }
-                oneField.val = addAllFromJsonArray(val);
+                oneField.val = addAllFromJsonArray(val, type);
                 break;
             default:
                 throw new IOException("Unsupported type " + type);
@@ -291,22 +327,34 @@ public class JsonResolver extends BasePlugin implements Resolver {
      * Format the given JSON array in Postgres array syntax
      *
      * @param jsonNode the {@link JsonNode} to serialize in Postgres array syntax
+     * @param type Greenplum datatype that the value represents
      * @return a {@link String} containing the array elements in Postgre array syntax
      * @throws JsonProcessingException
      */
-    private String addAllFromJsonArray(JsonNode jsonNode) throws JsonProcessingException {
+    private String addAllFromJsonArray(JsonNode jsonNode, DataType type) throws IOException {
         StringJoiner stringJoiner = new StringJoiner(",", "{", "}");
-        for (Iterator<JsonNode> i = jsonNode.elements(); i.hasNext();) {
+        Iterator<JsonNode> i = jsonNode.elements();
+        while (i.hasNext()) {
             JsonNode element = i.next();
             switch (element.getNodeType()) {
                 case NULL:
                     stringJoiner.add(pgUtilities.escapeArrayElement(null));
                     break;
                 case ARRAY:
-                    stringJoiner.add(addAllFromJsonArray(element));
+                    // we assume this will be a multi-dimensional array of a given Greenplum array type
+                    stringJoiner.add(addAllFromJsonArray(element, type));
+                    break;
+                case BINARY:
+                    // not sure how a parser will know when to create a binary node without a schema, but just in case
+                    stringJoiner.add(pgUtilities.encodeAndEscapeByteaHex(ByteBuffer.wrap(element.binaryValue())));
                     break;
                 case STRING:
-                    stringJoiner.add(pgUtilities.escapeArrayElement(element.asText()));
+                    // Base64-encoded binary data is stored as a string value and can be in a string node
+                    if (type.equals(DataType.BYTEAARRAY)) {
+                        stringJoiner.add(pgUtilities.encodeAndEscapeByteaHex(ByteBuffer.wrap(element.binaryValue())));
+                    } else {
+                        stringJoiner.add(pgUtilities.escapeArrayElement(element.asText()));
+                    }
                     break;
                 default:
                     stringJoiner.add(pgUtilities.escapeArrayElement(MAPPER.writeValueAsString(element)));

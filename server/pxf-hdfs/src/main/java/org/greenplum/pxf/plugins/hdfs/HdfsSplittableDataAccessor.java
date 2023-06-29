@@ -31,6 +31,7 @@ import org.apache.hadoop.util.StringUtils;
 import org.greenplum.pxf.api.OneRow;
 import org.greenplum.pxf.api.model.Accessor;
 import org.greenplum.pxf.api.model.BasePlugin;
+import org.greenplum.pxf.api.model.RequestContext;
 import org.greenplum.pxf.plugins.hdfs.utilities.HdfsUtilities;
 
 import java.io.IOException;
@@ -48,7 +49,7 @@ public abstract class HdfsSplittableDataAccessor extends BasePlugin implements A
     protected JobConf jobConf;
     protected Object key, data;
     protected FileSplit fileSplit;
-    HcfsType hcfsType;
+    protected HcfsType hcfsType;
 
     /**
      * Constructs an HdfsSplittableDataAccessor
@@ -67,8 +68,10 @@ public abstract class HdfsSplittableDataAccessor extends BasePlugin implements A
         // Check if the underlying configuration is for HDFS
         hcfsType = HcfsType.getHcfsType(context);
 
-        // Parse fileSplit from context
-        fileSplit = HdfsUtilities.parseFileSplit(context.getDataSource(), context.getFragmentMetadata());
+        // Parse fileSplit from context for reading only
+        if (context.getRequestType() == RequestContext.RequestType.READ_BRIDGE) {
+            fileSplit = HdfsUtilities.parseFileSplit(context.getDataSource(), context.getFragmentMetadata());
+        }
     }
 
     /**
@@ -99,6 +102,15 @@ public abstract class HdfsSplittableDataAccessor extends BasePlugin implements A
      */
     abstract protected Object getReader(JobConf jobConf, InputSplit split)
             throws IOException;
+
+    /**
+     * Returns an extension to use for files being written, such as ".json". This might not be the final extension
+     * since if the compression codec is used, the compression extension (such as ".gz") will be added afterwards.
+     * @return the extension or null if no extension is needed.
+     */
+    protected String getFileExtension() {
+        return null;
+    }
 
     /**
      * Fetches one record from the file. The record is returned as a Java
