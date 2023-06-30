@@ -96,6 +96,7 @@ public class JdbcBasePlugin extends BasePlugin {
     private static final String HIVE_URL_PREFIX = "jdbc:hive2://";
     private static final String HIVE_DEFAULT_DRIVER_CLASS = "org.apache.hive.jdbc.HiveDriver";
     private static final String MYSQL_DRIVER_PREFIX = "com.mysql.";
+    private static final String JDBC_DATE_WIDE_RANGE = "jdbc.date.wideRange";
 
     private enum TransactionIsolation {
         READ_UNCOMMITTED(1),
@@ -163,6 +164,9 @@ public class JdbcBasePlugin extends BasePlugin {
 
     private final ConnectionManager connectionManager;
     private final SecureLogin secureLogin;
+
+    // Flag which is used when the year might contain more than 4 digits in `date` or 'timestamp'
+    protected boolean isDateWideRange;
 
     static {
         // Deprecated as of Oct 22, 2019 in version 5.9.2+
@@ -359,6 +363,10 @@ public class JdbcBasePlugin extends BasePlugin {
             // to switch effective user once connection is established
             poolQualifier = configuration.get(JDBC_POOL_QUALIFIER_PROPERTY_NAME);
         }
+
+        // Optional parameter to determine if the year might contain more than 4 digits in `date` or 'timestamp'.
+        // The default value is false.
+        isDateWideRange = configuration.getBoolean(JDBC_DATE_WIDE_RANGE, false);
     }
 
     /**
