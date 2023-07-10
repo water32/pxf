@@ -40,7 +40,7 @@ gpbridge_cleanup(gphadoop_context *context)
 	if (context == NULL)
 		return;
 
-	churl_cleanup(context->churl_handle, false);
+	churl_cleanup(context->churl_handle, context->after_error);
 	context->churl_handle = NULL;
 
 	churl_headers_cleanup(context->churl_headers);

@@ -43,6 +43,7 @@ typedef struct
 	ProjectionInfo *proj_info;
 	List           *quals;
 	bool           completed;
+	bool           after_error;
 } gphadoop_context;
 
 /*

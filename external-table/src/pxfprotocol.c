@@ -26,6 +26,7 @@
 #include "access/fileam.h"
 #endif
 #include "utils/elog.h"
+#include "utils/resowner.h"
 
 /* define magic module unless run as a part of test cases */
 #ifndef UNIT_TESTING
@@ -154,6 +155,21 @@ pxfprotocol_import(PG_FUNCTION_ARGS)
 	PG_RETURN_INT32(bytes_read);
 }
 
+static void
+url_curl_abort_callback(ResourceReleasePhase phase,
+						bool isCommit,
+						bool isTopLevel,
+						void *arg)
+{
+	gphadoop_context *context = arg;
+
+	if (phase != RESOURCE_RELEASE_AFTER_LOCKS || isCommit || !isTopLevel)
+		return;
+
+	context->after_error = true;
+	cleanup_context(context);
+}
+
 /*
  * Allocates context and sets values for the segment
  */
@@ -190,6 +206,8 @@ create_context(PG_FUNCTION_ARGS, bool is_import)
 	context->proj_info = proj_info;
 	context->quals     = filter_quals;
 	context->completed = false;
+	context->after_error = false;
+	RegisterResourceReleaseCallback(url_curl_abort_callback, context);
 	return context;
 }
 
@@ -201,6 +219,7 @@ cleanup_context(gphadoop_context *context)
 {
 	if (context != NULL)
 	{
+		UnregisterResourceReleaseCallback(url_curl_abort_callback, context);
 		gpbridge_cleanup(context);
 		pfree(context->uri.data);
 		pfree(context);
