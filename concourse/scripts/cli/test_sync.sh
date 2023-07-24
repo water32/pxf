@@ -264,7 +264,7 @@ run_test test_sync_succeeds_delete_server "pxf cluster sync (delete server) shou
 
 # === Test "pxf cluster sync (no standby)" ================================================================
 expected_sync_message=\
-"Syncing PXF configuration files from master host to 2 segment hosts...
+"Syncing PXF configuration files from coordinator host to 2 segment hosts...
 PXF configs synced successfully on 2 out of 2 hosts"
 expected_cluster_configs=\
 "cdw:

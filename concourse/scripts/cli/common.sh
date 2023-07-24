@@ -143,9 +143,9 @@ has_standby_coordinator() {
 }
 
 get_cluster_description() {
-  local cluster_description="master host"
+  local cluster_description="coordinator host"
   if has_standby_coordinator; then
-    cluster_description+=", standby master host,"
+    cluster_description+=", standby coordinator host,"
   fi
   local num_segment_hosts
   num_segment_hosts="$(grep -c -P 'sdw\d+' hostfile_all)"
@@ -155,9 +155,9 @@ get_cluster_description() {
 }
 
 get_cluster_sync_description() {
-  local cluster_sync_description="master host to "
+  local cluster_sync_description="coordinator host to "
   if has_standby_coordinator; then
-    cluster_sync_description+="standby master host and "
+    cluster_sync_description+="standby coordinator host and "
   fi
   local num_segment_hosts
   num_segment_hosts="$(grep -c -P 'sdw\d+' hostfile_all)"

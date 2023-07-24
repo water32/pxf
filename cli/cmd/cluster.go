@@ -39,14 +39,14 @@ func createCobraCommand(use string, short string, cmd *command) *cobra.Command {
 
 var (
 	clusterCmd  = createCobraCommand("cluster", "Perform <command> on each segment host in the cluster", nil)
-	initCmd     = createCobraCommand("init", "(deprecated) Install PXF extension under $GPHOME on master, standby master, and all segment hosts", &InitCommand)
-	startCmd    = createCobraCommand("start", "Start the PXF server instances on master, standby master, and all segment hosts", &StartCommand)
-	stopCmd     = createCobraCommand("stop", "Stop the PXF server instances on master, standby master, and all segment hosts", &StopCommand)
-	statusCmd   = createCobraCommand("status", "Get status of PXF servers on master, standby master, and all segment hosts", &StatusCommand)
-	syncCmd     = createCobraCommand("sync", "Sync PXF configs from master to standby master and all segment hosts. Use --delete to delete extraneous remote files", &SyncCommand)
+	initCmd     = createCobraCommand("init", "(deprecated) Install PXF extension under $GPHOME on coordinator, standby coordinator, and all segment hosts", &InitCommand)
+	startCmd    = createCobraCommand("start", "Start the PXF server instances on coordinator, standby coordinator, and all segment hosts", &StartCommand)
+	stopCmd     = createCobraCommand("stop", "Stop the PXF server instances on coordinator, standby coordinator, and all segment hosts", &StopCommand)
+	statusCmd   = createCobraCommand("status", "Get status of PXF servers on coordinator, standby coordinator, and all segment hosts", &StatusCommand)
+	syncCmd     = createCobraCommand("sync", "Sync PXF configs from coordinator to standby coordinator and all segment hosts. Use --delete to delete extraneous remote files", &SyncCommand)
 	resetCmd    = createCobraCommand("reset", "(deprecated) No operation", &ResetCommand)
-	registerCmd = createCobraCommand("register", "Install PXF extension under $GPHOME on master, standby master, and all segment hosts", &RegisterCommand)
-	restartCmd  = createCobraCommand("restart", "Restart the PXF server on master, standby master, and all segment hosts", &RestartCommand)
+	registerCmd = createCobraCommand("register", "Install PXF extension under $GPHOME on coordinator, standby coordinator, and all segment hosts", &RegisterCommand)
+	restartCmd  = createCobraCommand("restart", "Restart the PXF server on coordinator, standby coordinator, and all segment hosts", &RestartCommand)
 	prepareCmd  = createCobraCommand("prepare", "Prepares a new base directory specified by the $PXF_BASE environment variable", &PrepareCommand)
 	migrateCmd  = createCobraCommand("migrate", "Migrates configurations from older installations of PXF", &MigrateCommand)
 	// DeleteOnSync is a boolean for determining whether to use rsync with --delete, exported for tests
@@ -138,7 +138,7 @@ func doSetup() (*ClusterData, error) {
 	err := connection.Connect(1)
 	if err != nil {
 		gplog.Error(fmt.Sprintf("ERROR: Could not connect to GPDB.\n%s\n"+
-			"Please make sure that your Greenplum database is running and you are on the master node.", err.Error()))
+			"Please make sure that your Greenplum database is running and you are on the coordinator node.", err.Error()))
 		return nil, err
 	}
 	segConfigs, err := cluster.GetSegmentConfiguration(connection, true)
@@ -176,7 +176,7 @@ func clusterRun(cmd *command, clusterData *ClusterData) error {
 func isStandbyAloneOnHost(clusterData *ClusterData) bool {
 	standbyHost := clusterData.Cluster.GetHostForContent(-1, "m")
 	if standbyHost == "" {
-		return false // there is no standby master
+		return false // there is no standby coordinator
 	}
 	return len(clusterData.Cluster.GetContentsForHost(standbyHost)) == 1
 }
