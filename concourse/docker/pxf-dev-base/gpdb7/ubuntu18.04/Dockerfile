@@ -4,6 +4,8 @@ FROM ${BASE_IMAGE}
 
 ARG GO_VERSION
 
+ADD apache-maven.tar.gz /usr/share
+
 # install Go utilities
 RUN mkdir -p /tmp/pxf_src/ && cd /tmp \
     && wget -O go.tgz -q https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz \
@@ -11,20 +13,14 @@ RUN mkdir -p /tmp/pxf_src/ && cd /tmp \
 
 # install dependencies that are missing on the base images
 # install a specific version of perl for tinc
-
-ARG MAVEN_VERSION
 ARG USER_HOME_DIR="/root"
-ARG BASE_URL=https://apache.osuosl.org/maven/maven-3/${MAVEN_VERSION}/binaries
 
 RUN apt-get update -y \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y python-dev curl sudo jq openjdk-8-jdk openjdk-11-jdk \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
-    && mkdir -p /usr/share/maven /usr/share/maven/ref \
-    && curl -fsSL -o /tmp/apache-maven.tar.gz ${BASE_URL}/apache-maven-${MAVEN_VERSION}-bin.tar.gz \
-    && tar -xzf /tmp/apache-maven.tar.gz -C /usr/share/maven --strip-components=1 \
-    && rm -f /tmp/apache-maven.tar.gz \
-    && ln -s /usr/share/maven/bin/mvn /usr/bin/mvn
+    && mkdir -p /usr/share/apache-maven-*/ref \
+    && ln -s /usr/share/apache-maven-*/bin/mvn /usr/bin/mvn
 
 # create user gpadmin since GPDB cannot run under root
 RUN locale-gen en_US.UTF-8 \

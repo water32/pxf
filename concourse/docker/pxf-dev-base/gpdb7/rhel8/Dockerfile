@@ -4,6 +4,8 @@ FROM ${BASE_IMAGE}
 
 ARG GO_VERSION
 
+ADD apache-maven.tar.gz /usr/share
+
 # install Go utilities
 RUN mkdir -p /tmp/pxf_src/ && cd /tmp \
     && wget -O go.tgz -q https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz \
@@ -18,16 +20,10 @@ RUN useradd -s /sbin/nologin -d /opt/minio minio \
     && chmod +x /opt/minio/bin/minio \
     && chown -R minio:minio /opt/minio
 
-ARG MAVEN_VERSION
 ARG USER_HOME_DIR="/root"
-ARG BASE_URL=https://apache.osuosl.org/maven/maven-3/${MAVEN_VERSION}/binaries
 
 # install dependencies that are missing on the base images
-RUN curl -fsSL -o /tmp/apache-maven.tar.gz ${BASE_URL}/apache-maven-${MAVEN_VERSION}-bin.tar.gz \
-    && mkdir -p /usr/share/maven \
-    && tar -xzf /tmp/apache-maven.tar.gz -C /usr/share/maven --strip-components=1 \
-    && rm -f /tmp/apache-maven.tar.gz \
-    && ln -s /usr/share/maven/bin/mvn /usr/bin/mvn \
+RUN ln -s /usr/share/apache-maven-*/bin/mvn /usr/bin/mvn \
     && dnf install -y -d1 python2 python2-pip \
     && /usr/bin/pip2 install paramiko --no-cache-dir
 
