@@ -153,7 +153,7 @@ public class HBaseTest extends BaseFeature {
      * @throws Exception if test fails to run
      */
     @Test(groups = { "hbase", "features", "sanity", "gpdb" })
-    public void sanity() throws Exception {
+    public void confidence() throws Exception {
 
         verifyFilterResults(hbaseTable, exTable, "", NO_FILTER, "sanity", false);
     }

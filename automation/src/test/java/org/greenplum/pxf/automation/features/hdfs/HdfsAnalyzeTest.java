@@ -200,7 +200,7 @@ public class HdfsAnalyzeTest extends BaseFeature {
         verifyPgClassValues(-1, 1000, 10);
         verifyPgStatsEntries(exTable.getFields().length);
 
-        ReportUtils.report(null, getClass(), "Sanity: table is queryable");
+        ReportUtils.report(null, getClass(), "Confidence: table is queryable");
         gpdb.queryResults(exTable, "SELECT * FROM " + exTable.getName()
                 + " ORDER BY n1");
         ComparisonUtils.compareTables(exTable, dataTable, null);
@@ -244,7 +244,7 @@ public class HdfsAnalyzeTest extends BaseFeature {
         verifyPgClassValues(-1, 999, 10);
         verifyPgStatsEntries(exTable.getFields().length);
 
-        ReportUtils.report(null, getClass(), "Sanity: table is queryable");
+        ReportUtils.report(null, getClass(), "Confidence: table is queryable");
         gpdb.queryResults(exTable, "SELECT COUNT(*) FROM " + exTable.getName());
 
         Table countTable = new Table("count", null);
@@ -808,7 +808,7 @@ public class HdfsAnalyzeTest extends BaseFeature {
         verifyPgClassValues(-1, 1000000, 300000);
         verifyPgStatsEntries(exTable.getFields().length);
 
-        ReportUtils.report(null, getClass(), "Sanity: table is queryable");
+        ReportUtils.report(null, getClass(), "Confidence: table is queryable");
         gpdb.queryResults(exTable, "SELECT COUNT(*) FROM " + exTable.getName());
 
         Table countTable = new Table("count", null);
@@ -863,7 +863,7 @@ public class HdfsAnalyzeTest extends BaseFeature {
         verifyPgClassValues(-1, 9999999, 300000);
         verifyPgStatsEntries(exTable.getFields().length);
 
-        ReportUtils.report(null, getClass(), "Sanity: table is queryable");
+        ReportUtils.report(null, getClass(), "Confidence: table is queryable");
         gpdb.queryResults(exTable, "SELECT COUNT(*) FROM " + exTable.getName());
 
         Table countTable = new Table("count", null);
