@@ -218,11 +218,13 @@ public class SecureLogin {
         LoginSession expectedLoginSession;
         if (Utilities.isSecurityEnabled(configuration)) {
             long kerberosMinMillisBeforeRelogin = pxfUserGroupInformation.getKerberosMinMillisBeforeRelogin(serverName, configuration);
+            float kerberosTicketRenewWindow = pxfUserGroupInformation.getKerberosTicketRenewWindow(serverName, configuration);
             expectedLoginSession = new LoginSession(
                     configDirectory,
                     getServicePrincipal(serverName, configuration),
                     getServiceKeytab(serverName, configuration),
-                    kerberosMinMillisBeforeRelogin);
+                    kerberosMinMillisBeforeRelogin,
+                    kerberosTicketRenewWindow);
         } else {
             expectedLoginSession = new LoginSession(configDirectory);
         }

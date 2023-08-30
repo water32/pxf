@@ -21,6 +21,7 @@ public class LoginSession {
     private String principalName;
     private String keytabPath;
     private long kerberosMinMillisBeforeRelogin;
+    private float kerberosTicketRenewWindow;
 
     // derived fields stored to be re-used for subsequent requests
     private UserGroupInformation loginUser;
@@ -33,7 +34,7 @@ public class LoginSession {
      * @param configDirectory server configuration directory
      */
     public LoginSession(String configDirectory) {
-        this(configDirectory, null, null, null, null, 0L);
+        this(configDirectory, null, null, null, null, 0L, 0f);
     }
 
     /**
@@ -43,18 +44,19 @@ public class LoginSession {
      * @param loginUser       UserGroupInformation for the given principal after login to Kerberos was performed
      */
     public LoginSession(String configDirectory, UserGroupInformation loginUser) {
-        this(configDirectory, null, null, loginUser, null, 0L);
+        this(configDirectory, null, null, loginUser, null, 0L, 0f);
     }
 
     /**
      * Creates a new session object.
      *
-     * @param configDirectory server configuration directory
-     * @param principalName   Kerberos principal name to use to obtain tokens
-     * @param keytabPath      full path to a keytab file for the principal
+     * @param configDirectory           server configuration directory
+     * @param principalName             Kerberos principal name to use to obtain tokens
+     * @param keytabPath                full path to a keytab file for the principal
+     * @param kerberosTicketRenewWindow the percentage of the ticket lifespan
      */
-    public LoginSession(String configDirectory, String principalName, String keytabPath, long kerberosMinMillisBeforeRelogin) {
-        this(configDirectory, principalName, keytabPath, null, null, kerberosMinMillisBeforeRelogin);
+    public LoginSession(String configDirectory, String principalName, String keytabPath, long kerberosMinMillisBeforeRelogin, float kerberosTicketRenewWindow) {
+        this(configDirectory, principalName, keytabPath, null, null, kerberosMinMillisBeforeRelogin, kerberosTicketRenewWindow);
     }
 
     /**
@@ -66,9 +68,10 @@ public class LoginSession {
      * @param loginUser                      UserGroupInformation for the given principal after login to Kerberos was performed
      * @param subject                        the subject
      * @param kerberosMinMillisBeforeRelogin the number of milliseconds before re-login
+     * @param kerberosTicketRenewWindow      the percentage of the ticket lifespan
      */
     public LoginSession(String configDirectory, String principalName, String keytabPath, UserGroupInformation loginUser,
-                        Subject subject, long kerberosMinMillisBeforeRelogin) {
+                        Subject subject, long kerberosMinMillisBeforeRelogin, float kerberosTicketRenewWindow) {
         this.configDirectory = configDirectory;
         this.principalName = principalName;
         this.keytabPath = keytabPath;
@@ -78,6 +81,7 @@ public class LoginSession {
             this.user = subject.getPrincipals(User.class).iterator().next();
         }
         this.kerberosMinMillisBeforeRelogin = kerberosMinMillisBeforeRelogin;
+        this.kerberosTicketRenewWindow = kerberosTicketRenewWindow;
     }
 
     /**
@@ -134,6 +138,10 @@ public class LoginSession {
         return principalName;
     }
 
+    public float getKerberosTicketRenewWindow() {
+        return kerberosTicketRenewWindow;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -143,12 +151,13 @@ public class LoginSession {
         return Objects.equals(configDirectory, that.configDirectory) &&
                 Objects.equals(principalName, that.principalName) &&
                 Objects.equals(keytabPath, that.keytabPath) &&
-                kerberosMinMillisBeforeRelogin == that.kerberosMinMillisBeforeRelogin;
+                kerberosMinMillisBeforeRelogin == that.kerberosMinMillisBeforeRelogin &&
+                kerberosTicketRenewWindow == that.kerberosTicketRenewWindow;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(configDirectory, principalName, keytabPath, kerberosMinMillisBeforeRelogin);
+        return Objects.hash(configDirectory, principalName, keytabPath, kerberosMinMillisBeforeRelogin, kerberosTicketRenewWindow);
     }
 
     @Override
@@ -158,6 +167,7 @@ public class LoginSession {
                 .append("principal", principalName)
                 .append("keytab", keytabPath)
                 .append("kerberosMinMillisBeforeRelogin", kerberosMinMillisBeforeRelogin)
+                .append("kerberosTicketRenewWindow", kerberosTicketRenewWindow)
                 .toString();
     }
 }

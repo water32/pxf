@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.HADOOP_KERBEROS_MIN_SECONDS_BEFORE_RELOGIN;
+import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.HADOOP_KERBEROS_MIN_SECONDS_BEFORE_RELOGIN_DEFAULT;
 
 /**
  * PXF-specific analog of <code>UserGroupInformation</code> class to support multiple concurrent Kerberos sessions
@@ -43,7 +44,8 @@ public class PxfUserGroupInformation {
     /**
      * Percentage of the ticket window to use before we renew ticket.
      */
-    private static final float TICKET_RENEW_WINDOW = 0.80f;
+    public static final String CONFIG_KEY_TICKET_RENEW_WINDOW = "pxf.service.kerberos.ticket-renew-window";
+    public static final float DEFAULT_TICKET_RENEW_WINDOW = 0.8f;
 
     private static final boolean windows = System.getProperty("os.name").startsWith("Windows");
     private static final boolean is64Bit = System.getProperty("os.arch").contains("64") ||
@@ -106,7 +108,8 @@ public class PxfUserGroupInformation {
 
             // store all the relevant information in the login session and return it
             return new LoginSession(configDirectory, principal, keytabFilename, loginUser, subject,
-                    getKerberosMinMillisBeforeRelogin(serverName, configuration));
+                    getKerberosMinMillisBeforeRelogin(serverName, configuration),
+                    getKerberosTicketRenewWindow(serverName, configuration));
 
         } catch (LoginException le) {
             KerberosAuthException kae = new KerberosAuthException(LOGIN_FAILURE, le);
@@ -148,7 +151,7 @@ public class PxfUserGroupInformation {
             Subject subject = loginSession.getSubject();
             KerberosTicket tgt = getTGT(subject);
             //Return if TGT is valid and is not going to expire soon.
-            if (tgt != null && now < getRefreshTime(tgt)) {
+            if (tgt != null && now < getRefreshTime(tgt, loginSession.getKerberosTicketRenewWindow())) {
                 return;
             }
 
@@ -197,13 +200,25 @@ public class PxfUserGroupInformation {
 
     public long getKerberosMinMillisBeforeRelogin(String serverName, Configuration configuration) {
         try {
-            return 1000L * configuration.getLong(HADOOP_KERBEROS_MIN_SECONDS_BEFORE_RELOGIN, 60L);
+            return 1000L * configuration.getLong(HADOOP_KERBEROS_MIN_SECONDS_BEFORE_RELOGIN, HADOOP_KERBEROS_MIN_SECONDS_BEFORE_RELOGIN_DEFAULT);
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException(String.format("Invalid attribute value for %s of %s for server %s",
                     HADOOP_KERBEROS_MIN_SECONDS_BEFORE_RELOGIN,
                     configuration.get(HADOOP_KERBEROS_MIN_SECONDS_BEFORE_RELOGIN),
                     serverName));
         }
+    }
+
+    public float getKerberosTicketRenewWindow(String serverName, Configuration configuration) {
+        float ticketRenewWindow = configuration.getFloat(CONFIG_KEY_TICKET_RENEW_WINDOW, DEFAULT_TICKET_RENEW_WINDOW);
+        if (ticketRenewWindow < 0f || ticketRenewWindow > 1f) {
+            throw new IllegalArgumentException(
+                    String.format("Invalid value for %s of %f for server %s. Please choose a value between 0 and 1.",
+                            CONFIG_KEY_TICKET_RENEW_WINDOW,
+                            ticketRenewWindow,
+                            serverName));
+        }
+        return ticketRenewWindow;
     }
 
     // if the first kerberos ticket is not TGT, then remove and destroy it since
@@ -237,10 +252,10 @@ public class PxfUserGroupInformation {
         LOG.warn("Warning, no kerberos tickets found while attempting to renew ticket");
     }
 
-    private long getRefreshTime(KerberosTicket tgt) {
+    private long getRefreshTime(KerberosTicket tgt, float ticketRenewWindow) {
         long start = tgt.getStartTime().getTime();
         long end = tgt.getEndTime().getTime();
-        return start + (long) ((end - start) * TICKET_RENEW_WINDOW);
+        return start + (long) ((end - start) * ticketRenewWindow);
     }
 
     private static String getOSLoginModuleName() {

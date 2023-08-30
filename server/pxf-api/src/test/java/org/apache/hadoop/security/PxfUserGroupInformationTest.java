@@ -111,14 +111,7 @@ public class PxfUserGroupInformationTest {
 
         // assert that the login session was created with properly wired up ugi/subject/user/loginContext
         assertEquals(33000, session.getKerberosMinMillisBeforeRelogin()); // will pick from configuration
-        assertEquals("/path/to/keytab", session.getKeytabPath());
-        assertEquals("principal/some.host.com@EXAMPLE.COM", session.getPrincipalName());
-        assertEquals(ugi, session.getLoginUser()); // UGI equality only compares enclosed subjects
-        assertNotSame(ugi, session.getLoginUser()); // UGI equality only compares enclosed subjects
-        assertSame(subject, session.getSubject());
-        assertSame(user, session.getUser());
-        assertSame(mockLoginContext, session.getUser().getLogin());
-        assertEquals(UserGroupInformation.AuthenticationMethod.KERBEROS, session.getLoginUser().getAuthenticationMethod());
+        assertSessionInfo(session, mockLoginContext, ugi, subject, user);
 
         // verify that login() was called
         verify(mockLoginContext).login();
@@ -132,14 +125,49 @@ public class PxfUserGroupInformationTest {
 
         // assert that the login session was created with properly wired up ugi/subject/user/loginContext
         assertEquals(60000, session.getKerberosMinMillisBeforeRelogin()); // will pick from default
-        assertEquals("/path/to/keytab", session.getKeytabPath());
-        assertEquals("principal/some.host.com@EXAMPLE.COM", session.getPrincipalName());
-        assertEquals(ugi, session.getLoginUser()); // UGI equality only compares enclosed subjects
-        assertNotSame(ugi, session.getLoginUser()); // UGI equality only compares enclosed subjects
-        assertSame(subject, session.getSubject());
-        assertSame(user, session.getUser());
-        assertSame(mockLoginContext, session.getUser().getLogin());
-        assertEquals(UserGroupInformation.AuthenticationMethod.KERBEROS, session.getLoginUser().getAuthenticationMethod());
+        assertSessionInfo(session, mockLoginContext, ugi, subject, user);
+
+        // verify that login() was called
+        verify(mockLoginContext).login();
+    }
+
+    @Test
+    public void testLoginFromKeytabRenewWindowFromConfig() throws Exception {
+        configuration.setFloat("pxf.service.kerberos.ticket-renew-window", 0.2f);
+        ugi = new UserGroupInformation(subject);
+
+        session = pxfUserGroupInformation.loginUserFromKeytab(configuration, "server", "config-dir", "principal/some.host.com@EXAMPLE.COM", "/path/to/keytab");
+
+        // assert that the login session was created with properly wired up ugi/subject/user/loginContext
+        assertEquals(0.2f, session.getKerberosTicketRenewWindow()); // will pick from configuration
+        assertSessionInfo(session, mockLoginContext, ugi, subject, user);
+
+        // verify that login() was called
+        verify(mockLoginContext).login();
+    }
+
+    @Test
+    public void testLoginFromKeytabRenewWindowDefault() throws Exception {
+        ugi = new UserGroupInformation(subject);
+
+        session = pxfUserGroupInformation.loginUserFromKeytab(configuration, "server", "config-dir", "principal/some.host.com@EXAMPLE.COM", "/path/to/keytab");
+
+        // assert that the login session was created with properly wired up ugi/subject/user/loginContext
+        assertEquals(0.8f, session.getKerberosTicketRenewWindow()); // will pick from default
+        assertSessionInfo(session, mockLoginContext, ugi, subject, user);
+
+        // verify that login() was called
+        verify(mockLoginContext).login();
+    }
+
+    @Test
+    public void testLoginFromKeytabRenewWindowInvalidValue() throws Exception {
+        configuration.set("pxf.service.kerberos.ticket-renew-window", "1.2");
+        ugi = new UserGroupInformation(subject);
+
+        Exception e = assertThrows(IllegalArgumentException.class,
+                () -> pxfUserGroupInformation.loginUserFromKeytab(configuration, "server", "config-dir", "principal/some.host.com@EXAMPLE.COM", "/path/to/keytab"));
+        assertEquals("Invalid value for pxf.service.kerberos.ticket-renew-window of 1.200000 for server server. Please choose a value between 0 and 1.", e.getMessage());
 
         // verify that login() was called
         verify(mockLoginContext).login();
@@ -152,7 +180,7 @@ public class PxfUserGroupInformationTest {
         user.setLogin(mockLoginContext);
         ugi = new UserGroupInformation(subjectWithKerberosKeyTab);
         // do NOT set authentication method of UGI to KERBEROS, will cause NOOP for relogin
-        session = new LoginSession("config", "principal", "keytab", ugi, subjectWithKerberosKeyTab, 1);
+        session = new LoginSession("config", "principal", "keytab", ugi, subjectWithKerberosKeyTab, 1, 0.8f);
 
         pxfUserGroupInformation.reloginFromKeytab(serverName, session);
 
@@ -164,7 +192,7 @@ public class PxfUserGroupInformationTest {
         user.setLogin(mockLoginContext);
         ugi = new UserGroupInformation(subject);
         ugi.setAuthenticationMethod(UserGroupInformation.AuthenticationMethod.KERBEROS);
-        session = new LoginSession("config", "principal", "keytab", ugi, subject, 1);
+        session = new LoginSession("config", "principal", "keytab", ugi, subject, 1, 0.8f);
 
         pxfUserGroupInformation.reloginFromKeytab(serverName, session);
 
@@ -178,7 +206,7 @@ public class PxfUserGroupInformationTest {
         ugi.setAuthenticationMethod(UserGroupInformation.AuthenticationMethod.KERBEROS);
         user.setLastLogin(nowMs); // simulate just logged in
         // set 33 secs between re-login attempts
-        session = new LoginSession("config", "principal", "keytab", ugi, subjectWithKerberosKeyTab, 55000L);
+        session = new LoginSession("config", "principal", "keytab", ugi, subjectWithKerberosKeyTab, 55000L, 0.8f);
 
         pxfUserGroupInformation.reloginFromKeytab(serverName, session);
 
@@ -197,7 +225,7 @@ public class PxfUserGroupInformationTest {
         ugi = new UserGroupInformation(subjectWithKerberosKeyTab);
         ugi.setAuthenticationMethod(UserGroupInformation.AuthenticationMethod.KERBEROS);
         // leave user.lastLogin at 0 to simulate old login
-        session = new LoginSession("config", "principal", "keytab", ugi, subjectWithKerberosKeyTab, 1);
+        session = new LoginSession("config", "principal", "keytab", ugi, subjectWithKerberosKeyTab, 1, 0.8f);
 
         pxfUserGroupInformation.reloginFromKeytab(serverName, session);
 
@@ -210,7 +238,7 @@ public class PxfUserGroupInformationTest {
         ugi = new UserGroupInformation(subjectWithKerberosKeyTab);
         ugi.setAuthenticationMethod(UserGroupInformation.AuthenticationMethod.KERBEROS);
         // leave user.lastLogin at 0 to simulate old login
-        session = new LoginSession("config", "principal", "keytab", ugi, subjectWithKerberosKeyTab, 1);
+        session = new LoginSession("config", "principal", "keytab", ugi, subjectWithKerberosKeyTab, 1, 0.8f);
 
         Exception e = assertThrows(KerberosAuthException.class,
                 () -> pxfUserGroupInformation.reloginFromKeytab(serverName, session));
@@ -223,7 +251,7 @@ public class PxfUserGroupInformationTest {
         ugi = new UserGroupInformation(subjectWithKerberosKeyTab);
         ugi.setAuthenticationMethod(UserGroupInformation.AuthenticationMethod.KERBEROS);
         // leave user.lastLogin at 0 to simulate old login
-        session = new LoginSession("config", "principal", null, ugi, subjectWithKerberosKeyTab, 1);
+        session = new LoginSession("config", "principal", null, ugi, subjectWithKerberosKeyTab, 1, 0.8f);
 
         Exception e = assertThrows(KerberosAuthException.class,
                 () -> pxfUserGroupInformation.reloginFromKeytab(serverName, session));
@@ -243,7 +271,7 @@ public class PxfUserGroupInformationTest {
         ugi = new UserGroupInformation(subjectWithKerberosKeyTab);
         ugi.setAuthenticationMethod(UserGroupInformation.AuthenticationMethod.KERBEROS);
         // leave user.lastLogin at 0 to simulate old login
-        session = new LoginSession("config", "principal", "keytab", ugi, subjectWithKerberosKeyTab, 1);
+        session = new LoginSession("config", "principal", "keytab", ugi, subjectWithKerberosKeyTab, 1, 0.8f);
 
         // train to return another LoginContext when it is constructed during re-login
         mockAnotherLoginContext = mock(LoginContext.class);
@@ -277,12 +305,49 @@ public class PxfUserGroupInformationTest {
         ugi = new UserGroupInformation(subjectWithKerberosKeyTab);
         ugi.setAuthenticationMethod(UserGroupInformation.AuthenticationMethod.KERBEROS);
         // leave user.lastLogin at 0 to simulate old login
-        session = new LoginSession("config", "principal", "keytab", ugi, subjectWithKerberosKeyTab, 1);
+        session = new LoginSession("config", "principal", "keytab", ugi, subjectWithKerberosKeyTab, 1, 0.8f);
 
         // train to return another LoginContext when it is constructed during re-login
         mockAnotherLoginContext = mock(LoginContext.class);
         when(mockLoginContextProvider.newLoginContext(anyString(), any(), any())).thenReturn(mockAnotherLoginContext);
 
+        pxfUserGroupInformation.reloginFromKeytab(serverName, session);
+
+        assertNotSame(mockLoginContext, user.getLogin());
+        assertSame(mockAnotherLoginContext, user.getLogin());
+        assertTrue(user.getLastLogin() > 0); // login timestamp is updated
+
+        verify(mockLoginContext).logout();
+        verify(mockAnotherLoginContext).login();
+    }
+
+    @Test
+    public void testReloginFromKeytabDifferentRenewWindow() throws Exception {
+        user.setLogin(mockLoginContext);
+        when(mockTGT.getServer()).thenReturn(tgtPrincipal);
+
+        // TGT validity started 1 hr ago, valid for another 1 hr, we are at 6/12 or 50% which is less
+        // than the default renew window of 80%
+        when(mockTGT.getStartTime()).thenReturn(new Date(nowMs - 3600 * 1000L));
+        when(mockTGT.getEndTime()).thenReturn(new Date(nowMs + 3600 * 1000L));
+
+        ugi = new UserGroupInformation(subjectWithKerberosKeyTab);
+        ugi.setAuthenticationMethod(UserGroupInformation.AuthenticationMethod.KERBEROS);
+        // leave user.lastLogin at 0 to simulate old login
+        session = new LoginSession("config", "principal", "keytab", ugi, subjectWithKerberosKeyTab, 1, 0.8f);
+
+        // with the default threshold, there should be no change to the login
+        pxfUserGroupInformation.reloginFromKeytab(serverName, session);
+
+        assertSame(mockLoginContext, user.getLogin());
+        assertTrue(user.getLastLogin() == 0); // login timestamp is updated
+
+        // train to return another LoginContext when it is constructed during re-login
+        mockAnotherLoginContext = mock(LoginContext.class);
+        when(mockLoginContextProvider.newLoginContext(anyString(), any(), any())).thenReturn(mockAnotherLoginContext);
+
+        // change the renew threshold to 50%
+        session = new LoginSession("config", "principal", "keytab", ugi, subjectWithKerberosKeyTab, 1, 0.5f);
         pxfUserGroupInformation.reloginFromKeytab(serverName, session);
 
         assertNotSame(mockLoginContext, user.getLogin());
@@ -302,7 +367,7 @@ public class PxfUserGroupInformationTest {
         ugi = new UserGroupInformation(subjectWithKerberosKeyTab);
         ugi.setAuthenticationMethod(UserGroupInformation.AuthenticationMethod.KERBEROS);
         // leave user.lastLogin at 0 to simulate old login
-        session = new LoginSession("config", "principal", "keytab", ugi, subjectWithKerberosKeyTab, 1);
+        session = new LoginSession("config", "principal", "keytab", ugi, subjectWithKerberosKeyTab, 1, 0.8f);
 
         // train to return another LoginContext when it is constructed during re-login
         mockAnotherLoginContext = mock(LoginContext.class);
@@ -312,6 +377,17 @@ public class PxfUserGroupInformationTest {
         Exception e = assertThrows(KerberosAuthException.class,
                 () -> pxfUserGroupInformation.reloginFromKeytab(serverName, session));
         assertEquals("Login failure for principal: principal from keytab keytab javax.security.auth.login.LoginException: foo", e.getMessage());
+    }
+
+    private static void assertSessionInfo(LoginSession session, LoginContext loginContext, UserGroupInformation ugi, Subject subject, User user) {
+        assertEquals("/path/to/keytab", session.getKeytabPath());
+        assertEquals("principal/some.host.com@EXAMPLE.COM", session.getPrincipalName());
+        assertEquals(ugi, session.getLoginUser()); // UGI equality only compares enclosed subjects
+        assertNotSame(ugi, session.getLoginUser()); // UGI equality only compares enclosed subjects
+        assertSame(subject, session.getSubject());
+        assertSame(user, session.getUser());
+        assertSame(loginContext, session.getUser().getLogin());
+        assertEquals(UserGroupInformation.AuthenticationMethod.KERBEROS, session.getLoginUser().getAuthenticationMethod());
     }
 
     private static void resetProperty(String key, String val) {
