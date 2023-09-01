@@ -50,7 +50,7 @@ static List *get_attrs_from_expr(Expr *expr, bool *expressionIsSupported);
  * All supported operators and their PXF operator codes.
  * Note that it is OK to use hardcoded OIDs, since these are all pinned
  * down system catalog operators.
- * See pg_operator.h
+ * See catalog/pg_operator.h in Greenplum 6 or catalog/pg_operator_d.h in Greenplum 7
  */
 dbop_pxfop_map pxf_supported_opr_op_expr[] =
 {
@@ -182,6 +182,14 @@ dbop_pxfop_map pxf_supported_opr_op_expr[] =
 	{1059 /* bpcharle */ , PXFOP_LE},
 	{1061 /* bpcharge */ , PXFOP_GE},
 	{1057 /* bpcharne */ , PXFOP_NE},
+
+	/* numeric */
+	{NumericEqualOperator /* numericeq */ , PXFOP_EQ},
+	{1754 /* numericlt */ , PXFOP_LT},
+	{1756 /* numericgt */ , PXFOP_GT},
+	{1755 /* numericle */ , PXFOP_LE},
+	{1757 /* numericge */ , PXFOP_GE},
+	{1753 /* numericne */ , PXFOP_NE},
 };
 
 

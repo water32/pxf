@@ -2,6 +2,14 @@
 
 set -eo pipefail
 
+if [ "${BASH_VERSION::1}" -lt 4 ]; then
+  echo "This script uses the mapfile command which was added in bash version 4.0.0"
+  echo "The bash picked by /usr/bin/env is version $BASH_VERSION"
+  echo "Please upgrade the bash version to a version >= 4.0.0"
+  echo "And add the path to the directory where it is installed to your PATH variable before /bin entry"
+  exit 1
+fi
+
 WORKING_DIR=$( cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd )
 
 _die() {
@@ -32,14 +40,14 @@ _host_is_local() {
 	[[ $hostname =~ $host_regex ]]
 }
 
-_gen_random_string() {
-	local length=${1:-4}
-	base64 < /dev/urandom | tr -cd '[:alnum:]' | head -c "${length}"
-}
-
 _gen_uuid() {
-	: "$(_gen_random_string 8)_$(_gen_random_string)_$(_gen_random_string)_$(_gen_random_string)_$(_gen_random_string 12)"
-	echo "${_,,}" # downcase
+	local uuid
+	if [[ $(uname) = Darwin ]]; then
+		uuid=$(uuidgen)
+	else
+		uuid=$(cat /proc/sys/kernel/random/uuid)
+	fi
+	echo "$uuid" | tr '[:upper:]' '[:lower:]' | tr '-' '_'
 }
 
 case ${HCFS_PROTOCOL} in
