@@ -3,13 +3,15 @@ ARG BASE_IMAGE=gcr.io/data-gpdb-public-images/gpdb7-rocky8-test:latest
 FROM ${BASE_IMAGE}
 
 ARG GO_VERSION
+ARG GO_SHA256SUM
 
 ADD apache-maven.tar.gz /usr/share
 
 # install Go utilities
 RUN mkdir -p /tmp/pxf_src/ && cd /tmp \
     && wget -O go.tgz -q https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz \
-    && rm -rf /usr/local/go && tar -C /usr/local -xzf go.tgz && rm go.tgz
+    && echo "${GO_SHA256SUM} /tmp/go.tgz" | sha256sum --check \
+    && rm -rf /usr/local/go && mkdir /opt/pxf && tar -C /opt/pxf -xzf go.tgz && rm go.tgz
 
 # add minio software
 RUN useradd -s /sbin/nologin -d /opt/minio minio \
@@ -64,7 +66,7 @@ RUN ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa \
     && echo >> ~gpadmin/.pxfrc 'export GPHD_ROOT=/singlecluster' \
     && echo >> ~gpadmin/.pxfrc 'export PXF_HOME=/usr/local/pxf-gp7' \
     && echo >> ~gpadmin/.pxfrc 'export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk' \
-    && echo >> ~gpadmin/.pxfrc 'export PATH=${GPHOME}/bin:${PXF_HOME}/bin:${GOPATH}/bin:/usr/local/go/bin:$JAVA_HOME/bin:$PATH' \
+    && echo >> ~gpadmin/.pxfrc 'export PATH=${GPHOME}/bin:${PXF_HOME}/bin:${GOPATH}/bin:/opt/pxf/go/bin:$JAVA_HOME/bin:$PATH' \
     && ln -s ~gpadmin/.pxfrc ~root \
     && echo >> ~gpadmin/.bashrc 'source ~/.pxfrc' \
     && chown -R gpadmin:gpadmin ~gpadmin
