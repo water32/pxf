@@ -46,12 +46,6 @@ changes to `pxf-build-base` and is also in charge of tagging the images as
     <td> <a href="https://console.cloud.google.com/gcr/images/${GCR_PROJECT_ID}/GLOBAL/gpdb-pxf-dev/gpdb6-ubuntu18.04-test-pxf">gpdb6-ubuntu18.04-test-pxf</a> </td>
     <td> <a href="https://console.cloud.google.com/gcr/images/${GCR_PROJECT_ID}/GLOBAL/gpdb-pxf-dev/gpdb7-ubuntu18.04-test-pxf">gpdb7-ubuntu18.04-test-pxf</a> </td>
   </tr>
-  <tr>
-    <td>MapR on CentOS7</td>
-    <td> <a href="https://console.cloud.google.com/gcr/images/${GCR_PROJECT_ID}/GLOBAL/gpdb-pxf-dev/gpdb5-centos7-test-pxf-mapr">gpdb5-centos7-test-pxf-mapr</a> </td>
-    <td> <a href="https://console.cloud.google.com/gcr/images/${GCR_PROJECT_ID}/GLOBAL/gpdb-pxf-dev/gpdb6-centos7-test-pxf-mapr">gpdb6-centos7-test-pxf-mapr</a> </td>
-    <td> N/A </td>
-  </tr>
 </table>
 
 * Note: GCR_PROJECT_ID is the name of the Google Cloud Project ID
