@@ -14,9 +14,6 @@ export JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF8
 export HADOOP_HEAPSIZE=512
 export YARN_HEAPSIZE=512
 export GPHD_ROOT=/singlecluster
-if [[ ${HADOOP_CLIENT} == MAPR ]]; then
-	export GPHD_ROOT=/opt/mapr
-fi
 export PGPORT=${PGPORT:-15432}
 
 function run_pg_regress() {
@@ -110,21 +107,6 @@ function generate_extras_fat_jar() {
 	popd
 }
 
-function configure_mapr_dependencies() {
-	# Copy mapr specific jars to $PXF_CONF_DIR/lib
-	HADOOP_COMMON=/opt/mapr/hadoop/hadoop-2.7.0/share/hadoop/common
-	cp "${HADOOP_COMMON}/lib/maprfs-5.2.2-mapr.jar" \
-		"${HADOOP_COMMON}/lib/hadoop-auth-2.7.0-mapr-1707.jar" \
-		"${HADOOP_COMMON}/hadoop-common-2.7.0-mapr-1707.jar" "${PXF_CONF_DIR}/lib"
-	# Copy *-site.xml files
-	cp /opt/mapr/hadoop/hadoop-2.7.0/etc/hadoop/*-site.xml "${PXF_CONF_DIR}/servers/default"
-	# Copy mapred-site.xml for recursive hdfs directories test
-	# We need to do this step after PXF Server init
-	cp "${PXF_CONF_DIR}/templates/mapred-site.xml" "${PXF_CONF_DIR}/servers/default/recursive-site.xml"
-	# Set mapr port to 7222 in default.xml (sut)
-	sed -i 's|<port>8020</port>|<port>7222</port>|' pxf_src/automation/src/test/resources/sut/default.xml
-}
-
 function setup_hadoop() {
 	local hdfsrepo=$1
 
@@ -172,11 +154,6 @@ function _main() {
 	# Ping is called by gpinitsystem, which must be run by gpadmin
 	chmod u+s /bin/ping
 
-	if [[ ${HADOOP_CLIENT} == MAPR ]]; then
-		# start mapr services before installing GPDB
-		/root/init-script
-	fi
-
 	# Install GPDB
 	install_gpdb_binary
 	setup_gpadmin_user
@@ -185,7 +162,7 @@ function _main() {
 	install_pxf_client
 	install_pxf_server
 
-	if [[ -z ${PROTOCOL} && ${HADOOP_CLIENT} != MAPR && ${HADOOP_CLIENT} != HDP_KERBEROS ]]; then
+	if [[ ${HADOOP_CLIENT} != HDP_KERBEROS && -z ${PROTOCOL} ]]; then
 		# Setup Hadoop before creating GPDB cluster to use system python for yum install
 		# Must be after installing GPDB to transfer hbase jar
 		setup_hadoop "${GPHD_ROOT}"
@@ -220,12 +197,8 @@ function _main() {
 			[[ ${PG_REGRESS} != false ]] && setup_wasbs_for_pg_regress
 			;;
 		*) # no protocol, presumably
-			if [[ ${HADOOP_CLIENT} == MAPR ]]; then
-				configure_mapr_dependencies
-			else
-				configure_pxf_default_server
-				configure_pxf_s3_server
-			fi
+			configure_pxf_default_server
+			configure_pxf_s3_server
 			;;
 	esac
 
