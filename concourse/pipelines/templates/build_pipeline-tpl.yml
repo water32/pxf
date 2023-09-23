@@ -31,7 +31,6 @@ groups:
 {% set gp_ver = 6 %}
   - Test PXF-GP[[gp_ver]] Backward Compatibility on Ubuntu18
   - Test PXF-GP[[gp_ver]]-HDP2-NO-IMPERS on RHEL7
-  - Test PXF-GP[[gp_ver]]-MAPR on RHEL7
   - Test PXF-GP[[gp_ver]]-HDP3 on RHEL7
   - Test PXF-GP[[gp_ver]]-HDP3-SECURE AMBARI (MANUAL) on RHEL7
   - Test PXF-GP[[gp_ver]]-HDP2-JDK11 on RHEL7
@@ -75,7 +74,6 @@ groups:
 - name: PXF Tests - GP[[gp_ver]] on RHEL7
   jobs:
   - Test PXF-GP[[gp_ver]]-HDP2-NO-IMPERS on RHEL7
-  - Test PXF-GP[[gp_ver]]-MAPR on RHEL7
   - Test PXF-GP[[gp_ver]]-HDP3 on RHEL7
   - Test PXF-GP[[gp_ver]]-HDP3-SECURE AMBARI (MANUAL) on RHEL7
   - Test PXF-GP[[gp_ver]]-HDP2-JDK11 on RHEL7
@@ -398,14 +396,6 @@ resources:
     username: _json_key
     password: ((ud/pxf/secrets/pxf-cloudbuild-service-account-key))
 
-- name: gpdb[[gp_ver]]-pxf-dev-centos7-mapr-server-image
-  type: registry-image
-  icon: docker
-  source:
-    repository: gcr.io/data-gpdb-ud/gpdb-pxf-dev/gpdb[[gp_ver]]-centos7-test-pxf-mapr
-    tag: latest
-    username: _json_key
-    password: ((ud/pxf/secrets/pxf-cloudbuild-service-account-key))
 {% set gp_ver = None %}
 
 - name: rpmrebuild-centos6-image
@@ -788,31 +778,6 @@ jobs:
     params:
       GP_VER: [[gp_ver]]
       IMPERSONATION: false
-      TARGET_OS: centos
-      TARGET_OS_VERSION: 7
-
-- name: Test PXF-GP[[gp_ver]]-MAPR on RHEL7
-  plan:
-  - in_parallel:
-    - get: pxf_src
-      passed: [Testing Gate for PXF-GP]
-      trigger: true
-    - get: pxf_tarball
-      resource: pxf_gp[[gp_ver]]_tarball_rhel7
-      passed: [Testing Gate for PXF-GP]
-    - get: gpdb_package
-      resource: gpdb[[gp_ver]]_rhel7_rpm_latest-0
-      passed: [Testing Gate for PXF-GP]
-    - get: gpdb[[gp_ver]]-pxf-dev-centos7-mapr-server-image
-    - get: pxf-automation-dependencies
-  - task: Test PXF-GP[[gp_ver]]-MAPR on RHEL7
-    privileged: true
-    file: pxf_src/concourse/tasks/test.yml
-    image: gpdb[[gp_ver]]-pxf-dev-centos7-mapr-server-image
-    params:
-      GP_VER: [[gp_ver]]
-      GROUP: hcfs,jdbc
-      HADOOP_CLIENT: MAPR
       TARGET_OS: centos
       TARGET_OS_VERSION: 7
 
@@ -1425,7 +1390,6 @@ jobs:
     - get: pxf_src
       passed:
       - Test PXF-GP[[gp_ver]]-HDP2-NO-IMPERS on RHEL7
-      - Test PXF-GP[[gp_ver]]-MAPR on RHEL7
       - Test PXF-GP[[gp_ver]]-HDP3 on RHEL7
       - Test PXF-GP[[gp_ver]]-HDP2-JDK11 on RHEL7
       - Test PXF-GP[[gp_ver]]-CDH on RHEL7
@@ -1452,7 +1416,6 @@ jobs:
     - get: pxf_gp[[gp_ver]]_tarball_rhel7
       passed:
       - Test PXF-GP[[gp_ver]]-HDP2-NO-IMPERS on RHEL7
-      - Test PXF-GP[[gp_ver]]-MAPR on RHEL7
       - Test PXF-GP[[gp_ver]]-HDP3 on RHEL7
       - Test PXF-GP[[gp_ver]]-HDP2-JDK11 on RHEL7
       - Test PXF-GP[[gp_ver]]-CDH on RHEL7
