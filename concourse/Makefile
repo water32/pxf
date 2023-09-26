@@ -12,6 +12,7 @@ BUILD_PIPELINE_NAME         ?= pxf-build
 DEV_BUILD_PIPELINE_NAME     ?= dev:$(USER)-$(BRANCH)
 PR_BUILD_PIPELINE_NAME      ?= pxf_pr_pipeline
 CERTIFICATION_PIPELINE_NAME ?= pxf-certification
+CLOUDBUILD_PIPELINE_NAME    ?= cloudbuild
 PERF_PIPELINE_NAME          ?= pxf_perf-$(SCALE)g-RHEL$(REDHAT_MAJOR_VERSION)
 PIVNET_PIPELINE_NAME        ?= pivnet_artifacts
 NUM_GPDB5_VERSIONS          ?= 10
@@ -196,7 +197,8 @@ set-cloudbuild-pipeline:
 		$(SET_PIPELINE) \
 		--config $(HOME)/workspace/pxf/concourse/pipelines/cloudbuild_pipeline.yml \
 		--var pxf-git-branch=$(BRANCH) \
-		--pipeline cloudbuild
+		--pipeline $(CLOUDBUILD_PIPELINE_NAME) \
+		${FLY_OPTION_NON-INTERACTIVE} || echo "pipelines/cloudbuild_pipeline.yml has errors"
 
 .PHONY: pivnet
 pivnet: set-pivnet-pipeline
