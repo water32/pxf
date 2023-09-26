@@ -21,7 +21,6 @@ changes to `pxf-build-base` and is also in charge of tagging the images as
 | OEL 7            | N/A                      | `gpdb6-oel7-test-pxf`         | N/A                          |
 | Ubuntu 18.04     | N/A                      | `gpdb6-ubuntu18.04-test-pxf`  | N/A                          |
 | Rocky Linux 8    | N/A                      | `gpdb6-rocky8-test-pxf`       | `gpdb7-rocky8-test-pxf`      |
-| MapR on CentOS 7 | N/A                      | `gpdb6-centos7-test-pxf-mapr` | N/A                          |
 
 ## Development docker image
 
@@ -138,21 +137,6 @@ flowchart TD
     end
     class pxf_dev_server subgraphStyle
 
-    subgraph mapr [mapr/cloudbuild.yaml]
-      mapr_dockerfile[Dockerfile]
-      class mapr_dockerfile dockerfileStyle
-    end
-    class mapr subgraphStyle
-
-    subgraph gcr_data_gpdb_ud_mapr ["MapR Images (gcr.io/data-gpdb-ud)"]
-      gp6_centos7_pxf_mapr_sha[gpdb-pxf-dev/gpdb6-centos7-test-pxf-mapr:$COMMIT_SHA]
-      gp6_centos7_pxf_mapr_latest[gpdb-pxf-dev/gpdb6-centos7-test-pxf-mapr:latest]
-
-      class gp6_centos7_pxf_mapr_sha plainStyle
-      class gp6_centos7_pxf_mapr_latest latestStyle
-    end
-    class gcr_data_gpdb_ud_mapr subgraphStyle
-
     subgraph gcr_data_gpdb_ud_hdp2 ["HDP2 (gcr.io/data-gpdb-ud)"]
       gp6_centos7_pxf_hdp2_sha[gpdb-pxf-dev/gpdb6-centos7-test-pxf-hdp2:$COMMIT_SHA]
       gp6_centos7_pxf_hdp2_latest[gpdb-pxf-dev/gpdb6-centos7-test-pxf-hdp2]
@@ -207,11 +191,6 @@ flowchart TD
   rpm_docker_centos7 --> rpm_centos7_latest
   gp6_rocky8_build --> rpm_docker_rocky8
   rpm_docker_rocky8 --> rpm_rocky8_latest
-
-  gp5_centos7_pxf_latest --> mapr_dockerfile
-  gp6_centos7_pxf_latest --> mapr_dockerfile
-  mapr_dockerfile -- "CloudBuild (install MapR)" --> gp6_centos7_pxf_mapr_sha
-  gp6_centos7_pxf_mapr_sha -- "tag (concourse pipeline)" --> gp6_centos7_pxf_mapr_latest
 
   gp6_centos7_pxf_latest --> server_dockerfile
   server_dockerfile -- "CloudBuild (add singlecluster, build deps, & automation deps)" --> gp6_centos7_pxf_hdp2_sha
