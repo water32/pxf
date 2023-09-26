@@ -443,10 +443,10 @@ jobs:
       - Certify GPDB-7 with PXF-GP7 on RHEL8
       trigger: true
     - get: ccp-7-image
-    - task: Print Report for GPDB-7 with PXF-GP7 Artifacts
-      file: pxf_src/concourse/tasks/certification_list.yml
-      image: ccp-7-image
-      params:
-        GOOGLE_CREDENTIALS: ((ud/pxf/secrets/pxf-storage-service-account-key))
-        GP_VER: 7
-        PXF_CERTIFICATION_FOLDER: data-gpdb-ud-pxf-build/prod/certifications
+  - task: Print Report for GPDB-7 with PXF-GP7 Artifacts
+    file: pxf_src/concourse/tasks/certification_list.yml
+    image: ccp-7-image
+    params:
+      GOOGLE_CREDENTIALS: ((ud/pxf/secrets/pxf-storage-service-account-key))
+      GP_VER: 7
+      PXF_CERTIFICATION_FOLDER: data-gpdb-ud-pxf-build/prod/certifications
