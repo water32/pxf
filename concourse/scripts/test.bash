@@ -89,7 +89,6 @@ function setup_hadoop() {
 	fi
 	start_hadoop_services "${hdfsrepo}"
 }
-}
 
 function adjust_automation_code() {
 	local pxf_src_version=$(< pxf_src/version)
