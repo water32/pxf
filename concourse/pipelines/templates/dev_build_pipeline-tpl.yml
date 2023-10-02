@@ -203,7 +203,7 @@ resources:
     password: ((ud/pxf/secrets/pxf-cloudbuild-service-account-key))
 {% endfor %}
 
-{% set gp_ver = 6 %}
+{% for gp_ver in range(6, 8) %}
 - name: gpdb[[gp_ver]]-pxf-dev-rocky9-image
   type: registry-image
   icon: docker
@@ -212,6 +212,7 @@ resources:
     tag: ((pxf-dev-image-tag))
     username: _json_key
     password: ((ud/pxf/secrets/pxf-cloudbuild-service-account-key))
+{% endfor %}
 {% set gp_ver = None %}
 
 {% if oel7 %}
@@ -308,6 +309,15 @@ resources:
     json_key: ((concourse-gcs-resources-service-account-key))
     regexp: maintenance/release-candidates/gpdb6/greenplum-db-server-(6.*)-rhel9-x86_64.rpm
 
+## ---------- Greenplum 7 RHEL9 Release Candidate ----------
+- name: gpdb7_rhel9_rpm_latest-0
+  type: gcs
+  icon: google-drive
+  source:
+    bucket: ((ud/pxf/common/gpdb-concourse-resources-prod-bucket-name))
+    json_key: ((concourse-gcs-resources-service-account-key))
+    regexp: server/release-candidates/gpdb7/greenplum-db-server-(7.*)-el9-x86_64.rpm
+
 ## ---------- PXF 5 Artifact ---------------
 {% if multinode %}
 - name: pxf5_gp6_rhel7_released
@@ -358,14 +368,15 @@ resources:
     versioned_file: dev/[[user]]-[[branch]]/snapshots/pxf6/pxf-gp[[gp_ver]].el8.tar.gz
 {% endfor %}
 
-## ---------- PXF GP6 RHEL9 Tarball ----------
-- name: pxf_gp6_tarball_rhel9
+{% for gp_ver in range(6, 8) %}
+- name: pxf_gp[[gp_ver]]_tarball_rhel9
   type: gcs
   icon: google-drive
   source:
     bucket: ((ud/pxf/common/build-bucket-name))
     json_key: ((ud/pxf/secrets/pxf-storage-service-account-key))
-    versioned_file: dev/[[user]]-[[branch]]/snapshots/pxf6/pxf-gp6.el9.tar.gz
+    versioned_file: dev/[[user]]-[[branch]]/snapshots/pxf6/pxf-gp[[gp_ver]].el9.tar.gz
+{% endfor %}
 
 ## ---------- Auxiliary Resources ----------
 {% if multinode or multinode_no_impersonation or file or gp7_cli or gp7_multinode %}
@@ -636,7 +647,7 @@ jobs:
 {% set gp_ver = None %}
 
 ## ---------- RHEL 9 Swimlane (uses Rocky 9 images) ----------
-{% set gp_ver = 6 %}
+{% for gp_ver in range(6, 8) %}
 - name: Build PXF-GP[[gp_ver]] on RHEL9
   plan:
   - in_parallel:
@@ -652,14 +663,9 @@ jobs:
     params:
       LICENSE: ((ud/pxf/common/rpm-license))
       VENDOR: ((ud/pxf/common/rpm-vendor))
-  - put: pxf_gp6_tarball_rhel9
+  - put: pxf_gp[[gp_ver]]_tarball_rhel9
     params:
       file: dist/pxf-gp[[gp_ver]]-*.el9.tar.gz
-#{% if gp_ver == 6 %}
-#  - put: pxf_fdw_gp[[gp_ver]]_tarball_rhel8
-#    params:
-#      file: dist/pxf-fdw-gp[[gp_ver]]-*.el8.tar.gz
-#{% endif %}
 
 - name: Test PXF-GP[[gp_ver]]-HDP2 on RHEL9
   plan:
@@ -668,7 +674,7 @@ jobs:
         passed: [Build PXF-GP[[gp_ver]] on RHEL9]
         trigger: true
       - get: pxf_tarball
-        resource: pxf_gp6_tarball_rhel9
+        resource: pxf_gp[[gp_ver]]_tarball_rhel9
         passed: [Build PXF-GP[[gp_ver]] on RHEL9]
       - get: gpdb_package
         resource: gpdb[[gp_ver]]_rhel9_rpm_latest-0
@@ -676,10 +682,6 @@ jobs:
       - get: gpdb[[gp_ver]]-pxf-dev-rocky9-image
         passed: [Build PXF-GP[[gp_ver]] on RHEL9]
       - get: pxf-automation-dependencies
-      - get: singlecluster
-#{% if gp_ver == 7 %}
-#      - get: gp6-python-libs
-#{% endif %}
       - get: singlecluster
         resource: singlecluster-hdp2
   - task: Test PXF-GP[[gp_ver]]-HDP2 on RHEL9
@@ -690,6 +692,7 @@ jobs:
       GP_VER: [[gp_ver]]
       GROUP: gpdb,proxy,profile
       SECRET_ACCESS_KEY: ((tf-machine-secret-access-key))
+{% endfor %}
 {% set gp_ver = None %}
 
 ## ---------- GP7 PXF CLI tests ----------
