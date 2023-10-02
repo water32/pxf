@@ -20,13 +20,10 @@ public class HiveAdvancedTest extends AdvancedFunctionality {
     /**
      * Stop Hive metastore, run query and expect error message, and restart Hive
      * metastore.
-     * <p>
-     * TODO: enable test when issue is resolved.
      *
      * @throws Exception if test fails to run
      */
-    // @Test(groups = {"hive", "features", "gpdb", "security"})
-    @ExpectedFailure(reason = "[#91052648] - Can't start/stop Hive MetaStore in Ambari setup.")
+     @Test(groups = {"hive", "features", "gpdb", "security"})
     public void hiveMetastoreDown() throws Exception {
         HiveTable hiveTable = new HiveTable("hive_table", null);
         exTable = TableFactory.getPxfHiveReadableTable(
