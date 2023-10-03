@@ -15,7 +15,7 @@ public class HiveAdvancedTest extends AdvancedFunctionality {
 
     @Override
     protected void afterClass() throws Exception {
-        cluster.start(PhdCluster.EnumClusterServices.hive);
+        cluster.restart(PhdCluster.EnumClusterServices.hive);
     }
 
     /**
