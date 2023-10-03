@@ -77,7 +77,7 @@ dependencies {
 
     // Azure Data Blob
     implementation("org.apache.hadoop:hadoop-azure")                 { transitive = false }
-    implementation("com.azure:azure-storage-blob")                   { transitive = false }
+    implementation("com.microsoft.azure:azure-storage")              { transitive = false }
 
     // Azure Datalake jars
     implementation("org.apache.hadoop:hadoop-azure-datalake")        { transitive = false }
