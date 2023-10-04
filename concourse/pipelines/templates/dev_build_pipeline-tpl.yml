@@ -648,7 +648,7 @@ jobs:
 
 ## ---------- RHEL 9 Swimlane (uses Rocky 9 images) ----------
 {% for gp_ver in range(6, 8) %}
-- name: Build PXF-GP[[gp_ver]] on RHEL9
+- name: build_pxf-gp[[gp_ver]]_on_rhel9
   plan:
   - in_parallel:
     - get: pxf_src
@@ -657,7 +657,7 @@ jobs:
       resource: gpdb[[gp_ver]]_rhel9_rpm_latest-0
     - get: gpdb[[gp_ver]]-pxf-dev-rocky9-image
     - get: pxf-build-dependencies
-  - task: Build PXF-GP[[gp_ver]] on RHEL9
+  - task: build_pxf-gp[[gp_ver]]_on_rhel9
     image: gpdb[[gp_ver]]-pxf-dev-rocky9-image
     file: pxf_src/concourse/tasks/build.yml
     params:
@@ -667,24 +667,24 @@ jobs:
     params:
       file: dist/pxf-gp[[gp_ver]]-*.el9.tar.gz
 
-- name: Test PXF-GP[[gp_ver]]-HDP2 on RHEL9
+- name: test_pxf-gp[[gp_ver]]-hdp2_on_rhel9
   plan:
   - in_parallel:
       - get: pxf_src
-        passed: [Build PXF-GP[[gp_ver]] on RHEL9]
+        passed: [build_pxf-gp[[gp_ver]]_on_rhel9]
         trigger: true
       - get: pxf_tarball
         resource: pxf_gp[[gp_ver]]_tarball_rhel9
-        passed: [Build PXF-GP[[gp_ver]] on RHEL9]
+        passed: [build_pxf-gp[[gp_ver]]_on_rhel9]
       - get: gpdb_package
         resource: gpdb[[gp_ver]]_rhel9_rpm_latest-0
-        passed: [Build PXF-GP[[gp_ver]] on RHEL9]
+        passed: [build_pxf-gp[[gp_ver]]_on_rhel9]
       - get: gpdb[[gp_ver]]-pxf-dev-rocky9-image
-        passed: [Build PXF-GP[[gp_ver]] on RHEL9]
+        passed: [build_pxf-gp[[gp_ver]]_on_rhel9]
       - get: pxf-automation-dependencies
       - get: singlecluster
         resource: singlecluster-hdp2
-  - task: Test PXF-GP[[gp_ver]]-HDP2 on RHEL9
+  - task: test_pxf-gp[[gp_ver]]-hdp2_on_rhel9
     file: pxf_src/concourse/tasks/test.yml
     image: gpdb[[gp_ver]]-pxf-dev-rocky9-image
     params:
