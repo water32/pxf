@@ -73,7 +73,7 @@ resources:
 {% endfor %}
 
 jobs:
-- name: Download Latest PivNet CLI
+- name: download_latest_pivnet_cli
   plan:
   - in_parallel:
     - get: twice-a-day
@@ -81,16 +81,16 @@ jobs:
     - get: pxf_src
     - get: ubuntu18
     - get: pivnet_cli
-  - task: Get Latest PivNet CLI
+  - task: get_latest_pivnet_cli
     attempts: [[attempts]]
     image: ubuntu18
     config:
       platform: linux
       inputs:
-        - name: pxf_src
-        - name: pivnet_cli
+      - name: pxf_src
+      - name: pivnet_cli
       outputs:
-        - name: pivnet_cli
+      - name: pivnet_cli
       params:
         PIVNET_CLI_DIR: pivnet_cli
       run:
@@ -99,35 +99,35 @@ jobs:
     params:
       file: pivnet_cli/pivnet
 
-- name: Get Greenplum Product Files GP5
+- name: get_greenplum_product_files_gp5
   plan:
   - in_parallel:
     - get: pxf_src
-      passed: [Download Latest PivNet CLI]
+      passed: [download_latest_pivnet_cli]
     - get: ubuntu18
     - get: pivnet_cli
-      passed: [Download Latest PivNet CLI]
+      passed: [download_latest_pivnet_cli]
       trigger: true
 {% for i in range(num_gpdb5_versions) %}
     - get: gpdb5_rhel7_rpm_latest-[[i]]
 {% endfor %}
 {% for i in range(num_gpdb5_versions - 1, -1, -1) %}
-  - task: Get Greenplum Product Files GP5 Latest - [[i]]
+  - task: get_greenplum_product_files_gp5_latest-[[i]]
     attempts: [[attempts]]
     # this task will fail on centos6
     image: ubuntu18
     config:
       platform: linux
       inputs:
-        - name: pxf_src
-        - name: pivnet_cli
-        - name: gpdb5_rhel7_rpm_latest-[[i]]
-        {% if i > 0 %}
-        # save a download from pivnet if not fetching latest
-        - name: gpdb5_rhel7_rpm_latest-[[i - 1]]
-        {% endif %}
+      - name: pxf_src
+      - name: pivnet_cli
+      - name: gpdb5_rhel7_rpm_latest-[[i]]
+      {% if i > 0 %}
+      # save a download from pivnet if not fetching latest
+      - name: gpdb5_rhel7_rpm_latest-[[i - 1]]
+      {% endif %}
       outputs:
-        - name: gpdb5_rhel7_rpm_latest-[[i]]
+      - name: gpdb5_rhel7_rpm_latest-[[i]]
       params:
         GPDB_VERSION: 5
         LIST_OF_DIRS: gpdb5_rhel7_rpm_latest-[[i]]
@@ -143,14 +143,14 @@ jobs:
       file: gpdb5_rhel7_rpm_latest-[[i]]/greenplum-db-5.*-rhel7-x86_64.rpm
 {% endfor %}
 
-- name: Get Greenplum Product Files GP6
+- name: get_greenplum_product_files_gp6
   plan:
   - in_parallel:
     - get: pxf_src
-      passed: [Download Latest PivNet CLI]
+      passed: [download_latest_pivnet_cli]
     - get: ubuntu18
     - get: pivnet_cli
-      passed: [Download Latest PivNet CLI]
+      passed: [download_latest_pivnet_cli]
       trigger: true
 {% for i in range(num_gpdb6_versions) %}
     - get: gpdb6_rhel7_rpm_latest-[[i]]
@@ -158,31 +158,32 @@ jobs:
     - get: gpdb6_ubuntu18_deb_latest-[[i]]
 {% endfor %}
 {% for i in range(num_gpdb6_versions - 1, -1, -1) %}
-  - task: Get Greenplum Product Files GP6 Latest - [[i]]
+  - task: get_greenplum_product_files_gp6_latest-[[i]]
     attempts: [[attempts]]
     # this task will fail on centos6
     image: ubuntu18
     config:
       platform: linux
       inputs:
-        - name: pxf_src
-        - name: pivnet_cli
-        - name: gpdb6_rhel7_rpm_latest-[[i]]
-        - name: gpdb6_rhel8_rpm_latest-[[i]]
-        - name: gpdb6_ubuntu18_deb_latest-[[i]]
-        {% if i > 0 %}
-        # save a download from pivnet if not fetching latest
-        - name: gpdb6_rhel7_rpm_latest-[[i - 1]]
-        - name: gpdb6_rhel8_rpm_latest-[[i - 1]]
-        - name: gpdb6_ubuntu18_deb_latest-[[i - 1]]
-        {% endif %}
+      - name: pxf_src
+      - name: pivnet_cli
+      - name: gpdb6_rhel7_rpm_latest-[[i]]
+      - name: gpdb6_rhel8_rpm_latest-[[i]]
+      - name: gpdb6_ubuntu18_deb_latest-[[i]]
+      {% if i > 0 %}
+      # save a download from pivnet if not fetching latest
+      - name: gpdb6_rhel7_rpm_latest-[[i - 1]]
+      - name: gpdb6_rhel8_rpm_latest-[[i - 1]]
+      - name: gpdb6_ubuntu18_deb_latest-[[i - 1]]
+      {% endif %}
       outputs:
-        - name: gpdb6_rhel7_rpm_latest-[[i]]
-        - name: gpdb6_rhel8_rpm_latest-[[i]]
-        - name: gpdb6_ubuntu18_deb_latest-[[i]]
+      - name: gpdb6_rhel7_rpm_latest-[[i]]
+      - name: gpdb6_rhel8_rpm_latest-[[i]]
+      - name: gpdb6_ubuntu18_deb_latest-[[i]]
       params:
         GPDB_VERSION: 6
         LIST_OF_DIRS: gpdb6_rhel7_rpm_latest-[[i]],gpdb6_rhel8_rpm_latest-[[i]],gpdb6_ubuntu18_deb_latest-[[i]]
+        # yamllint disable rule:line-length
         LIST_OF_PRODUCTS: greenplum-db-GPDB_VERSION-rhel7-x86_64.rpm,greenplum-db-GPDB_VERSION-rhel8-x86_64.rpm,greenplum-db-GPDB_VERSION-ubuntu18.04-amd64.deb
         PIVNET_API_TOKEN: ((ud/pxf/secrets/pivnet-uaa-refresh-token))
         PIVNET_CLI_DIR: pivnet_cli

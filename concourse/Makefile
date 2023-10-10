@@ -9,10 +9,11 @@ YOUR_TAG ?= $(shell git describe --tags --abbrev=0)
 
 SHELL                        = /bin/bash
 BUILD_PIPELINE_NAME         ?= pxf-build
-DEV_BUILD_PIPELINE_NAME     ?= dev:$(USER)-$(BRANCH)
+DEV_BUILD_PIPELINE_NAME     ?= dev-$(USER)-$(BRANCH)
 PR_BUILD_PIPELINE_NAME      ?= pxf_pr_pipeline
 CERTIFICATION_PIPELINE_NAME ?= pxf-certification
 CLOUDBUILD_PIPELINE_NAME    ?= cloudbuild
+DEV_CLOUDBUILD_PIPELINE_NAME ?= dev-cloudbuild-$(USER)-$(BRANCH)
 PERF_PIPELINE_NAME          ?= pxf_perf-$(SCALE)g-RHEL$(REDHAT_MAJOR_VERSION)
 PIVNET_PIPELINE_NAME        ?= pivnet_artifacts
 NUM_GPDB5_VERSIONS          ?= 10
@@ -49,13 +50,14 @@ ifeq ($(CHECK_CREDS), true)
 SET_PIPELINE += --check-creds
 endif
 
-.PHONY: build certification dev pr cloudbuild longevity
+.PHONY: build certification dev-release dev pr cloudbuild dev-cloudbuild longevity
 build: set-build-pipeline
 certification: set-certification-pipeline
 dev-release: set-dev-release-pipeline
 dev: set-dev-build-pipeline
 pr: set-pr-build-pipeline
 cloudbuild: set-cloudbuild-pipeline
+dev-cloudbuild: set-dev-cloudbuild-pipeline
 longevity: set-longevity-pipeline
 
 # ============================= BUILD PIPELINE TARGETS =============================
@@ -192,12 +194,25 @@ set-certification-pipeline:
 # ============================= HELPER PIPELINE TARGETS =============================
 
 .PHONY: set-cloudbuild-pipeline
-set-cloudbuild-pipeline:
+set-cloudbuild-pipeline: PXF_GIT_BRANCH=main
+set-cloudbuild-pipeline: GCP_IMAGE_TAG=latest
+set-cloudbuild-pipeline: PIPELINE_NAME=$(CLOUDBUILD_PIPELINE_NAME)
+set-cloudbuild-pipeline: set-cloudbuild-pipeline-base
+
+.PHONY: set-dev-cloudbuild-pipeline
+set-dev-cloudbuild-pipeline: PXF_GIT_BRANCH=$(BRANCH)
+set-dev-cloudbuild-pipeline: GCP_IMAGE_TAG=$(PXF_DEV_IMAGE_TAG)
+set-dev-cloudbuild-pipeline: PIPELINE_NAME=$(DEV_CLOUDBUILD_PIPELINE_NAME)
+set-dev-cloudbuild-pipeline: set-cloudbuild-pipeline-base
+
+.PHONY: set-cloudbuild-pipeline-base
+set-cloudbuild-pipeline-base:
 	$(FLY_CMD) --target=$(CONCOURSE) \
 		$(SET_PIPELINE) \
 		--config $(HOME)/workspace/pxf/concourse/pipelines/cloudbuild_pipeline.yml \
-		--var pxf-git-branch=$(BRANCH) \
-		--pipeline $(CLOUDBUILD_PIPELINE_NAME) \
+		--var pxf-git-branch=$(PXF_GIT_BRANCH) \
+		--var gcp-image-tag=$(GCP_IMAGE_TAG) \
+		--pipeline $(PIPELINE_NAME) \
 		${FLY_OPTION_NON-INTERACTIVE} || echo "pipelines/cloudbuild_pipeline.yml has errors"
 
 .PHONY: pivnet
@@ -221,9 +236,15 @@ set-pivnet-pipeline:
 
 .PHONY: singlecluster
 singlecluster:
-	$(FLY_CMD) -t ud set-pipeline \
-		-c ~/workspace/pxf/concourse/pipelines/singlecluster-pipeline.yml \
-		-v pxf-git-branch=main -p pxf-singlecluster
+	$(FLY_CMD) --target=$(CONCOURSE) \
+		$(SET_PIPELINE) \
+		--pipeline=pxf-singlecluster \
+		--config ~/workspace/pxf/concourse/pipelines/singlecluster-pipeline.yml \
+		--var pxf-git-branch=main \
+		${FLY_OPTIONS_NON-INTERACTIVE} || echo "pipelines/singlecluster-pipeline.yml has errors"
+
+	@echo "using the following command to unpause the pipeline"
+	@echo -e "\t$(FLY_CMD) -t $(CONCOURSE) unpause-pipeline --pipeline pxf-singlecluster"
 
 # ============================= PERFORMANCE PIPELINE TARGETS =============================
 
