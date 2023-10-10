@@ -57,6 +57,8 @@
       - in_parallel:
         - task: initialize_greenplum
           file: ccp_src/ci/tasks/gpinitsystem.yml
+          params:
+            PLATFORM: rocky8-gpdb[[gp_ver]]
         - task: install_hadoop
           file: pxf_src/concourse/tasks/install_hadoop.yml
           image: gpdb[[gp_ver]]-pxf-dev-rocky8-image

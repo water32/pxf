@@ -52,6 +52,8 @@
           GPDB_RPM: true
   - task: initialize_greenplum
     file: ccp_src/ci/tasks/gpinitsystem.yml
+    params:
+      PLATFORM: rocky8-gpdb[[gp_ver]]
   - task: setup_pxf
     input_mapping:
       terraform: terraform_gpdb
