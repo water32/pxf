@@ -412,7 +412,11 @@ jobs:
       {% include 'jobs/build-tpl.yml' %}
     {% endif %}
 
-    {% include 'jobs/test-tpl.yml' %}
+    {# Add OEL test job only when oel7 is set to true #}
+    {% if config.test_os != 'oel' or oel7 %}
+      {% include 'jobs/test-tpl.yml' %}
+    {% endif %}
+
 {% endfor %}
 
 ## ======================================================================
