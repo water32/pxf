@@ -381,6 +381,9 @@ jobs:
 ##   test_os: OS platform in which test jobs are executed
 ##   os_ver: OS Major version
 ##
+## NOTE: The oel7 platform only includes a test job. The inclusion of
+## the oel7 test job is controlled by the Makefile OEL7 (disbled by
+## default) parameter.
 ## ----------------------------------------------------------------------
 {% set platform_gp_combinations = [
     {'gp_ver': '5', 'build_os': 'centos', 'test_os': 'centos', 'os_ver': '7'},
@@ -412,7 +415,9 @@ jobs:
       {% include 'jobs/build-tpl.yml' %}
     {% endif %}
 
-    {% include 'jobs/test-tpl.yml' %}
+    {% if config.test_os != 'oel' or oel7 %}
+      {% include 'jobs/test-tpl.yml' %}
+    {% endif %}
 {% endfor %}
 
 ## ======================================================================
@@ -477,7 +482,7 @@ jobs:
 
 {% if gp7_cli %}
 {% set gp_ver = 7 %}
-{% set passed = '[build_pxf-gp7_on_rhel8]' %}
+{% set passed = '[build_pxf-gp7_on_rocky8]' %}
 {% include 'jobs/cli-tpl.yml' %}
 {% set passed = None %}
 {% if slack_notification %}
@@ -493,14 +498,14 @@ jobs:
   plan:
   - in_parallel:
     - get: pxf_src
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
       trigger: true
     - get: pxf_tarball
       resource: pxf_gp[[gp_ver]]_tarball_rhel7
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb_package
       resource: gpdb[[gp_ver]]_rhel7_rpm_latest-0
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb[[gp_ver]]-pxf-dev-centos7-image
     - get: pxf-automation-dependencies
     - get: singlecluster
@@ -521,14 +526,14 @@ jobs:
   plan:
   - in_parallel:
     - get: pxf_src
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
       trigger: true
     - get: pxf_tarball
       resource: pxf_gp[[gp_ver]]_tarball_rhel7
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb_package
       resource: gpdb[[gp_ver]]_rhel7_rpm_latest-0
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb[[gp_ver]]-pxf-dev-centos7-image
     - get: pxf-automation-dependencies
     - get: singlecluster
@@ -551,13 +556,13 @@ jobs:
   plan:
   - in_parallel:
     - get: pxf_src
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: pxf_tarball
       resource: pxf_gp[[gp_ver]]_tarball_rhel7
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb_package
       resource: gpdb[[gp_ver]]_rhel7_rpm_latest-0
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb[[gp_ver]]-pxf-dev-centos7-image
     - get: ccp-7-image
     - get: pxf-automation-dependencies
@@ -589,14 +594,14 @@ jobs:
   plan:
   - in_parallel:
     - get: pxf_src
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
       trigger: true
     - get: pxf_tarball
       resource: pxf_gp[[gp_ver]]_tarball_rhel7
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb_package
       resource: gpdb[[gp_ver]]_rhel7_rpm_latest-0
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb[[gp_ver]]-pxf-dev-centos7-image
     - get: pxf-automation-dependencies
     - get: singlecluster
@@ -620,14 +625,14 @@ jobs:
   plan:
   - in_parallel:
     - get: pxf_src
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
       trigger: true
     - get: pxf_tarball
       resource: pxf_gp[[gp_ver]]_tarball_rhel7
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb_package
       resource: gpdb[[gp_ver]]_rhel7_rpm_latest-0
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb[[gp_ver]]-pxf-dev-centos7-image
     - get: pxf-automation-dependencies
     - get: singlecluster
@@ -656,14 +661,14 @@ jobs:
   plan:
   - in_parallel:
     - get: pxf_src
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
       trigger: true
     - get: pxf_tarball
       resource: pxf_gp[[gp_ver]]_tarball_rhel7
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb_package
       resource: gpdb[[gp_ver]]_rhel7_rpm_latest-0
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb[[gp_ver]]-pxf-dev-centos7-image
     - get: ccp_src
     - get: ccp-7-image
@@ -752,14 +757,14 @@ jobs:
   plan:
   - in_parallel:
     - get: pxf_src
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
       trigger: true
     - get: pxf_tarball
       resource: pxf_gp[[gp_ver]]_tarball_rhel7
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb_package
       resource: gpdb[[gp_ver]]_rhel7_rpm_latest-0
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb[[gp_ver]]-pxf-dev-centos7-image
     - get: pxf-automation-dependencies
     - get: singlecluster
@@ -781,14 +786,14 @@ jobs:
   plan:
   - in_parallel:
     - get: pxf_src
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
       trigger: true
     - get: pxf_tarball
       resource: pxf_gp[[gp_ver]]_tarball_rhel7
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb_package
       resource: gpdb[[gp_ver]]_rhel7_rpm_latest-0
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb[[gp_ver]]-pxf-dev-centos7-image
     - get: pxf-automation-dependencies
     - get: singlecluster
@@ -813,14 +818,14 @@ jobs:
   plan:
   - in_parallel:
     - get: pxf_src
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
       trigger: true
     - get: pxf_tarball
       resource: pxf_gp[[gp_ver]]_tarball_rhel7
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb_package
       resource: gpdb[[gp_ver]]_rhel7_rpm_latest-0
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb[[gp_ver]]-pxf-dev-centos7-image
     - get: pxf-automation-dependencies
     - get: singlecluster
@@ -847,14 +852,14 @@ jobs:
   plan:
   - in_parallel:
     - get: pxf_src
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
       trigger: true
     - get: pxf_tarball
       resource: pxf_gp[[gp_ver]]_tarball_rhel7
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb_package
       resource: gpdb[[gp_ver]]_rhel7_rpm_latest-0
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb[[gp_ver]]-pxf-dev-centos7-image
     - get: pxf-automation-dependencies
     - get: singlecluster
@@ -879,14 +884,14 @@ jobs:
   plan:
   - in_parallel:
     - get: pxf_src
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
       trigger: true
     - get: pxf_tarball
       resource: pxf_gp[[gp_ver]]_tarball_rhel7
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb_package
       resource: gpdb[[gp_ver]]_rhel7_rpm_latest-0
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb[[gp_ver]]-pxf-dev-centos7-image
     - get: pxf-automation-dependencies
     - get: singlecluster
@@ -910,14 +915,14 @@ jobs:
   plan:
   - in_parallel:
     - get: pxf_src
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
       trigger: true
     - get: pxf_tarball
       resource: pxf_gp[[gp_ver]]_tarball_rhel7
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb_package
       resource: gpdb[[gp_ver]]_rhel7_rpm_latest-0
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb[[gp_ver]]-pxf-dev-centos7-image
     - get: pxf-automation-dependencies
     - get: singlecluster
@@ -942,16 +947,16 @@ jobs:
   plan:
   - in_parallel:
     - get: pxf_src
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
       trigger: true
     - get: pxf_artifact
       resource: pxf5_gp6_rhel7_released   # for upgrade test
     - get: pxf_tarball
       resource: pxf_gp[[gp_ver]]_tarball_rhel7
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb_package
       resource: gpdb[[gp_ver]]_rhel7_rpm_latest-0
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb[[gp_ver]]-pxf-dev-centos7-image
     - get: ccp_src
     - get: ccp-7-image
@@ -1100,14 +1105,14 @@ jobs:
   plan:
   - in_parallel:
     - get: pxf_src
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
       trigger: true
     - get: pxf_tarball
       resource: pxf_gp[[gp_ver]]_tarball_rhel7
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb_package
       resource: gpdb[[gp_ver]]_rhel7_rpm_latest-0
-      passed: [build_pxf-gp[[gp_ver]]_on_rhel7]
+      passed: [build_pxf-gp[[gp_ver]]_on_centos7]
     - get: gpdb[[gp_ver]]-pxf-dev-centos7-image
     - get: ccp_src
     - get: ccp-7-image
@@ -1236,7 +1241,7 @@ jobs:
 ## ---------- Multi-node test for GP7 ----------
 {% if gp7_multinode %}
 {% set gp_ver = 7 %}
-{% set passed = '[build_pxf-gp7_on_rhel8]' %}
+{% set passed = '[build_pxf-gp7_on_rocky8]' %}
 {% include 'jobs/multinode-tpl.yml'%}
 {% set passed = None %}
 {% if slack_notification %}
