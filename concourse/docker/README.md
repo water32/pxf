@@ -15,12 +15,13 @@ changes to `pxf-build-base` and is also in charge of tagging the images as
 
 ## Available docker images
 
-|                  | Greenplum 5              | Greenplum 6                   | Greenplum 7                  |
-|------------------|--------------------------|-------------------------------|------------------------------|
-| CentOS 7         | `gpdb5-centos7-test-pxf` | `gpdb6-centos7-test-pxf`      | N/A                          |
-| OEL 7            | N/A                      | `gpdb6-oel7-test-pxf`         | N/A                          |
-| Ubuntu 18.04     | N/A                      | `gpdb6-ubuntu18.04-test-pxf`  | N/A                          |
-| Rocky Linux 8    | N/A                      | `gpdb6-rocky8-test-pxf`       | `gpdb7-rocky8-test-pxf`      |
+|                  | Greenplum 5              | Greenplum 6                   | Greenplum 7             |
+|------------------|--------------------------|-------------------------------|-------------------------|
+| CentOS 7         | `gpdb5-centos7-test-pxf` | `gpdb6-centos7-test-pxf`      | N/A                     |
+| OEL 7            | N/A                      | `gpdb6-oel7-test-pxf`         | N/A                     |
+| Ubuntu 18.04     | N/A                      | `gpdb6-ubuntu18.04-test-pxf`  | N/A                     |
+| Rocky Linux 8    | N/A                      | `gpdb6-rocky8-test-pxf`       | `gpdb7-rocky8-test-pxf` |
+| Rocky Linux 9    | N/A                      | `gpdb6-rocky9-test-pxf`       | `gpdb7-rocky9-test-pxf` |
 
 ## Development docker image
 
@@ -48,19 +49,24 @@ flowchart TD
   subgraph gcr_images ["GP RelEng Images (gcr.io/data-gpdb-public-images)"]
     gp5_centos7_latest[centos-gpdb-dev:7-gcc6.2-llvm3.7]
     gp6_centos7_latest[gpdb6-centos7-test:latest]
-    gp6_centos7_build[gpdb6-centos7-build:latest]
     gp6_ubuntu18_latest[gpdb6-ubuntu18.04-test:latest]
     gp6_oel7_latest[gpdb6-oel7-test:latest]
     gp6_rocky8_latest[gpdb6-rocky8-test:latest]
-    gp6_rocky8_build[gpdb6-rocky8-build:latest]
+    gp6_rocky9_latest[gpdb6-rocky9-test:latest]
     gp7_rocky8_latest[gpdb7-rocky8-test:latest]
+    gp7_rocky9_latest[gpdb7-rocky9-test:latest]
+    gp6_centos7_build[gpdb6-centos7-build:latest]
+    gp6_rocky8_build[gpdb6-rocky8-build:latest]
+    gp6_rocky9_build[gpdb6-rocky9-build:latest]
 
     class gp5_centos7_latest gcrPublicStyle
     class gp6_centos7_latest gcrPublicStyle
     class gp6_ubuntu18_latest gcrPublicStyle
     class gp6_oel7_latest gcrPublicStyle
     class gp6_rocky8_latest gcrPublicStyle
+    class gp6_rocky9_latest gcrPublicStyle
     class gp7_rocky8_latest gcrPublicStyle
+    class gp7_rocky9_latest gcrPublicStyle
   end
   class gcr_images subgraphStyle
 
@@ -68,25 +74,31 @@ flowchart TD
     gp5_centos7_dockerfile[gpdb5/centos7]
     gp6_centos7_dockerfile[gpdb6/centos7]
     gp6_rocky8_dockerfile[gpdb6/rocky8]
+    gp6_rocky9_dockerfile[gpdb6/rocky9]
     gp6_ubuntu18_dockerfile[gpdb6/ubuntu18.04]
     gp6_oel7_dockerfile[gpdb6/oel7]
     gp7_rocky8_dockerfile[gpdb7/rocky8]
+    gp7_rocky9_dockerfile[gpdb7/rocky9]
 
     class gp5_centos7_dockerfile dockerfileStyle
     class gp6_centos7_dockerfile dockerfileStyle
     class gp6_rocky8_dockerfile dockerfileStyle
+    class gp6_rocky9_dockerfile dockerfileStyle
     class gp6_ubuntu18_dockerfile dockerfileStyle
     class gp6_oel7_dockerfile dockerfileStyle
     class gp7_rocky8_dockerfile dockerfileStyle
+    class gp7_rocky9_dockerfile dockerfileStyle
   end
   class pxf_dev_base subgraphStyle
 
   subgraph rpmrebuild [rpmrebuild/cloudbuild.yaml]
     rpm_docker_centos7[centos/Dockerfile]
     rpm_docker_rocky8[rocky/Dockerfile]
+    rpm_docker_rocky9[rocky/Dockerfile]
 
     class rpm_docker_centos7 dockerfileStyle
     class rpm_docker_rocky8 dockerfileStyle
+    class rpm_docker_rocky9 dockerfileStyle
   end
   class rpmrebuild subgraphStyle
 
@@ -95,38 +107,48 @@ flowchart TD
       gp5_centos7_pxf_sha[gpdb5-centos7-test-pxf:$COMMIT_SHA]
       gp6_centos7_pxf_sha[gpdb6-centos7-test-pxf:$COMMIT_SHA]
       gp6_rocky8_pxf_sha[gpdb6-rocky8-test-pxf:$COMMIT_SHA]
+      gp6_rocky9_pxf_sha[gpdb6-rocky9-test-pxf:$COMMIT_SHA]
       gp6_ubuntu18_pxf_sha[gpdb6-ubuntu18.04-test-pxf:$COMMIT_SHA]
       gp6_oel7_pxf_sha[gpdb6-oel7-test-pxf:$COMMIT_SHA]
       gp7_rocky8_pxf_sha[gpdb7-rocky8-test-pxf:$COMMIT_SHA]
+      gp7_rocky9_pxf_sha[gpdb7-rocky9-test-pxf:$COMMIT_SHA]
 
       class gp5_centos7_pxf_sha plainStyle
       class gp6_centos7_pxf_sha plainStyle
       class gp6_rocky8_pxf_sha plainStyle
+      class gp6_rocky9_pxf_sha plainStyle
       class gp6_ubuntu18_pxf_sha plainStyle
       class gp6_oel7_pxf_sha plainStyle
       class gp7_rocky8_pxf_sha plainStyle
+      class gp7_rocky9_pxf_sha plainStyle
 
       gp5_centos7_pxf_latest[gpdb5-centos7-test-pxf:latest]
       gp6_centos7_pxf_latest[gpdb6-centos7-test-pxf:latest]
       gp6_rocky8_pxf_latest[gpdb6-rocky8-test-pxf:latest]
+      gp6_rocky9_pxf_latest[gpdb6-rocky9-test-pxf:latest]
       gp6_ubuntu18_pxf_latest[gpdb6-ubuntu18.04-test-pxf:latest]
       gp6_oel7_pxf_latest[gpdb6-oel7-test-pxf:latest]
       gp7_rocky8_pxf_latest[gpdb7-rocky8-test-pxf:latest]
+      gp7_rocky9_pxf_latest[gpdb7-rocky9-test-pxf:latest]
 
       class gp5_centos7_pxf_latest latestStyle
       class gp6_centos7_pxf_latest latestStyle
       class gp6_rocky8_pxf_latest latestStyle
+      class gp6_rocky9_pxf_latest latestStyle
       class gp6_ubuntu18_pxf_latest latestStyle
       class gp6_oel7_pxf_latest latestStyle
       class gp7_rocky8_pxf_latest latestStyle
+      class gp7_rocky9_pxf_latest latestStyle
     end
     class gpdb_pxf_dev subgraphStyle
 
     rpm_centos7_latest[rpmrebuild-centos7:latest]
     rpm_rocky8_latest[rpmrebuild-rocky8:latest]
+    rpm_rocky9_latest[rpmrebuild-rocky9:latest]
 
     class rpm_centos7_latest latestStyle
     class rpm_rocky8_latest latestStyle
+    class rpm_rocky9_latest latestStyle
   end
   class gcr_data_gpdb_ud subgraphStyle
 
@@ -175,6 +197,10 @@ flowchart TD
   gp6_rocky8_dockerfile -- CloudBuild --> gp6_rocky8_pxf_sha
   gp6_rocky8_pxf_sha -- "tag (concourse pipeline)" --> gp6_rocky8_pxf_latest
 
+  gp6_rocky9_latest --> gp6_rocky9_dockerfile
+  gp6_rocky9_dockerfile -- CloudBuild --> gp6_rocky9_pxf_sha
+  gp6_rocky9_pxf_sha -- "tag (concourse pipeline)" --> gp6_rocky9_pxf_latest
+
   gp6_ubuntu18_latest --> gp6_ubuntu18_dockerfile
   gp6_ubuntu18_dockerfile -- CloudBuild --> gp6_ubuntu18_pxf_sha
   gp6_ubuntu18_pxf_sha -- "tag (concourse pipeline)" --> gp6_ubuntu18_pxf_latest
@@ -187,10 +213,16 @@ flowchart TD
   gp7_rocky8_dockerfile -- CloudBuild --> gp7_rocky8_pxf_sha
   gp7_rocky8_pxf_sha -- "tag (concourse pipeline)" --> gp7_rocky8_pxf_latest
 
+  gp7_rocky9_latest --> gp7_rocky9_dockerfile
+  gp7_rocky9_dockerfile -- CloudBuild --> gp7_rocky9_pxf_sha
+  gp7_rocky9_pxf_sha -- "tag (concourse pipeline)" --> gp7_rocky9_pxf_latest
+
   gp6_centos7_build --> rpm_docker_centos7
   rpm_docker_centos7 --> rpm_centos7_latest
   gp6_rocky8_build --> rpm_docker_rocky8
   rpm_docker_rocky8 --> rpm_rocky8_latest
+  gp6_rocky9_build --> rpm_docker_rocky9
+  rpm_docker_rocky9 --> rpm_rocky9_latest
 
   gp6_centos7_pxf_latest --> server_dockerfile
   server_dockerfile -- "CloudBuild (add singlecluster, build deps, & automation deps)" --> gp6_centos7_pxf_hdp2_sha
@@ -211,6 +243,8 @@ flowchart TD
   gp6_rocky8_pxf_latest --> build
   gp6_rocky8_pxf_latest --> pr
 
+  gp6_rocky9_pxf_latest --> build
+
   gp6_ubuntu18_pxf_latest --> certification
   gp6_ubuntu18_pxf_latest --> build
   gp6_ubuntu18_pxf_latest --> pr
@@ -222,6 +256,9 @@ flowchart TD
   gp7_rocky8_pxf_latest --> build
   gp7_rocky8_pxf_latest --> pr
 
+  gp7_rocky9_pxf_latest --> build
+
   rpm_centos7_latest --> build
   rpm_rocky8_latest --> build
+  rpm_rocky9_latest --> build
 ```
