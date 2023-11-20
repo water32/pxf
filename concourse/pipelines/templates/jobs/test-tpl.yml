@@ -1,45 +1,100 @@
-## Template for generating test jobs in the dev and build pipeline
+{# Template for a PXF basic test job definition.
+ #
+ # Expects a dictionary with the name 'x' to be set as defined in macros.j2 file and these additional fields:
+ #
+ # x.use_fdw    - whether to use FDW extension for testing (otherwise the external table extension will be used)
+ # x.use_impers - whether to use impersonation for the test job
+ # x.target     - the target external system type
+ # x.distro     - the distro to use for a singlecluster image
+ # x.protocol   - the protocol to use for cloud tests
+ # x.feature    - the name of the feature being tested, optional
+ # x.passed     - an array of upstream job names that the artifacts need to pass before this job (optional)
+ #}
 
-## Following variables are expected to be passed to set the test job
-## config.gp_ver = GPDB Major version
-## config.os_ver = OS Major version
-## config.test_os = OS platform in which test jobs are executed
-## build_platform = build_os + os_ver
-## test_platform = test_os + os_ver
-## gpdb_os_platform = GPDB RPM OS ( rhel or ubuntu)
-## pkg_type = rpm or deb
+{% set extension        = 'fdw'           if x.use_fdw     == 'true'  else 'ext' %}
+{% set impers_infix     = '-no-impers'    if x.use_impers  == 'false' else ''    %}
+{% set feature_infix    = '-' ~ x.feature if x.feature                else ''    %}
 
-- name: test_pxf-gp[[config.gp_ver]]-hdp2_on_[[test_platform]]
+{# determine the test groups to run #}
+{% if x.protocol %}
+    {# cloud tests run hcfs group, while for S3 we also run s3-specific tests #}
+    {% set test_group = 'hcfs,s3' if x.protocol == 's3' else 'hcfs' %}
+{% elif x.use_impers == 'false' %}
+    {# no impersonation tests should run a smoke group, define it here explicitly, do not rely on task default #}
+    {% set test_group = 'smoke' %}
+{% else %}
+    {# non-cloud impersonation tests (regular) run a standard group combination #}
+    {% set test_group = 'gpdb,proxy,profile' %}
+{% endif %}
+
+{# if x.passed was not provided, make it a build job on the same platform #}
+{% set passed = x.passed if x.passed else '[build-pxf-gp' ~ x.gp_ver ~ '-' ~ x.build_platform ~ ']' %}
+
+- name: test-pxf-gp[[x.gp_ver]]-[[extension]]-[[x.target]][[feature_infix]][[impers_infix]]-[[x.test_platform]]
   plan:
   - in_parallel:
     - get: pxf_src
-      passed: [build_pxf-gp[[config.gp_ver]]_on_[[build_platform]]]
+      resource: pxf-src
+      passed: [[passed]]
       trigger: true
     - get: pxf_tarball
-      resource: pxf_gp[[config.gp_ver]]_tarball_[[gpdb_os_platform]][[config.os_ver]]
-      passed: [build_pxf-gp[[config.gp_ver]]_on_[[build_platform]]]
+      resource: pxf-gp[[x.gp_ver]]-tarball-[[x.release_platform]]
+      passed: [[passed]]
+{% if x.gp_ver == '6' and x.use_fdw == 'true' %}
+    - get: pxf_fdw_tarball
+      resource: pxf-fdw-gp[[x.gp_ver]]-tarball-[[x.release_platform]]
+      passed: [[passed]]
+{% endif %}
     - get: gpdb_package
-      resource: gpdb[[config.gp_ver]]_[[gpdb_os_platform]][[config.os_ver]]_[[pkg_type]]_latest-0
-      passed: [build_pxf-gp[[config.gp_ver]]_on_[[build_platform]]]
-    - get: gpdb[[config.gp_ver]]-pxf-dev-[[test_platform]]-image
-      {# If the test_platform matches build_platform then add the passed condition #}
-      {% if [[test_platform]] == [[build_platform]] %}
-      passed: [build_pxf-gp[[config.gp_ver]]_on_[[build_platform]]]
-      {% endif %}
+      resource: gpdb[[x.gp_ver]]-[[x.release_platform]]-[[x.pkg_type]]-latest-0
+      passed: [[passed]]
+    - get: gpdb[[x.gp_ver]]-pxf-dev-[[x.test_platform]]-image
+      {# if the image was also used to build the artifact, add a 'passed' condition #}
+{% if [[x.test_platform]] == [[x.build_platform]] %}
+      passed: [[passed]]
+{% endif %}
     - get: pxf-automation-dependencies
     - get: singlecluster
-      resource: singlecluster-hdp2
-  - task: test_pxf-gp[[config.gp_ver]]-hdp2_on_[[test_platform]]
+      resource: singlecluster-[[x.distro]]
+  - task: test-pxf-gp[[x.gp_ver]]-[[extension]]-[[x.target]][[feature_infix]][[impers_infix]]-[[x.test_platform]]
     file: pxf_src/concourse/tasks/test.yml
-    image: gpdb[[config.gp_ver]]-pxf-dev-[[test_platform]]-image
+    image: gpdb[[x.gp_ver]]-pxf-dev-[[x.test_platform]]-image
+{% if x.distro == 'cdh' %}
+    {# CDH often fails on HBASE permission grant #}
+    attempts: 3
+{% endif %}
     params:
-      ACCESS_KEY_ID: ((tf-machine-access-key-id))
-      GP_VER: [[config.gp_ver]]
-      GROUP: gpdb,proxy,profile
-      SECRET_ACCESS_KEY: ((tf-machine-secret-access-key))
-      {% if config.test_os == 'ubuntu' %}
+      GP_VER: [[x.gp_ver]]
+      GROUP: [[test_group]]
+{% if x.target == 'cdh' %}
+      HADOOP_CLIENT: CDH
+{% endif %}
+      IMPERSONATION: [[x.use_impers]]
+{% if x.protocol %}
+      PROTOCOL: [[x.protocol]]
+{% endif %}
+{% if x.feature == 'jdk11' %}
+      RUN_JDK_VERSION: 11
+{% endif %}
+{% if x.test_os == 'ubuntu' %}
       PXF_BASE_DIR: /home/gpadmin/pxf
-      {% endif %}
+{% endif %}
+      USE_FDW: [[x.use_fdw]]
+{# --- include credential for external clouds --- #}
+{# S3 credentials are needed for all tests for CloudAccessTest #}
+      ACCESS_KEY_ID: ((tf-machine-access-key-id))
+      SECRET_ACCESS_KEY: ((tf-machine-secret-access-key))
+{% if x.protocol == 'adl' %}
+      ADL_ACCOUNT: ((ud/pxf/common/adl-account))
+      ADL_CLIENT_ID: ((ud/pxf/secrets/adl-client-id))
+      ADL_CREDENTIAL: ((ud/pxf/secrets/adl-credential))
+      ADL_REFRESH_URL: ((ud/pxf/common/adl-refresh-url))
+{% elif x.protocol == 'wasbs' %}
+      WASB_ACCOUNT_NAME: ((ud/pxf/common/wasb-account-name))
+      WASB_ACCOUNT_KEY: ((ud/pxf/secrets/wasb-account-key))
+{% elif x.protocol == 'gs' %}
+      GOOGLE_CREDENTIALS: ((ud/pxf/secrets/gsc-ci-service-account-key))
+{% endif %}
 {% if slack_notification %}
     <<: *slack_alert
 {% endif %}
