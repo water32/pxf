@@ -1,11 +1,11 @@
 {#
-  Macro that takes an array of config dictionaries, iterated over them and for each swimlane:
+  Macro that takes an array of config dictionaries, iterates over them and for each swimlane:
   - creates a dictionary with the original attributes
   - adds derived attributes to the dictionary
   - passes this dictionary in a callback method to the caller
   - renders the result of a callback method
 
-  Each config in the input parameter array is a dictionary with the folowing attributes:
+  Each config in the input parameter array is a dictionary with the following attributes:
   - 'gp_ver'   : major Greenplum version
   - 'build_os' : the name of the OS for building PXF artifacts
   - 'test_os'  : the name of the OS for testing  PXF artifacts
@@ -34,11 +34,13 @@
             {% do x.update({'pkg_arch': 'amd64'}) %}
             {% do x.update({'release_platform': 'ubuntu' ~ x.os_ver}) %}
             {% do x.update({'pxf_platform_infix': '-'}) %}
+            {% do x.update({'pxf_release_repackage_image': 'gpdb' ~ x.gp_ver ~ '-pxf-dev-' ~ x.build_platform ~ '-image' }) %}
         {% else %} {# other operating systems: centos, rocky and oel #}
             {% do x.update({'pkg_type': 'rpm'}) %}
             {% do x.update({'pkg_arch': 'x86_64'}) %}
             {% do x.update({'release_platform': 'el' ~ x.os_ver}) %}
             {% do x.update({'pxf_platform_infix': '.'}) %}
+            {% do x.update({'pxf_release_repackage_image': 'rpmrebuild-' ~ x.build_platform ~ '-image' }) %}
         {% endif %}
 
         {# adjust Greenplum release platform due to historical inconsistencies #}
@@ -48,9 +50,43 @@
             {% do x.update({'greenplum_platform': x.release_platform}) %}
         {% endif %}
 
+        {# create known filename regexes #}
         {% do x.update({'pxf_tarball_filename_regex':     'pxf-gp'     ~ x.gp_ver ~ '-*' ~ x.pxf_platform_infix ~ x.release_platform ~ '.tar.gz'}) %}
         {% do x.update({'pxf_fdw_tarball_filename_regex': 'pxf-fdw-gp' ~ x.gp_ver ~ '-*' ~ x.pxf_platform_infix ~ x.release_platform ~ '.tar.gz'}) %}
 
+        {% do x.update({'pxf_release_package_filename_regex': 'pxf-gp' ~ x.gp_ver ~ '-*-2' ~ x.pxf_platform_infix ~ x.release_platform ~ x.pxf_platform_infix ~ x.pkg_arch ~ '.' ~ x.pkg_type }) %}
+        {% if x.generate_release_tarball is sameas true %}
+            {% do x.update({'pxf_release_tarball_filename_regex': 'pxf-gp' ~ x.gp_ver ~ '-*-' ~ x.release_platform ~ x.pxf_platform_infix ~ x.pkg_arch ~ '.tar.gz'}) %}
+        {% endif %}
+
+        {# create known resource names #}
+        {% do x.update({'build_image_resource_name': 'gpdb' ~ x.gp_ver ~ '-pxf-dev-' ~ x.build_platform ~ '-image'}) %}
+        {% do x.update({'test_image_resource_name':  'gpdb' ~ x.gp_ver ~ '-pxf-dev-' ~ x.test_platform  ~ '-image'}) %}
+        {% do x.update({'gpdb_package_resource_name': 'gpdb' ~ x.gp_ver ~ '-' ~ x.release_platform ~ '-' ~ x.pkg_type ~ '-latest-0'}) %}
+        {% do x.update({'pxf_tarball_resource_name': 'pxf-gp' ~ x.gp_ver ~ '-tarball-' ~ x.release_platform}) %}
+        {% if x.test_fdw is sameas true %}
+            {% do x.update({'pxf_fdw_tarball_resource_name': 'pxf-fdw-gp' ~ x.gp_ver ~ '-tarball-' ~ x.release_platform}) %}
+        {% endif %}
+
+        {# render the result of callback passing the resulting context specific to this loop iteration #}
+[[caller(x)]]
+    {% endfor %}
+{% endmacro %}
+
+{#
+  Macro that takes an array of config dictionaries, iterates over them and determines
+  the set of supported Greenplum versions.
+  Then for each supported Greenplum version, it does the following:
+    - creates a dictionary with one attribute
+       - 'gp_ver'   : major Greenplum version
+    - passes this dictionary in a callback method to the caller
+    - renders the result of a callback method
+#}
+{% macro for_supported_gp_vers(configs) %}
+    {% set supported_gp_vers = configs | map(attribute='gp_ver') | list | unique %}
+    {% for gp_ver in supported_gp_vers %}
+            {# set local variables for a given loop iteration #}
+            {% set x = dict({'gp_ver': gp_ver}) %}
         {# render the result of callback passing the resulting context specific to this loop iteration #}
 [[caller(x)]]
     {% endfor %}
@@ -88,7 +124,7 @@
     {% include 'resources/github-repo-tpl.yml' %}
 {% endmacro %}
 
-{% macro resource_slack_notification(url_key) %}
+{% macro resource_slack_notification(slack_alert_name, url_key) %}
     {% include 'resources/slack-notification-tpl.yml' %}
 {% endmacro %}
 
@@ -101,6 +137,46 @@
     {% include 'resources/pxf5-gp6-el7-artifact-tpl.yml' %}
 {% endmacro %}
 
+{% macro resource_pxf6_6_gp6_el7_artifact() %}
+    {% include 'resources/pxf6_6-gp6-el7-artifact-tpl.yml' %}
+{% endmacro %}
+
 {% macro resource_terraform(cluster_type) %}
     {% include 'resources/terraform-tpl.yml' %}
+{% endmacro %}
+
+{% macro shipit_file(environment) %}
+    {% include 'resources/release-shipit-tpl.yml' %}
+{% endmacro %}
+
+{# ----- JOB macros ----- #}
+{% macro job_group(group_name, job_list) %}
+    {% include 'jobs/job-groups-tpl.yml' %}
+{% endmacro %}
+
+{% macro reset_passed_jobs(configs, job_names) %}
+    {% call(x) for_each_config(configs) %}
+        {% do job_names.images.update({x.test_image_resource_name : []}) %}
+        {% do job_names.tarballs.update({x.pxf_tarball_resource_name : []}) %}
+        {% do job_names.gpdb_packages.update({x.gpdb_package_resource_name : []}) %}
+    {% endcall %}
+{% endmacro %}
+
+{% macro add_test_job(file_name, x, job_names, extra_list_name) %}
+    {% include file_name %}
+    {% do job_names.all.append(x.job_name) %}
+
+    {% do job_names.images.update({x.test_image_resource_name: job_names.images[x.test_image_resource_name] + [x.job_name]}) %}
+    {% do job_names.tarballs.update({x.pxf_tarball_resource_name: job_names.tarballs[x.pxf_tarball_resource_name] + [x.job_name]}) %}
+    {% do job_names.gpdb_packages.update({x.gpdb_package_resource_name: job_names.gpdb_packages[x.gpdb_package_resource_name] + [x.job_name]}) %}
+
+    {% do job_names.tests.update({extra_list_name: job_names.tests[extra_list_name] + [x.job_name]}) %}
+{% endmacro %}
+
+{% macro add_gate_job(file_name, job_names, env_var, build_test_pxf_combinations, pxf_release_repackage_images) %}
+    {# set a fake dictionary so that the job can populate the job_name #}
+    {% set x = dict() %}
+    {% set environment = env_var %}
+    {% include file_name %}
+    {% do job_names.all.append(x.job_name) %}
 {% endmacro %}

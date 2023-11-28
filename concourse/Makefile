@@ -77,6 +77,7 @@ set-build-pipeline:
 		--load-vars-from=$(HOME)/workspace/pxf/concourse/settings/pxf-multinode-params.yml \
 		--var=pxf-git-branch=main \
 		--var=pxf-build-bucket-prefix=prod \
+		--var=gpdb-pxf-dev-image-tag=latest \
 		${FLY_OPTION_NON-INTERACTIVE} || echo "Generated yaml has errors: check $${PIPELINE_FILE}"
 
 	@echo using the following command to unpause the pipeline:
@@ -101,6 +102,7 @@ set-dev-release-pipeline:
 		--var=pxf-git-branch=${BRANCH} \
 		--var=pxf-build-bucket-prefix=dev/$(USER)-$(BRANCH) \
 		--var=pxf-releases-bucket-prefix=dev/$(USER)-$(BRANCH) \
+		--var=gpdb-pxf-dev-image-tag=$(PXF_DEV_IMAGE_TAG) \
 		${FLY_OPTION_NON-INTERACTIVE} || echo "Generated yaml has errors: check $${PIPELINE_FILE}"
 
 	@echo using the following command to unpause the pipeline:
@@ -138,7 +140,7 @@ set-dev-build-pipeline:
 		--config "$${PIPELINE_FILE}" \
 		--load-vars-from=$(HOME)/workspace/pxf/concourse/settings/pxf-multinode-params.yml \
 		--var=pxf-git-branch=${BRANCH} \
-		--var=pxf-dev-image-tag=$(PXF_DEV_IMAGE_TAG) \
+		--var=gpdb-pxf-dev-image-tag=$(PXF_DEV_IMAGE_TAG) \
 		${FLY_OPTION_NON-INTERACTIVE} || echo "Generated yaml has errors: check $${PIPELINE_FILE}"
 
 	@echo using the following command to unpause the pipeline:

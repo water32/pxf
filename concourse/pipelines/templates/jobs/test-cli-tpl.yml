@@ -8,7 +8,8 @@
 {# if x.passed was not provided, make it a build job on the same platform #}
 {% set passed = x.passed if x.passed else '[build-pxf-gp' ~ x.gp_ver ~ '-' ~ x.build_platform ~ ']' %}
 
-- name: test-pxf-gp[[x.gp_ver]]-cli-[[x.test_platform]]
+{% do x.update({'job_name': 'test-pxf-gp' ~ x.gp_ver ~ '-cli-' ~ x.test_platform}) %}
+- name: [[x.job_name]]
   max_in_flight: 2
   plan:
   - in_parallel:
@@ -17,12 +18,12 @@
       passed: [[passed]]
       trigger: true
     - get: pxf_tarball
-      resource: pxf-gp[[x.gp_ver]]-tarball-[[x.release_platform]]
+      resource: [[x.pxf_tarball_resource_name]]
       passed: [[passed]]
     - get: gpdb_package
-      resource: gpdb[[x.gp_ver]]-[[x.release_platform]]-rpm-latest-0
+      resource: [[x.gpdb_package_resource_name]]
       passed: [[passed]]
-    - get: gpdb[[x.gp_ver]]-pxf-dev-[[x.test_platform]]-image
+    - get: [[x.test_image_resource_name]]
       passed: [[passed]]
     - get: ccp_src
       resource: ccp-src
@@ -73,10 +74,10 @@
       INSTALL_GPHDFS: false
       GP_VER: [[x.gp_ver]]
       PXF_JVM_OPTS: ((pxf-jvm-opts))
-  - task: test_pxf_cli
+  - task: [[x.job_name]]
     on_success:
       <<: *destroy_gpdb_cluster
-    image: gpdb[[x.gp_ver]]-pxf-dev-[[x.test_platform]]-image
+    image: [[x.test_image_resource_name]]
     file: pxf_src/concourse/tasks/test_pxf_cli.yml
 {% if slack_notification %}
     <<: *slack_alert
