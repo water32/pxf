@@ -250,9 +250,11 @@ function install_gpdb_package() {
 
 	# create symlink to allow pgregress to run (hardcoded to look for /usr/local/greenplum-db-devel/psql)
 	rm -rf /usr/local/greenplum-db-devel
-	# get version from the package file name
-	: "${pkg_file#*greenplum-db-}"
-	version=${_%%-*}
+	# obtain full version name
+	local gpdb_version
+	gpdb_version="$(<"${gpdb_package}/version")"
+	# in case of dev builds, get simplified version from the version file
+	local version="${gpdb_version%%+*}"
 	gphome_dir=$(find /usr/local/ -name "greenplum-db-${version}*" -type d)
 	ln -sf "${gphome_dir}" /usr/local/greenplum-db-devel
 	# change permissions to gpadmin

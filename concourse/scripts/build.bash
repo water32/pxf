@@ -18,7 +18,9 @@ function install_gpdb() {
         else
             DISTRO_MATCHING_PATTERN="r"
         fi
-        pkg_file=$(find "${GPDB_PKG_DIR}" -name "greenplum-db-${GPDB_VERSION}-${DISTRO_MATCHING_PATTERN}*-x86_64.rpm")
+        # allow for both greenplum-db or greenplum-db-server names in case the build is performed against a server-only RPM of Greenplum
+        pkg_file=$(find "${GPDB_PKG_DIR}" -name "greenplum-db-${GPDB_VERSION}-${DISTRO_MATCHING_PATTERN}*-x86_64.rpm" \
+                                       -o -name "greenplum-db-server-${GPDB_VERSION}-${DISTRO_MATCHING_PATTERN}*-x86_64.rpm")
 
         echo "Installing RPM ${pkg_file}..."
         rpm --quiet -ivh "${pkg_file}" >/dev/null
@@ -97,7 +99,9 @@ function package_pxf_fdw() {
 install_gpdb
 # installation of GPDB from RPM/DEB doesn't ensure that the installation location will match the version
 # given in the gpdb_package, so set the GPHOME after installation
-GPHOME=$(find /usr/local/ -name "greenplum-db-${GPDB_VERSION}*")
+# In case we are testing a dev version (i.e: 6.25.3+dev.6.54a3437), GPDB_VERSION%%+* will remove any extra string from + onwards
+# TODO: revert this change when there are publicly available distributions of rocky9 GPDB rpms
+GPHOME=$(find /usr/local/ -name "greenplum-db-${GPDB_VERSION%%+*}*")
 inflate_dependencies
 compile_pxf
 package_pxf
