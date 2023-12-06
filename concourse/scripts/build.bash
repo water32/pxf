@@ -36,8 +36,6 @@ function install_gpdb() {
 }
 
 function compile_pxf() {
-    source "${GPHOME}/greenplum_path.sh"
-
     # CentOS releases contain a /etc/redhat-release which is symlinked to /etc/centos-release
     if [[ -f /etc/redhat-release ]]; then
         MAKE_TARGET="rpm-tar"
