@@ -58,14 +58,14 @@
       GP_VER: [[x.gp_ver]]
     {% endif %}
 {% endcall %}
-  - task: generate-slack-message
+  - task: generate-gchat-message
     image: google-cloud-sdk-slim-image
-    file: pxf_src/concourse/tasks/generate_slack_message.yml
+    file: pxf_src/concourse/tasks/generate_gchat_message.yml
     params:
       PXF_OSL_FILE_PREFIX: ((ud/pxf/common/osl-file-prefix))
       PXF_ODP_FILE_PREFIX: ((ud/pxf/common/odp-file-prefix))
-      PXF_SLACK_CHANNEL_NAME: ((ud/pxf/common/slack-channel-name))
-      PXF_SLACK_CHANNEL_LINK: ((ud/pxf/secrets/slack-channel-link))
+      PXF_GCHAT_SPACE_NAME: ((ud/pxf/common/gchat-space-name))
+      PXF_GCHAT_SPACE_LINK: ((ud/pxf/secrets/gchat-space-link))
       RELENG_DROP_URL: gs://((ud/pxf/[[environment]]/releng-drop-bucket-name))/((ud/pxf/common/releng-drop-path))
       RELENG_OSL_DROP_URL: gs://((ud/pxf/[[environment]]/releng-drop-bucket-name))/((ud/pxf/common/releng-osl-drop-path))
       RELENG_ODP_DROP_URL: gs://((ud/pxf/[[environment]]/releng-drop-bucket-name))/((ud/pxf/common/releng-odp-drop-path))
@@ -90,10 +90,10 @@
       params:
         file: pxf_artifacts/((ud/pxf/common/osl-file-prefix))*.txt
 {% endcall %}
-{% if slack_notification %}
+{% if gchat_notification %}
   - put: notify-releng
     params:
-      text_file: pxf_artifacts/slack_message.txt
+      text_file: pxf_artifacts/gchat_message.txt
       text: |
         ${TEXT_FILE_CONTENT}
 

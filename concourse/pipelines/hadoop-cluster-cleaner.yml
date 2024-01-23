@@ -1,10 +1,10 @@
 ---
 resource_types:
-- name: slack-notification
+- name: gchat-notification
   type: registry-image
   source:
-    repository: cfcommunity/slack-notification-resource
-    tag: latest
+    repository: springio/google-chat-notify-resource
+    tag: 0.0.1-SNAPSHOT
 
 resources:
 - name: timer
@@ -25,17 +25,17 @@ resources:
     branch: ((pxf-git-branch))
     uri: ((ud/pxf/common/git-remote))
 
-- name: slack-alert
-  type: slack-notification
+- name: gchat-alert
+  type: gchat-notification
   source:
-    url: ((ud/pxf/secrets/ud-pipeline-bot-ud-dev-webhook))
+    url: ((ud/pxf/secrets/gchat-gp-extended-federation-ci-webhook))
 
 jobs:
 - name: hadoop-cluster-cleaner
   build_logs_to_retain: 50
   max_in_flight: 1
   on_failure:
-    put: slack-alert
+    put: gchat-alert
     params:
       text: |
         [$BUILD_PIPELINE_NAME/$BUILD_JOB_NAME/$BUILD_NAME] failed:
