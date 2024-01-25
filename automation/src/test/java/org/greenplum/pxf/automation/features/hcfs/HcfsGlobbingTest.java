@@ -9,6 +9,13 @@ import org.greenplum.pxf.automation.utils.system.ProtocolEnum;
 import org.greenplum.pxf.automation.utils.system.ProtocolUtils;
 import org.testng.annotations.Test;
 
+import java.util.Arrays;
+import java.util.List;
+
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.awaitility.Awaitility.with;
+
 /**
  * Functional Globbing Tests. Tests are based on Hadoop Glob Tests
  * https://github.com/apache/hadoop/blob/rel/release-3.2.1/hadoop-hdfs-project/hadoop-hdfs/src/test/java/org/apache/hadoop/fs/TestGlobPaths.java
@@ -125,6 +132,17 @@ public class HcfsGlobbingTest extends BaseFeature {
         prepareTableData(path, data2, "2b");
         prepareTableData(path, data3, "3c");
         prepareTableData(path, data4, "4d");
+
+        // wait until all the files exist, before continuing the test
+        List<String> datafiles = Arrays.asList(data1, data2, data3, data4);
+        datafiles.parallelStream().forEach(datafile -> {
+            if (datafile != null) {
+                with().pollInterval(20, MILLISECONDS)
+                        .and().with().pollDelay(20, MILLISECONDS)
+                        .await().atMost(240, SECONDS)
+                        .until(() -> hdfs.doesFileExist("/" + hdfs.getWorkingDirectory() + "/" + path + "/" + datafile));
+            }
+        });
 
         ProtocolEnum protocol = ProtocolUtils.getProtocol();
 

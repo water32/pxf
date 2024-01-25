@@ -1,5 +1,7 @@
 package org.greenplum.pxf.automation.features.writable;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+
 import annotations.SkipForFDW;
 import annotations.WorksWithFDW;
 import org.apache.commons.lang.StringUtils;
@@ -25,6 +27,8 @@ import java.util.Random;
 import java.util.TimeZone;
 
 import static java.lang.Thread.sleep;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.awaitility.Awaitility.with;
 
 /**
  * Testing cases for PXF Writable feature for Text formats (Text, CSV) and compressions.
@@ -592,10 +596,11 @@ public class HdfsWritableTextTest extends BaseWritableFeature {
             throws Exception {
 
         String localResultFile = dataTempFolder + "/" + hdfsPath.replaceAll("/", "_");
-        // for HCFS on Cloud, wait a bit for async write in previous steps to finish
-        if (protocol != ProtocolEnum.HDFS) {
-            sleep(10000);
-        }
+        // wait a bit for async write in previous steps to finish
+        with().pollInterval(20, MILLISECONDS)
+            .and().with().pollDelay(20, MILLISECONDS)
+            .await().atMost(120, SECONDS)
+            .until(() -> hdfs.doesFileExist("/" + hdfsPath));
         List<String> files = hdfs.list(hdfsPath);
         Table resultTable = new Table("result_table", null);
         int index = 0;
