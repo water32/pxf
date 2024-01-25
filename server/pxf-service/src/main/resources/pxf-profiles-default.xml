@@ -1056,4 +1056,15 @@ under the License.
         </plugins>
     </profile>
 
+    <!-- fake profiles -->
+    <profile>
+        <name>fake</name>
+        <description>Fake profile for testing that returns generated data.</description>
+        <plugins>
+            <fragmenter>org.greenplum.pxf.plugins.fake.FakeFragmenter</fragmenter>
+            <accessor>org.greenplum.pxf.plugins.fake.FakeAccessor</accessor>
+            <resolver>org.greenplum.pxf.plugins.fake.FakeResolver</resolver>
+        </plugins>
+    </profile>
+
 </profiles>
