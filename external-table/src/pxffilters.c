@@ -190,6 +190,15 @@ dbop_pxfop_map pxf_supported_opr_op_expr[] =
 	{1755 /* numericle */ , PXFOP_LE},
 	{1757 /* numericge */ , PXFOP_GE},
 	{1753 /* numericne */ , PXFOP_NE},
+
+	/* uuid */
+	{2972 /* uuid_eq */ , PXFOP_EQ},
+	{2973 /* uuid_ne */ , PXFOP_NE},
+	{2974 /* uuid_lt */ , PXFOP_LT},
+	{2975 /* uuid_gt */ , PXFOP_GT},
+	{2976 /* uuid_le */ , PXFOP_LE},
+	{2977 /* uuid_ge */ , PXFOP_GE},
+
 };
 
 
@@ -239,6 +248,9 @@ dbop_pxfop_array_map pxf_supported_opr_scalar_array_op_expr[] =
 
 	/* bpchar */
 	{BPCharEqualOperator /* bpchareq */ , PXFOP_IN, true},
+
+	/* uuid */
+	{2972 /* uuid_eq */ , PXFOP_IN, true},
 };
 
 
@@ -257,6 +269,7 @@ Oid			pxf_supported_types[] =
 	CHAROID,
 	DATEOID,
 	TIMESTAMPOID,
+	UUIDOID,
 	/* complex datatypes */
 	INT2ARRAYOID,
 	INT4ARRAYOID,
@@ -1171,6 +1184,7 @@ scalar_const_to_str(Const *constval, StringInfo buf)
 		case BYTEAOID:
 		case DATEOID:
 		case TIMESTAMPOID:
+		case UUIDOID:
 			appendStringInfo(buf, "%s", extval);
 			break;
 		default:

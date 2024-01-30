@@ -75,6 +75,7 @@ public class JdbcPredicateBuilder extends ColumnPredicateBuilder {
             case TEXT:
             case VARCHAR:
             case BPCHAR:
+            case UUID:
                 return String.format("'%s'",
                         StringUtils.replace(value, "'", "''"));
             case DATE:

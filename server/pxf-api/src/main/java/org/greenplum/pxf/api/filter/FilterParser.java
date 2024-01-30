@@ -94,7 +94,8 @@ public class FilterParser {
             DataType.DATE,
             DataType.TIMESTAMP,
             DataType.TIME,
-            DataType.BYTEA
+            DataType.BYTEA,
+            DataType.UUID
     );
 
     private static final Operator[] OPERATOR_ARRAY = new Operator[]{
