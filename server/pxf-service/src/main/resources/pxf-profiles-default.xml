@@ -351,7 +351,7 @@ under the License.
             <accessor>org.greenplum.pxf.plugins.hdfs.LineBreakAccessor</accessor>
             <resolver>org.greenplum.pxf.plugins.hdfs.StringPassResolver</resolver>
         </plugins>
-        <protocol>adl</protocol>
+        <protocol>abfss</protocol>
     </profile>
     <profile>
         <name>adl:csv</name>
@@ -363,7 +363,7 @@ under the License.
             <accessor>org.greenplum.pxf.plugins.hdfs.LineBreakAccessor</accessor>
             <resolver>org.greenplum.pxf.plugins.hdfs.StringPassResolver</resolver>
         </plugins>
-        <protocol>adl</protocol>
+        <protocol>abfss</protocol>
     </profile>
     <profile>
         <name>adl:text:multi</name>
@@ -376,7 +376,7 @@ under the License.
             <accessor>org.greenplum.pxf.plugins.hdfs.QuotedLineBreakAccessor</accessor>
             <resolver>org.greenplum.pxf.plugins.hdfs.StringPassResolver</resolver>
         </plugins>
-        <protocol>adl</protocol>
+        <protocol>abfss</protocol>
     </profile>
     <profile>
         <name>adl:fixedwidth</name>
@@ -388,7 +388,7 @@ under the License.
             <accessor>org.greenplum.pxf.plugins.hdfs.LineBreakAccessor</accessor>
             <resolver>org.greenplum.pxf.plugins.hdfs.StringPassResolver</resolver>
         </plugins>
-        <protocol>adl</protocol>
+        <protocol>abfss</protocol>
     </profile>
     <profile>
         <name>wasbs:text</name>

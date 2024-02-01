@@ -45,9 +45,9 @@
 
     <adl>
         <class>org.greenplum.pxf.automation.components.hdfs.Hdfs</class>
-        <workingDirectory>pxfperf.azuredatalakestore.net/tmp/pxf_automation_data/__UUID__</workingDirectory>
+        <workingDirectory>gen1@pxfperftest.dfs.core.windows.net/tmp/pxf_automation_data/__UUID__</workingDirectory>
         <hadoopRoot>${pxf.base}/servers/adl</hadoopRoot>
-        <scheme>adl</scheme>
+        <scheme>abfss</scheme>
     </adl>
 
     <gs>

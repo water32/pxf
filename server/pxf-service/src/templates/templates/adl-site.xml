@@ -4,19 +4,23 @@
          https://hadoop.apache.org/docs/current/hadoop-azure-datalake/index.html
          for additional information -->
     <property>
-        <name>fs.adl.oauth2.access.token.provider.type</name>
-        <value>ClientCredential</value>
+        <name>fs.azure.account.auth.type</name>
+        <value>OAuth</value>
     </property>
     <property>
-        <name>fs.adl.oauth2.refresh.url</name>
+        <name>fs.azure.account.oauth.provider.type</name>
+        <value>org.apache.hadoop.fs.azurebfs.oauth2.ClientCredsTokenProvider</value>
+    </property>
+    <property>
+        <name>fs.azure.account.oauth2.client.endpoint</name>
         <value>YOUR_ADL_REFRESH_URL</value>
     </property>
     <property>
-        <name>fs.adl.oauth2.client.id</name>
+        <name>fs.azure.account.oauth2.client.id</name>
         <value>YOUR_ADL_CLIENT_ID</value>
     </property>
     <property>
-        <name>fs.adl.oauth2.credential</name>
+        <name>fs.azure.account.oauth2.client.secret</name>
         <value>YOUR_ADL_CREDENTIAL</value>
     </property>
 </configuration>
