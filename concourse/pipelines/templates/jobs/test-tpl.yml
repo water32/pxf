@@ -85,7 +85,7 @@
 {# S3 credentials are needed for all tests for CloudAccessTest #}
       ACCESS_KEY_ID: ((tf-machine-access-key-id))
       SECRET_ACCESS_KEY: ((tf-machine-secret-access-key))
-{% if x.protocol == 'adl' %}
+{% if x.protocol == 'abfss' %}
       ADL_ACCOUNT: ((ud/pxf/common/adl-account))
       ADL_CLIENT_ID: ((ud/pxf/secrets/adl-client-id))
       ADL_CREDENTIAL: ((ud/pxf/secrets/adl-credential))

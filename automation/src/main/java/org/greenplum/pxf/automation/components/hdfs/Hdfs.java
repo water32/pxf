@@ -337,7 +337,6 @@ public class Hdfs extends BaseSystemObject implements IFSFunctionality {
             RemoteIterator<LocatedFileStatus> files = fs.listFiles(getDatapath(path), true);
             while (files.hasNext()) {
                 String file = files.next().getPath().toString();
-                ReportUtils.startLevel(report, getClass(), "Removing file " + file);
                 Path dataPath = getDatapath(file);
                 if (fs.exists(dataPath)) {
                     fs.delete(dataPath, true);

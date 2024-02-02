@@ -663,7 +663,7 @@ function configure_hdfs_client_for_gs() {
 	sed -i -e "/<configuration>/r ${GS_CORE_SITE_XML}" "${GPHD_ROOT}/hadoop/etc/hadoop/core-site.xml"
 }
 
-function configure_hdfs_client_for_adl() {
+function configure_hdfs_client_for_abfss() {
 	cp "${PXF_HOME}/lib/shared/"azure-data-lake-store-sdk-*.jar \
 		"${PXF_HOME}/lib/shared/"hadoop-azure-*.jar \
 		"${PXF_HOME}/lib/shared/"hadoop-azure-datalake-*.jar \
@@ -671,8 +671,8 @@ function configure_hdfs_client_for_adl() {
 		"${PXF_HOME}/lib/shared/"htrace-core4-*-incubating.jar \
 		"${PXF_HOME}/lib/shared/"stax2-api-*.jar \
 		"${PXF_HOME}/lib/shared/"woodstox-core-*.jar "${GPHD_ROOT}/hadoop/share/hadoop/common/lib"
-	ADL_CORE_SITE_XML=$(mktemp)
-	cat <<-EOF > "${ADL_CORE_SITE_XML}"
+	ABFSS_CORE_SITE_XML=$(mktemp)
+	cat <<-EOF > "${ABFSS_CORE_SITE_XML}"
 		<property>
 		   <name>fs.azure.account.auth.type</name>
 		   <value>OAuth</value>
@@ -694,7 +694,7 @@ function configure_hdfs_client_for_adl() {
 		    <value>${ADL_OAUTH2_CREDENTIAL}</value>
 		</property>
 	EOF
-	sed -i -e "/<configuration>/r ${ADL_CORE_SITE_XML}" "${GPHD_ROOT}/hadoop/etc/hadoop/core-site.xml"
+	sed -i -e "/<configuration>/r ${ABFSS_CORE_SITE_XML}" "${GPHD_ROOT}/hadoop/etc/hadoop/core-site.xml"
 }
 
 function configure_hdfs_client_for_wasbs() {
@@ -736,12 +736,12 @@ function configure_pxf_minio_server() {
 		${TEMPLATES_DIR}/templates/minio-site.xml >${BASE_DIR}/servers/minio/minio-site.xml
 }
 
-function configure_pxf_adl_server() {
-	mkdir -p "${BASE_DIR}/servers/adl"
+function configure_pxf_abfss_server() {
+	mkdir -p "${BASE_DIR}/servers/abfss"
 	sed -e "s|YOUR_ADL_REFRESH_URL|${ADL_OAUTH2_REFRESH_URL}|g" \
 		-e "s|YOUR_ADL_CLIENT_ID|${ADL_OAUTH2_CLIENT_ID}|g" \
 		-e "s|YOUR_ADL_CREDENTIAL|${ADL_OAUTH2_CREDENTIAL}|g" \
-		"${TEMPLATES_DIR}/templates/adl-site.xml" >"${BASE_DIR}/servers/abfss/abfss-site.xml"
+		"${TEMPLATES_DIR}/templates/abfss-site.xml" >"${BASE_DIR}/servers/abfss/abfss-site.xml"
 }
 
 function configure_pxf_wasbs_server() {
@@ -804,9 +804,9 @@ function setup_gs_for_pg_regress() {
 	HCFS_BUCKET=data-gpdb-ud-tpch
 }
 
-function setup_adl_for_pg_regress() {
-	configure_pxf_adl_server
-	configure_hdfs_client_for_adl
+function setup_abfss_for_pg_regress() {
+	configure_pxf_abfss_server
+	configure_hdfs_client_for_abfss
 	HCFS_BUCKET=pxf-container@${ADL_ACCOUNT}.dfs.core.windows.net
 }
 

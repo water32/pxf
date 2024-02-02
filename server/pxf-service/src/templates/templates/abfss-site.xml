@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <!-- To configure Azure Data Lake please refer to the following link
-         https://hadoop.apache.org/docs/current/hadoop-azure-datalake/index.html
+    <!-- To configure Azure Data Lake Storage Gen 2 please refer to the following link
+         https://hadoop.apache.org/docs/stable/hadoop-azure/abfs.html
          for additional information -->
     <property>
         <name>fs.azure.account.auth.type</name>

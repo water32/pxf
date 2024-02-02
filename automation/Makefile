@@ -199,7 +199,7 @@ ifneq "$(PROTOCOL)" ""
 			sed $(SED_OPTS) "s|YOUR_AWS_ACCESS_KEY_ID|$(ACCESS_KEY_ID)|" $(PROTOCOL_HOME)/$(PROTOCOL)-site.xml; \
 			sed $(SED_OPTS) "s|YOUR_AWS_SECRET_ACCESS_KEY|$(SECRET_ACCESS_KEY)|" $(PROTOCOL_HOME)/$(PROTOCOL)-site.xml; \
 		fi; \
-		if [ $(PROTOCOL) = adl ]; then \
+		if [ $(PROTOCOL) = abfss ]; then \
 			if [ -z "$(ADL_ACCOUNT)" ] || [ -z "$(ADL_REFRESH_URL)" ] || [ -z "$(ADL_CLIENT_ID)" ] || [ -z "$(ADL_CREDENTIAL)" ]; then \
 				echo "ADL Keys (ADL_ACCOUNT, ADL_CLIENT_ID, ADL_CREDENTIAL, ADL_REFRESH_URL) not set"; \
 				rm -rf $(PROTOCOL_HOME); \
