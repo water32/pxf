@@ -29,7 +29,7 @@ the following Foreign Data Wrappers.
 2. **hbase_pxf_fdw**    Provides access to HBase
 2. **s3_pxf_fdw**       Provides access to S3
 2. **gs_pxf_fdw**       Provides access to Google Cloud Storage
-2. **adl_pxf_fdw**      Provides access to Azure Datalake
+2. **abfss_pxf_fdw**    Provides access to Azure Datalake Storage Gen 2
 2. **wasbs_pxf_fdw**    Provides access to Microsoft's Azure Blob Storage
 2. **file_pxf_fdw**     Provides access to local file storage
 
@@ -65,10 +65,10 @@ The PXF Foreign Data Wrapper will create:
         VALIDATOR pxf_fdw_validator
         OPTIONS ( protocol 'gs' );
 
-    CREATE FOREIGN DATA WRAPPER adl_pxf_fdw
+    CREATE FOREIGN DATA WRAPPER abfss_pxf_fdw
         HANDLER pxf_fdw_handler
         VALIDATOR pxf_fdw_validator
-        OPTIONS ( protocol 'adl' );
+        OPTIONS ( protocol 'abfss' );
 
     CREATE FOREIGN DATA WRAPPER wasbs_pxf_fdw
         HANDLER pxf_fdw_handler
