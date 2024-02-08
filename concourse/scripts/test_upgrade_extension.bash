@@ -57,6 +57,7 @@ function upgrade_pxf() {
   # the new version of PXF brought in a new version of the extension. For databases that already had PXF installed,
   # we need to explicitly upgrade the PXF extension to the new version
 	echo "ALTER EXTENSION pxf UPDATE - for multibyte delimiter tests"
+	echo "ALTER EXTENSION pxf_fdw UPDATE - for fdw extension tests"
 
 	su gpadmin <<'EOSU'
   source ${GPHOME}/greenplum_path.sh &&
@@ -68,6 +69,12 @@ function upgrade_pxf() {
       fi
       echo "updating PXF extension in database '${dbname}'"
       psql --dbname="${dbname}" --set ON_ERROR_STOP=on --command "ALTER EXTENSION pxf UPDATE;"
+      if ! psql --dbname="${dbname}" --no-align --tuples-only --command "SELECT extname FROM pg_catalog.pg_extension WHERE extname = 'pxf_fdw'" | grep . &>/dev/null; then
+          echo "skipping database '${dbname}'"
+          continue
+      fi
+      echo "updating PXF extension in database '${dbname}'"
+      psql --dbname="${dbname}" --set ON_ERROR_STOP=on --command "ALTER EXTENSION pxf_fdw UPDATE;"
     done
 EOSU
 
