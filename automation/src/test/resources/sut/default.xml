@@ -45,7 +45,7 @@
 
     <abfss>
         <class>org.greenplum.pxf.automation.components.hdfs.Hdfs</class>
-        <workingDirectory>pxf-container@pxfperftest.dfs.core.windows.net/tmp/pxf_automation_data/__UUID__</workingDirectory>
+        <workingDirectory>pxf-container@pxfdevgen2.dfs.core.windows.net/tmp/pxf_automation_data/__UUID__</workingDirectory>
         <hadoopRoot>${pxf.base}/servers/abfss</hadoopRoot>
         <scheme>abfss</scheme>
     </abfss>
@@ -59,7 +59,7 @@
 
     <wasbs>
         <class>org.greenplum.pxf.automation.components.hdfs.Hdfs</class>
-        <workingDirectory>pxf-container@pxfperftest.blob.core.windows.net/tmp/pxf_automation_data/__UUID__</workingDirectory>
+        <workingDirectory>pxf-container@pxfdevgen2.blob.core.windows.net/tmp/pxf_automation_data/__UUID__</workingDirectory>
         <hadoopRoot>${pxf.base}/servers/wasbs</hadoopRoot>
         <scheme>wasbs</scheme>
     </wasbs>

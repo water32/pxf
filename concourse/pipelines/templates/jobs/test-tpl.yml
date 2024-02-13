@@ -94,8 +94,8 @@
       ADL_CREDENTIAL: ((ud/pxf/secrets/adl-credential))
       ADL_REFRESH_URL: ((ud/pxf/common/adl-refresh-url))
 {% elif x.protocol == 'wasbs' %}
-      WASB_ACCOUNT_NAME: ((ud/pxf/common/wasb-account-name))
-      WASB_ACCOUNT_KEY: ((ud/pxf/secrets/wasb-account-key))
+      WASB_ACCOUNT_NAME: ((ud/pxf/common/wasb-gen2-account-name))
+      WASB_ACCOUNT_KEY: ((ud/pxf/secrets/wasb-gen2-account-key))
 {% elif x.protocol == 'gs' %}
       GOOGLE_CREDENTIALS: ((ud/pxf/secrets/gsc-ci-service-account-key))
 {% endif %}
