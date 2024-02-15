@@ -25,6 +25,7 @@
 #else
 #include "access/fileam.h"
 #endif
+#include "utils/guc.h"
 #include "utils/elog.h"
 
 /* define magic module unless run as a part of test cases */
@@ -45,6 +46,31 @@ Datum		pxfprotocol_validate_urls(PG_FUNCTION_ARGS);
 static gphadoop_context *create_context(PG_FUNCTION_ARGS, bool is_import);
 static void cleanup_context(gphadoop_context *context);
 static void check_caller(PG_FUNCTION_ARGS, const char *func_name);
+
+void _PG_init(void);
+
+/* global settings */
+int PxfServicePort = 5888;
+
+/*
+ * _PG_init gets called when the extension is loaded.
+ */
+void
+_PG_init(void)
+{
+	ereport(DEBUG1, (errmsg("PXF extension loaded.")));
+	DefineCustomIntVariable(
+		"pxf.service_port",
+		gettext_noop("Port to connect to PXF service on"),
+		NULL,
+		&PxfServicePort,
+		5888,
+		1024,
+		65535,
+		PGC_USERSET,
+		GUC_GPDB_NEED_SYNC,
+		NULL, NULL, NULL);
+}
 
 /*
  * Validates external table URL

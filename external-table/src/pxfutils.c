@@ -90,6 +90,7 @@ get_pxf_host(void)
 	return hStr ? hStr : PXF_DEFAULT_HOST;
 }
 
+extern int PxfServicePort;
 /* Returns the PXF Port defined in the PXF_PORT
  * environment variable or the default when undefined
  */
@@ -97,8 +98,8 @@ const int
 get_pxf_port(void)
 {
 	char *endptr = NULL;
-	char *pStr = getenv(ENV_PXF_PORT);
-	int port = PXF_DEFAULT_PORT;
+	char *pStr   = getenv(ENV_PXF_PORT);
+	int port     = PxfServicePort;
 
 	if (pStr) {
 		port = (int) strtol(pStr, &endptr, 10);
