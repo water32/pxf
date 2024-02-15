@@ -1,8 +1,8 @@
 package org.greenplum.pxf.service.controller;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.catalina.connector.ClientAbortException;
 import org.apache.commons.lang.StringUtils;
+import org.eclipse.jetty.io.EofException;
 import org.greenplum.pxf.api.error.PxfRuntimeException;
 import org.greenplum.pxf.service.utilities.ThrowingSupplier;
 
@@ -24,8 +24,8 @@ public abstract class PxfErrorReporter<T> {
         try {
             // call the action and return the value if there are no errors
             return action.get();
-        } catch (ClientAbortException e) {
-            // the ClientAbortException occurs whenever a client (GPDB) decides to end the connection
+        } catch (EofException e) {
+            // the EofException occurs whenever a client (GPDB) decides to end the connection
             // which is common for LIMIT queries (ex: SELECT * FROM table LIMIT 1)
             // so we want to log just a warning message, not an error with the full stacktrace (unless in debug mode)
             if (log.isDebugEnabled()) {
