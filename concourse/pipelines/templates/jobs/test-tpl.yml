@@ -89,10 +89,10 @@
       ACCESS_KEY_ID: ((tf-machine-access-key-id))
       SECRET_ACCESS_KEY: ((tf-machine-secret-access-key))
 {% if x.protocol == 'abfss' %}
-      ADL_ACCOUNT: ((ud/pxf/common/adl-account))
-      ADL_CLIENT_ID: ((ud/pxf/secrets/adl-client-id))
-      ADL_CREDENTIAL: ((ud/pxf/secrets/adl-credential))
-      ADL_REFRESH_URL: ((ud/pxf/common/adl-refresh-url))
+      ABFSS_ACCOUNT: ((ud/pxf/common/abfss-account))
+      ABFSS_CLIENT_ID: ((ud/pxf/secrets/abfss-client-id))
+      ABFSS_CLIENT_SECRET: ((ud/pxf/secrets/abfss-client-secret))
+      ABFSS_CLIENT_ENDPOINT: ((ud/pxf/common/abfss-client-endpoint))
 {% elif x.protocol == 'wasbs' %}
       WASB_ACCOUNT_NAME: ((ud/pxf/common/wasb-gen2-account-name))
       WASB_ACCOUNT_KEY: ((ud/pxf/secrets/wasb-gen2-account-key))

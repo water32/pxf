@@ -683,15 +683,15 @@ function configure_hdfs_client_for_abfss() {
 		</property>
 		<property>
 		<name>fs.azure.account.oauth2.client.endpoint</name>
-		    <value>${ADL_OAUTH2_REFRESH_URL}</value>
+		    <value>${ABFSS_OAUTH2_REFRESH_URL}</value>
 		</property>
 		<property>
 		    <name>fs.azure.account.oauth2.client.id</name>
-		    <value>${ADL_OAUTH2_CLIENT_ID}</value>
+		    <value>${ABFSS_OAUTH2_CLIENT_ID}</value>
 		</property>
 		<property>
 		    <name>fs.azure.account.oauth2.client.secret</name>
-		    <value>${ADL_OAUTH2_CREDENTIAL}</value>
+		    <value>${ABFSS_OAUTH2_CLIENT_SECRET}</value>
 		</property>
 	EOF
 	sed -i -e "/<configuration>/r ${ABFSS_CORE_SITE_XML}" "${GPHD_ROOT}/hadoop/etc/hadoop/core-site.xml"
@@ -738,9 +738,9 @@ function configure_pxf_minio_server() {
 
 function configure_pxf_abfss_server() {
 	mkdir -p "${BASE_DIR}/servers/abfss"
-	sed -e "s|YOUR_ADL_REFRESH_URL|${ADL_OAUTH2_REFRESH_URL}|g" \
-		-e "s|YOUR_ADL_CLIENT_ID|${ADL_OAUTH2_CLIENT_ID}|g" \
-		-e "s|YOUR_ADL_CREDENTIAL|${ADL_OAUTH2_CREDENTIAL}|g" \
+	sed -e "s|YOUR_ABFSS_CLIENT_ENDPOINT|${ABFSS_OAUTH2_REFRESH_URL}|g" \
+		-e "s|YOUR_ABFSS_CLIENT_ID|${ABFSS_OAUTH2_CLIENT_ID}|g" \
+		-e "s|YOUR_ABFSS_CLIENT_SECRET|${ABFSS_OAUTH2_CLIENT_SECRET}|g" \
 		"${TEMPLATES_DIR}/templates/abfss-site.xml" >"${BASE_DIR}/servers/abfss/abfss-site.xml"
 }
 
@@ -807,7 +807,7 @@ function setup_gs_for_pg_regress() {
 function setup_abfss_for_pg_regress() {
 	configure_pxf_abfss_server
 	configure_hdfs_client_for_abfss
-	HCFS_BUCKET=pxf-container@${ADL_ACCOUNT}.dfs.core.windows.net
+	HCFS_BUCKET=pxf-container@${ABFSS_ACCOUNT}.dfs.core.windows.net
 }
 
 function setup_wasbs_for_pg_regress() {
