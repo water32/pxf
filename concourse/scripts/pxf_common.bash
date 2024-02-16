@@ -807,7 +807,7 @@ function setup_gs_for_pg_regress() {
 function setup_adl_for_pg_regress() {
 	configure_pxf_adl_server
 	configure_hdfs_client_for_adl
-	HCFS_BUCKET=gen1@${ADL_ACCOUNT}.dfs.core.windows.net
+	HCFS_BUCKET=pxf-container@${ADL_ACCOUNT}.dfs.core.windows.net
 }
 
 function setup_wasbs_for_pg_regress() {
