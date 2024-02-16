@@ -45,7 +45,7 @@
 
     <adl>
         <class>org.greenplum.pxf.automation.components.hdfs.Hdfs</class>
-        <workingDirectory>gen1@pxfperftest.dfs.core.windows.net/tmp/pxf_automation_data/__UUID__</workingDirectory>
+        <workingDirectory>pxf-container@pxfperftest.dfs.core.windows.net/tmp/pxf_automation_data/__UUID__</workingDirectory>
         <hadoopRoot>${pxf.base}/servers/adl</hadoopRoot>
         <scheme>abfss</scheme>
     </adl>
