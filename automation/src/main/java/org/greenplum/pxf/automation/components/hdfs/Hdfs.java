@@ -333,6 +333,7 @@ public class Hdfs extends BaseSystemObject implements IFSFunctionality {
     @Override
     public void removeDirectory(String path) throws Exception {
         ReportUtils.startLevel(report, getClass(), "Remove Directory " + path);
+        // The ABFSS protocol cannot delete a non-empty directory, so recursively go through and delete files inside
         try {
             RemoteIterator<LocatedFileStatus> files = fs.listFiles(getDatapath(path), true);
             while (files.hasNext()) {
