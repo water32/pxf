@@ -1,4 +1,4 @@
--- @description query01 for PXF downgrade test on small data
+-- @description query01 for PXF FDW extension downgrade test
 -- start_matchsubs
 --
 -- m{.*/usr/local/pxf-(dev|gp\d).*}

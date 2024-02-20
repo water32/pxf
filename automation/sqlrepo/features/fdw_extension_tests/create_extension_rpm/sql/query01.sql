@@ -1,4 +1,4 @@
--- @description query01 for PXF install test on small data
+-- @description query01 for PXF FDW extension install test
 -- start_matchsubs
 --
 -- m{.*/usr/local/pxf-(dev|gp\d).*}
