@@ -10,6 +10,7 @@ import org.greenplum.pxf.automation.structures.tables.pxf.ExternalTable;
 import org.greenplum.pxf.automation.structures.tables.utils.TableFactory;
 import org.greenplum.pxf.automation.utils.system.ProtocolEnum;
 import org.greenplum.pxf.automation.utils.system.ProtocolUtils;
+import org.testng.SkipException;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
@@ -119,6 +120,8 @@ public class OrcWriteTest extends BaseFeature {
     private static final String HIVE_JDBC_DRIVER_CLASS = "org.apache.hive.jdbc.HiveDriver";
     private static final String HIVE_JDBC_URL_PREFIX = "jdbc:hive2://";
 
+    private static final Integer NUM_RETRIES = 5;
+
     private String gpdbTableNamePrefix;
     private String hdfsPath;
     private String fullTestPath;
@@ -151,8 +154,8 @@ public class OrcWriteTest extends BaseFeature {
         prepareWritableExternalTable(gpdbTableNamePrefix, ORC_PRIMITIVE_TABLE_COLUMNS, fullTestPath);
         prepareReadableExternalTable(gpdbTableNamePrefix, ORC_PRIMITIVE_TABLE_COLUMNS, fullTestPath, false /*mapByPosition*/);
 
-        insertDataWithoutNulls(gpdbTableNamePrefix, 33); // > 30 to let the DATE field to repeat the value
-
+        // > 30 to let the DATE field to repeat the value
+        attemptInsert(() -> insertDataWithoutNulls(gpdbTableNamePrefix, 33), fullTestPath, NUM_RETRIES);
         // use PXF *:orc profile to read the data
         runSqlTest("features/orc/write/primitive_types");
     }
@@ -170,7 +173,9 @@ public class OrcWriteTest extends BaseFeature {
         fullTestPath = hdfsPath + "orc_primitive_types_with_hive";
 
         prepareWritableExternalTable(gpdbTableNamePrefix, ORC_PRIMITIVE_TABLE_COLUMNS, fullTestPath);
-        insertDataWithoutNulls(gpdbTableNamePrefix, 33); // > 30 to let the DATE field to repeat the value
+
+        // > 30 to let the DATE field to repeat the value
+        attemptInsert(() -> insertDataWithoutNulls(gpdbTableNamePrefix, 33), fullTestPath, NUM_RETRIES);
 
         // load the data into hive to check that PXF-written ORC files can be read by other data
         hiveTable = new HiveExternalTable(gpdbTableNamePrefix, ORC_PRIMITIVE_TABLE_COLUMNS_HIVE, "hdfs:/" + fullTestPath);
@@ -222,7 +227,7 @@ public class OrcWriteTest extends BaseFeature {
         prepareWritableExternalTable(gpdbTableNamePrefix, ORC_PRIMITIVE_TABLE_COLUMNS, fullTestPath);
         prepareReadableExternalTable(gpdbTableNamePrefix, ORC_PRIMITIVE_TABLE_COLUMNS  , fullTestPath, false /*mapByPosition*/);
 
-        insertDataWithNulls(gpdbTableNamePrefix, 33);
+        attemptInsert(() -> insertDataWithNulls(gpdbTableNamePrefix, 33), fullTestPath, NUM_RETRIES);
 
         runSqlTest("features/orc/write/primitive_types_nulls");
     }
@@ -235,7 +240,7 @@ public class OrcWriteTest extends BaseFeature {
         prepareReadableExternalTable(gpdbTableNamePrefix, ORC_PRIMITIVE_TABLE_COLUMNS  , fullTestPath, false /*mapByPosition*/);
 
         // write 3 batches and 1 row of data (1024*3+1=3073) to make sure batch is properly reset when reused
-        insertDataWithoutNulls(gpdbTableNamePrefix, 3073);
+        attemptInsert(() -> insertDataWithoutNulls(gpdbTableNamePrefix, 3073), fullTestPath, NUM_RETRIES);
 
         runSqlTest("features/orc/write/primitive_types_large");
     }
@@ -247,7 +252,7 @@ public class OrcWriteTest extends BaseFeature {
         prepareWritableExternalTable(gpdbTableNamePrefix, ORC_TIMESTAMP_TABLE_COLUMNS, fullTestPath);
         prepareReadableExternalTable(gpdbTableNamePrefix, ORC_TIMESTAMP_TABLE_COLUMNS, fullTestPath, false /*mapByPosition*/);
 
-        insertDataWithTimestamps(gpdbTableNamePrefix, 10, 5);
+        attemptInsert(() -> insertDataWithTimestamps(gpdbTableNamePrefix, 10, 5), fullTestPath, NUM_RETRIES);
 
         runSqlTest("features/orc/write/timestamp_with_timezone_types");
     }
@@ -260,7 +265,8 @@ public class OrcWriteTest extends BaseFeature {
         prepareWritableExternalTable(gpdbTableNamePrefix, ORC_PRIMITIVE_ARRAYS_TABLE_COLUMNS, fullTestPath);
         prepareReadableExternalTable(gpdbTableNamePrefix, ORC_PRIMITIVE_ARRAYS_TABLE_COLUMNS, fullTestPath, false /*mapByPosition*/);
 
-        insertArrayDataWithNulls(gpdbTableNamePrefix, 33, 17); // > 30 to let the DATE field to repeat the value
+        // > 30 to let the DATE field to repeat the value
+        attemptInsert(() -> insertArrayDataWithNulls(gpdbTableNamePrefix, 33, 17), fullTestPath, NUM_RETRIES);
 
         // use PXF *:orc profile to read the data
         runSqlTest("features/orc/write/primitive_types_array_with_nulls");
@@ -274,7 +280,8 @@ public class OrcWriteTest extends BaseFeature {
         prepareWritableExternalTable(gpdbTableNamePrefix, ORC_PRIMITIVE_ARRAYS_TABLE_COLUMNS, fullTestPath);
         prepareReadableExternalTable(gpdbTableNamePrefix, ORC_PRIMITIVE_ARRAYS_TABLE_COLUMNS, fullTestPath, false /*mapByPosition*/);
 
-        insertArrayDataWithNullElements(gpdbTableNamePrefix, 33, 17); // > 30 to let the DATE field to repeat the value
+        // > 30 to let the DATE field to repeat the value
+        attemptInsert(() -> insertArrayDataWithNullElements(gpdbTableNamePrefix, 33, 17), fullTestPath, NUM_RETRIES);
 
         // use PXF *:orc profile to read the data
         runSqlTest("features/orc/write/primitive_types_array_null_elements");
@@ -282,6 +289,10 @@ public class OrcWriteTest extends BaseFeature {
 
     @Test(groups = {"features", "gpdb", "security", "hcfs"})
     public void orcWritePrimitiveArraysMultidimensional() throws Exception {
+        if (ProtocolUtils.getProtocol() == ProtocolEnum.ADL) {
+            throw new SkipException("The test is extremely flaky with the ADL profile while we go through the Azure Gen1 Compatibility Layer");
+        }
+
         gpdbTableNamePrefix = "orc_primitive_arrays_multi";
         fullTestPath = hdfsPath + gpdbTableNamePrefix;
         // create heap table containing all the data
