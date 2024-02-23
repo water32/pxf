@@ -348,9 +348,9 @@ public class Hdfs extends BaseSystemObject implements IFSFunctionality {
             }
         }
 
-        Path directoryPath = getDatapath(path);
-        if (fs.exists(directoryPath)) {
-            fs.delete(directoryPath, true);
+        Path datapath = getDatapath(path);
+        if (fs.exists(datapath)) {
+            fs.delete(datapath, true);
         }
 
         ReportUtils.stopLevel(report);
