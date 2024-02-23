@@ -27,7 +27,7 @@
     {% set test_group = 'gpdb,proxy,profile' %}
 {% endif %}
 {% if extension == 'fdw' %}
-    {%set test_group = test_group + ',fdw' %}
+    {%set test_group = test_group + ',pxfFdwExtensionVersion2' %}
 {% endif %}
 
 {# if x.passed was not provided, make it a build job on the same platform #}

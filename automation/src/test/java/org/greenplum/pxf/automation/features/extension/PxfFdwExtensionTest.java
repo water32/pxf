@@ -28,7 +28,7 @@ public class PxfFdwExtensionTest extends BaseFunctionality {
         gpdb.runQuery("DROP EXTENSION IF EXISTS pxf_fdw CASCADE", true, false);
     }
 
-    @Test(groups = {"fdw", "pxfFdwExtensionVersion2"})
+    @Test(groups = {"pxfFdwExtensionVersion2"})
     public void testPxfCreateExtension() throws Exception {
         gpdb.runQuery("CREATE EXTENSION pxf_fdw");
         runSqlTest("features/fdw_extension_tests/create_extension");
@@ -40,7 +40,7 @@ public class PxfFdwExtensionTest extends BaseFunctionality {
         runSqlTest("features/fdw_extension_tests/create_extension_rpm");
     }
 
-    @Test(groups = {"fdw", "pxfFdwExtensionVersion2"})
+    @Test(groups = {"pxfFdwExtensionVersion2"})
     public void testPxfUpgrade() throws Exception {
         gpdb.runQuery("CREATE EXTENSION pxf_fdw VERSION '1.0'");
         runSqlTest("features/fdw_extension_tests/upgrade/step_1_create_extension_with_older_pxf_version");
@@ -49,7 +49,7 @@ public class PxfFdwExtensionTest extends BaseFunctionality {
         runSqlTest("features/fdw_extension_tests/upgrade/step_2_after_alter_extension");
     }
 
-    @Test(groups = {"fdw", "pxfFdwExtensionVersion2"})
+    @Test(groups = {"pxfFdwExtensionVersion2"})
     public void testPxfDowngradeThenUpgradeAgain() throws Exception {
         gpdb.runQuery("CREATE EXTENSION pxf_fdw");
         runSqlTest("features/fdw_extension_tests/downgrade_then_upgrade/step_1_check_extension");
