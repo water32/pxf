@@ -333,8 +333,10 @@ public class Hdfs extends BaseSystemObject implements IFSFunctionality {
     @Override
     public void removeDirectory(String path) throws Exception {
         ReportUtils.startLevel(report, getClass(), "Remove Directory " + path);
-        if (ProtocolUtils.getProtocol() == ProtocolEnum.ABFSS) {
+        ProtocolEnum protocol = ProtocolUtils.getProtocol();
+        if ((protocol == ProtocolEnum.ABFSS) || (protocol == ProtocolEnum.WASBS)) {
             // The ABFSS protocol cannot delete a non-empty directory, so recursively go through and delete files inside first
+            // Additionally, WASBS servers that connect to an Azure Storage Account with Hierarchical Namespace enabled must also delete files inside first
             try {
                 RemoteIterator<LocatedFileStatus> files = fs.listFiles(getDatapath(path), true);
                 while (files.hasNext()) {
