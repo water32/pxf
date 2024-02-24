@@ -2,21 +2,29 @@
  #
  # Expects a dictionary with the name 'x' to be set as defined in macros.j2 file and these additional fields:
  #
- # x.use_fdw    - whether to use FDW extension for testing (otherwise the external table extension will be used)
  # x.target     - the target external system type
  # x.distro     - the distro to use for a singlecluster image
  # x.feature    - the name of the feature being tested, optional
  # x.passed     - an array of upstream job names that the artifacts need to pass before this job (optional)
 #}
 
+{# Upgrade extension tests are only needed for
+  # Expects a dictionary with the name 'x' to be set as defined in macros.j2 file and these additional fields:
+  #
+  # x.target     - the target external system type
+  # x.distro     - the distro to use for a singlecluster image
+  # x.feature    - the name of the feature being tested, optional
+  # x.passed     - an array of upstream job names that the artifacts need to pass before this job (optional)
+  #}
 {% set extension        = 'fdw'           if x.use_fdw     == 'true'  else 'ext' %}
 {% set feature_infix    = '-' ~ x.feature if x.feature                else ''    %}
 
-{% if extension == 'ext' %}
+{% if x.gp_ver == '6' %}
     {% set group1 = 'pxfExtensionVersion2' %}
     {% set group2 = 'pxfExtensionVersion2_1' %}
     {% set minor_version = '6' %}
 {% else %}
+    {% set extension        = 'fdw' %}
     {% set group1 = 'pxfFdwExtensionVersion1' %}
     {% set group2 = 'pxfFdwExtensionVersion2' %}
     {% set minor_version = '9' %}

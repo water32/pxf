@@ -94,8 +94,8 @@
       ABFSS_CLIENT_SECRET: ((ud/pxf/secrets/abfss-client-secret))
       ABFSS_CLIENT_ENDPOINT: ((ud/pxf/common/abfss-client-endpoint))
 {% elif x.protocol == 'wasbs' %}
-      WASB_ACCOUNT_NAME: ((ud/pxf/common/wasb-gen2-account-name))
-      WASB_ACCOUNT_KEY: ((ud/pxf/secrets/wasb-gen2-account-key))
+      WASB_ACCOUNT_NAME: ((ud/pxf/common/wasb-account-name))
+      WASB_ACCOUNT_KEY: ((ud/pxf/secrets/wasb-account-key))
 {% elif x.protocol == 'gs' %}
       GOOGLE_CREDENTIALS: ((ud/pxf/secrets/gsc-ci-service-account-key))
 {% endif %}

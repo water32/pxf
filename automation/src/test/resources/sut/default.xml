@@ -59,7 +59,7 @@
 
     <wasbs>
         <class>org.greenplum.pxf.automation.components.hdfs.Hdfs</class>
-        <workingDirectory>pxf-container@pxfdevgen2.blob.core.windows.net/tmp/pxf_automation_data/__UUID__</workingDirectory>
+        <workingDirectory>pxf-container@pxfdev.blob.core.windows.net/tmp/pxf_automation_data/__UUID__</workingDirectory>
         <hadoopRoot>${pxf.base}/servers/wasbs</hadoopRoot>
         <scheme>wasbs</scheme>
     </wasbs>

@@ -266,14 +266,8 @@ jobs:
         {% do x.update({'feature': feature}) %}
 
         {# for upgrade-extension only, use a different job definition #}
-        {% if test_feature == 'upgrade-extension' %}
-            {% if x.gp_ver == '7' %}
-                {% do x.update({ 'use_fdw': 'true' }) %}
-            {% endif %}
-            [[macros.add_test_job('jobs/test-upgrade-extension-tpl.yml', x, job_names, 'extended', gchat_notification)]]
-        {% else %}
-            [[macros.add_test_job('jobs/test-tpl.yml', x, job_names, 'extended', gchat_notification)]]
-        {% endif %}
+        {% set job_infix = '-upgrade-extension' if test_feature == 'upgrade-extension' else '' %}
+        [[macros.add_test_job('jobs/test' ~ job_infix ~'-tpl.yml', x, job_names, 'extended', gchat_notification)]]
 
         {# for S3 only, also include an additional impersonation job #}
         {% if test_feature == 's3' %}
