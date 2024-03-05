@@ -1,6 +1,8 @@
 package cmd_test
 
 import (
+	"fmt"
+	"os"
 	"pxf-cli/cmd"
 
 	"github.com/greenplum-db/gp-common-go-libs/cluster"
@@ -563,6 +565,72 @@ stderr line three`
 				Expect(testStdout).Should(gbytes.Say("PXF failed to migrate configuration on 1 out of 1 host"))
 				Expect(testStderr).Should(gbytes.Say("mdw ==> an error happened on mdw"))
 			})
+		})
+	})
+})
+
+var _ = Describe("AssertRunningOnCoordinator()", func() {
+	var (
+		configMasterWithNonRootDataDir                 = cluster.SegConfig{ContentID: -1, Hostname: "mdw", DataDir: "./coordinator_data/gpseg-1", Role: "p"}
+		configStandbyMasterWithNonRootDataDir          = cluster.SegConfig{ContentID: -1, Hostname: "smdw", DataDir: "./coordinator_data/gpseg-1", Role: "m"}
+		configStandbyMasterOnSegHostWithNonRootDataDir = cluster.SegConfig{ContentID: -1, Hostname: "sdw1", DataDir: "./coordinator_data/gpseg-1", Role: "m"}
+		configSegOneWithNonRootDataDir                 = cluster.SegConfig{ContentID: 0, Hostname: "sdw1", DataDir: "./seg_data/gpseg0", Role: "p"}
+		configSegTwoWithNonRootDataDir                 = cluster.SegConfig{ContentID: 1, Hostname: "sdw2", DataDir: "./seg_data/gpseg1", Role: "p"}
+		clusterWithOneHostNonRootDataDir               = cluster.NewCluster([]cluster.SegConfig{configMasterWithNonRootDataDir, configSegOneWithNonRootDataDir, configSegTwoWithNonRootDataDir})
+		clusterWithStandbyWithNonRootDataDir           = cluster.NewCluster([]cluster.SegConfig{configMasterWithNonRootDataDir, configSegOneWithNonRootDataDir, configSegTwoWithNonRootDataDir, configStandbyMasterWithNonRootDataDir})
+		clusterWithOneSegWithNonRootDataDir            = cluster.NewCluster([]cluster.SegConfig{configMasterWithNonRootDataDir, configSegOneWithNonRootDataDir, configStandbyMasterOnSegHostWithNonRootDataDir})
+		clusterDataWithStandbyNonRootDataDir           = createClusterData(3, clusterWithStandbyWithNonRootDataDir)
+		clusterDataNonRootDataDir                      = createClusterData(3, clusterWithOneHostNonRootDataDir)
+		clusterDataWithOneSegWithNonRootDataDir        = createClusterData(3, clusterWithOneSegWithNonRootDataDir)
+	)
+	Context("When command is running on a segment", func() {
+		segDataDir := clusterDataNonRootDataDir.Cluster.GetDirForContent(0)
+		BeforeEach(func() {
+			os.MkdirAll(segDataDir, os.ModePerm)
+		})
+
+		It("returns an error and prints 'Not running on coordinator'", func() {
+
+			err := cmd.AssertRunningOnCoordinator(clusterData)
+			Expect(errors.Unwrap(err).Error()).To(Equal("no such file or directory"))
+		})
+
+		AfterEach(func() {
+			os.RemoveAll("./seg_data")
+		})
+	})
+
+	Context("When command is running on the coordinator", func() {
+		coordinatorDataDir := clusterDataNonRootDataDir.Cluster.GetDirForContent(-1)
+		BeforeEach(func() {
+			err := os.MkdirAll(coordinatorDataDir, os.ModePerm)
+			if err != nil {
+				fmt.Printf("error: %s", err)
+			}
+		})
+		It("prints 'Running on coordinator'", func() {
+			err := cmd.AssertRunningOnCoordinator(clusterDataNonRootDataDir)
+			Expect(err).To(BeNil())
+		})
+
+		It("prints 'Running on coordinator' when the command is running on the standby coordinator", func() {
+			err := cmd.AssertRunningOnCoordinator(clusterDataWithStandbyNonRootDataDir)
+			Expect(err).To(BeNil())
+		})
+
+		It("prints 'Running on coordinator' when the command is running on the standby coordinator on segment host", func() {
+			err := cmd.AssertRunningOnCoordinator(clusterDataWithOneSegWithNonRootDataDir)
+			Expect(err).To(BeNil())
+		})
+		AfterEach(func() {
+			os.RemoveAll("./coordinator_data")
+		})
+	})
+
+	Context("When command is not running on the Greenplum host", func() {
+		It("returns an error and prints 'Not running on coordinator'", func() {
+			err := cmd.AssertRunningOnCoordinator(clusterDataNonRootDataDir)
+			Expect(errors.Unwrap(err).Error()).To(Equal("no such file or directory"))
 		})
 	})
 })

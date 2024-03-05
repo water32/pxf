@@ -173,6 +173,19 @@ func clusterRun(cmd *command, clusterData *ClusterData) error {
 	return GenerateOutput(cmd, clusterData)
 }
 
+func AssertRunningOnCoordinator(clusterData *ClusterData) error {
+	dataDir := clusterData.Cluster.GetDirForContent(-1)
+
+	// check if the current file system has the coordinator data dir
+	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
+		fmt.Sprintln("Not running on coordinator.")
+		return err
+	}
+
+	fmt.Println("Running on coordinator.")
+	return nil
+}
+
 func isStandbyAloneOnHost(clusterData *ClusterData) bool {
 	standbyHost := clusterData.Cluster.GetHostForContent(-1, "m")
 	if standbyHost == "" {
