@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletRequest;
+import java.io.IOException;
 
 /**
  * PXF REST endpoint for write data requests.
@@ -43,7 +44,7 @@ public class PxfWriteResource extends PxfBaseResource<String> {
      */
     @PostMapping(value = "/write", consumes = MediaType.APPLICATION_OCTET_STREAM_VALUE)
     public ResponseEntity<String> stream(@RequestHeader MultiValueMap<String, String> headers,
-                                         HttpServletRequest request) {
+                                         HttpServletRequest request) throws IOException {
         return processRequest(headers, request);
     }
 

@@ -15,7 +15,7 @@ import java.io.IOException;
  * This handler prevents the PXF specific exception from being thrown to the container, where it would've gotten
  * logged without an MDC context, since by that time the MDC context is cleaned up.
  * <p>
- * Instead, it is assumed that the PXF specific exception has been seen by the the PXF resource
+ * Instead, it is assumed that the PXF specific exception has been seen by the PXF resource
  * or the processing logic and was logged there, where the MDC context is still available.
  */
 @ControllerAdvice
@@ -23,7 +23,15 @@ public class PxfExceptionHandler {
 
     @ExceptionHandler({PxfRuntimeException.class})
     public void handlePxfRuntimeException(PxfRuntimeException e, HttpServletResponse response) throws IOException {
-        response.sendError(HttpStatus.INTERNAL_SERVER_ERROR.value());
+//        if (response.isCommitted()) {
+            // streaming has already started, so it's too late to send an error
+            // if we try to do anything, it will cause Tomcat to close the connection immediately
+//            response.flushBuffer();
+//            throw e;
+//        } else {
+//            response.sendError(HttpStatus.INTERNAL_SERVER_ERROR.value());
+//            throw e;
+//        }
     }
 
 }

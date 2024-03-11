@@ -2,6 +2,7 @@ package org.greenplum.pxf.service.controller;
 
 import org.greenplum.pxf.api.model.RequestContext;
 
+import java.io.IOException;
 import java.io.OutputStream;
 
 /**
@@ -16,5 +17,5 @@ public interface ReadService {
      * @param context      request context
      * @param outputStream output stream to write data to
      */
-    void readData(RequestContext context, OutputStream outputStream);
+    void readData(RequestContext context, OutputStream outputStream) throws IOException;
 }
