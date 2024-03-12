@@ -28,7 +28,7 @@ func createCobraCommand(use string, short string, cmd *command) *cobra.Command {
 		Use:   use,
 		Short: short,
 		Run: func(cobraCmd *cobra.Command, args []string) {
-			clusterData, err := doSetup()
+			clusterData, err := GetClusterDataAssertOnCluster()
 			if err == nil {
 				err = clusterRun(cmd, clusterData)
 			}
@@ -99,6 +99,10 @@ func GenerateStatusReport(cmd *command, clusterData *ClusterData) {
 		numHosts--
 	}
 	gplog.Info(fmt.Sprintf(cmd.messages[status], standbyMsg, numHosts, handlePlurality(numHosts)))
+	//err := assertRunningOnCoordinator(clusterData)
+	//if err != nil {
+	//	gplog.Info(fmt.Sprintf("%s", err))
+	//}
 }
 
 // GenerateOutput is exported for testing
@@ -133,7 +137,23 @@ func GenerateOutput(cmd *command, clusterData *ClusterData) error {
 	return errors.New(response)
 }
 
-func doSetup() (*ClusterData, error) {
+func GetClusterDataAssertOnCluster() (*ClusterData, error) {
+	clusterData, err := getClusterData()
+	if err != nil {
+		gplog.Error(fmt.Sprintf("%s", err))
+		return nil, err
+	}
+
+	err = assertRunningOnCoordinator(clusterData)
+	if err != nil {
+		gplog.Error(fmt.Sprintf("ERROR: Failed to execute the command.\n%s\n"+
+			"Please make sure you are on the coordinator node", err.Error()))
+		return nil, err
+	}
+	return clusterData, nil
+}
+
+func getClusterData() (*ClusterData, error) {
 	connection := dbconn.NewDBConnFromEnvironment("postgres")
 	err := connection.Connect(1)
 	if err != nil {
@@ -160,6 +180,12 @@ func clusterRun(cmd *command, clusterData *ClusterData) error {
 		return err
 	}
 
+	//err = assertRunningOnCoordinator(clusterData)
+	//if err != nil {
+	//	gplog.Info(fmt.Sprintf("%s", err))
+	//	return err
+	//}
+
 	functionToExecute, err := cmd.GetFunctionToExecute()
 	if err != nil {
 		gplog.Error(fmt.Sprintf("Error: %s", err))
@@ -173,16 +199,16 @@ func clusterRun(cmd *command, clusterData *ClusterData) error {
 	return GenerateOutput(cmd, clusterData)
 }
 
-func AssertRunningOnCoordinator(clusterData *ClusterData) error {
+func assertRunningOnCoordinator(clusterData *ClusterData) error {
 	dataDir := clusterData.Cluster.GetDirForContent(-1)
 
 	// check if the current file system has the coordinator data dir
 	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
-		fmt.Sprintln("Not running on coordinator.")
+		fmt.Sprintln("Not running on on the coordinator node")
 		return err
 	}
 
-	fmt.Println("Running on coordinator.")
+	fmt.Println("Running on on the coordinator node")
 	return nil
 }
 
