@@ -6,10 +6,13 @@ set -eo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# default clients for pool size of 200 threads, will likely fail on MacOS due to a limit on the number of ephemeral ports
-DEFAULT_CLIENTS=180
+# 60 default clients for 3-segment cluster (180 requests to PXF) and pool size of 200 threads
+# will likely fail on MacOS due to a limit on the number of ephemeral ports
+DEFAULT_CLIENTS=60
 # default number of repeated queries to perform
 DEFAULT_REPEATS=100
+
+export PGDATABASE="pxfload"
 
 function run_pgbench() {
   local QUERY=${1}
@@ -23,5 +26,5 @@ function run_pgbench() {
 
   # run pgbench with a given concurrency (clients) and a number of consecutive queries (repeats)
   echo "Running pgbench query '${QUERY}' with ${CLIENTS} clients and ${REPEATS} repeats"
-  pgbench -c "${CLIENTS}" -T "${REPEATS}" -f "${SCRIPT_DIR}/../sql/${QUERY}.sql" -n
+  pgbench -c "${CLIENTS}" -t "${REPEATS}" -f "${SCRIPT_DIR}/../sql/${QUERY}.sql" -n
 }
