@@ -10,7 +10,7 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # will likely fail on MacOS due to a limit on the number of ephemeral ports
 DEFAULT_CLIENTS=60
 # default number of repeated queries to perform
-DEFAULT_REPEATS=1000
+DEFAULT_REPEATS=1500
 
 export PGDATABASE="pxfload"
 
@@ -26,5 +26,5 @@ function run_pgbench() {
 
   # run pgbench with a given concurrency (clients) and a number of consecutive queries (repeats)
   echo "Running pgbench query '${QUERY}' with ${CLIENTS} clients and ${REPEATS} repeats"
-  pgbench -c "${CLIENTS}" -j 20 -t "${REPEATS}" -f "${SCRIPT_DIR}/../sql/${QUERY}.sql" -n
+  pgbench -c "${CLIENTS}" -j 60 -t "${REPEATS}" -f "${SCRIPT_DIR}/../sql/${QUERY}.sql" -n
 }
