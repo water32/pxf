@@ -177,7 +177,6 @@ function run_load_test() {
 
 		source ~gpadmin/.pxfrc
 		source ${GPHOME}/greenplum_path.sh
-		source gpdb_src/gpAux/gpdemo/gpdemo-env.sh
 		export PGPORT=${PGPORT}
 
 		cd pxf_src/load
