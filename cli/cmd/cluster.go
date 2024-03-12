@@ -28,9 +28,12 @@ func createCobraCommand(use string, short string, cmd *command) *cobra.Command {
 		Use:   use,
 		Short: short,
 		Run: func(cobraCmd *cobra.Command, args []string) {
-			clusterData, err := GetClusterDataAssertOnCluster()
+			connection, err := connectToGPDB()
 			if err == nil {
-				err = clusterRun(cmd, clusterData)
+				clusterData, err := GetClusterDataAssertOnCluster(connection)
+				if err == nil {
+					err = clusterRun(cmd, clusterData)
+				}
 			}
 			exitWithReturnCode(err)
 		},
@@ -137,8 +140,8 @@ func GenerateOutput(cmd *command, clusterData *ClusterData) error {
 	return errors.New(response)
 }
 
-func GetClusterDataAssertOnCluster() (*ClusterData, error) {
-	clusterData, err := getClusterData()
+func GetClusterDataAssertOnCluster(connection *dbconn.DBConn) (*ClusterData, error) {
+	clusterData, err := getClusterData(connection)
 	if err != nil {
 		gplog.Error(fmt.Sprintf("%s", err))
 		return nil, err
@@ -153,7 +156,7 @@ func GetClusterDataAssertOnCluster() (*ClusterData, error) {
 	return clusterData, nil
 }
 
-func getClusterData() (*ClusterData, error) {
+func connectToGPDB() (*dbconn.DBConn, error) {
 	connection := dbconn.NewDBConnFromEnvironment("postgres")
 	err := connection.Connect(1)
 	if err != nil {
@@ -161,6 +164,10 @@ func getClusterData() (*ClusterData, error) {
 			"Please make sure that your Greenplum database is running and you are on the coordinator node.", err.Error()))
 		return nil, err
 	}
+	return connection, err
+}
+
+func getClusterData(connection *dbconn.DBConn) (*ClusterData, error) {
 	segConfigs, err := cluster.GetSegmentConfiguration(connection, true)
 	if err != nil {
 		gplog.Error(fmt.Sprintf("ERROR: Could not retrieve segment information from GPDB.\n%s\n" + err.Error()))
