@@ -29,6 +29,11 @@ plugins {
     id 'io.spring.dependency-management' version '1.0.11.RELEASE'
 }
 
+// override Spring Framework version to pick the Spring MVC async race condition fix
+// https://github.com/spring-projects/spring-framework/issues/32342
+// TODO: remove the snapshot version
+ext['spring-framework.version'] = '5.3.33-SNAPSHOT'
+
 def javaProjects = subprojects.findAll {
     it.name.startsWith("pxf-")
 }
@@ -40,6 +45,7 @@ allprojects {
 
     repositories {
         mavenCentral()
+        maven { url "https://repo.spring.io/snapshot" } // TODO: remove repo for SNAPSHOT builds
     }
 }
 
