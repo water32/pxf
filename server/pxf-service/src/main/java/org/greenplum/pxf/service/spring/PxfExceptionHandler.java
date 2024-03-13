@@ -21,8 +21,8 @@ import java.io.IOException;
 @ControllerAdvice
 public class PxfExceptionHandler {
 
-    @ExceptionHandler({PxfRuntimeException.class})
-    public void handlePxfRuntimeException(PxfRuntimeException e, HttpServletResponse response) throws IOException {
+//    @ExceptionHandler({PxfRuntimeException.class})
+//    public void handlePxfRuntimeException(PxfRuntimeException e, HttpServletResponse response) throws IOException {
 //        if (response.isCommitted()) {
             // streaming has already started, so it's too late to send an error
             // if we try to do anything, it will cause Tomcat to close the connection immediately
@@ -32,6 +32,6 @@ public class PxfExceptionHandler {
 //            response.sendError(HttpStatus.INTERNAL_SERVER_ERROR.value());
 //            throw e;
 //        }
-    }
+//    }
 
 }
