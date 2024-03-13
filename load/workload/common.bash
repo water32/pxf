@@ -26,5 +26,5 @@ function run_pgbench() {
 
   # run pgbench with a given concurrency (clients) and a number of consecutive queries (repeats)
   echo "Running pgbench query '${QUERY}' with ${CLIENTS} clients and ${REPEATS} repeats"
-  pgbench -c "${CLIENTS}" -j 60 -t "${REPEATS}" -f "${SCRIPT_DIR}/../sql/${QUERY}.sql" -n
+  pgbench -c "${CLIENTS}" -j "${CLIENTS}" -t "${REPEATS}" -f "${SCRIPT_DIR}/../sql/${QUERY}.sql" -n
 }
