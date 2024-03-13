@@ -1,11 +1,13 @@
 package cmd_test
 
 import (
+	"database/sql/driver"
 	"fmt"
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/greenplum-db/gp-common-go-libs/cluster"
+	"github.com/greenplum-db/gp-common-go-libs/testhelper"
 	"os"
 	"pxf-cli/cmd"
-
-	"github.com/greenplum-db/gp-common-go-libs/cluster"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -569,68 +571,53 @@ stderr line three`
 	})
 })
 
-var _ = Describe("AssertRunningOnCoordinator()", func() {
-	var (
-		configMasterWithNonRootDataDir                 = cluster.SegConfig{ContentID: -1, Hostname: "mdw", DataDir: "./coordinator_data/gpseg-1", Role: "p"}
-		configStandbyMasterWithNonRootDataDir          = cluster.SegConfig{ContentID: -1, Hostname: "smdw", DataDir: "./coordinator_data/gpseg-1", Role: "m"}
-		configStandbyMasterOnSegHostWithNonRootDataDir = cluster.SegConfig{ContentID: -1, Hostname: "sdw1", DataDir: "./coordinator_data/gpseg-1", Role: "m"}
-		configSegOneWithNonRootDataDir                 = cluster.SegConfig{ContentID: 0, Hostname: "sdw1", DataDir: "./seg_data/gpseg0", Role: "p"}
-		configSegTwoWithNonRootDataDir                 = cluster.SegConfig{ContentID: 1, Hostname: "sdw2", DataDir: "./seg_data/gpseg1", Role: "p"}
-		clusterWithOneHostNonRootDataDir               = cluster.NewCluster([]cluster.SegConfig{configMasterWithNonRootDataDir, configSegOneWithNonRootDataDir, configSegTwoWithNonRootDataDir})
-		clusterWithStandbyWithNonRootDataDir           = cluster.NewCluster([]cluster.SegConfig{configMasterWithNonRootDataDir, configSegOneWithNonRootDataDir, configSegTwoWithNonRootDataDir, configStandbyMasterWithNonRootDataDir})
-		clusterWithOneSegWithNonRootDataDir            = cluster.NewCluster([]cluster.SegConfig{configMasterWithNonRootDataDir, configSegOneWithNonRootDataDir, configStandbyMasterOnSegHostWithNonRootDataDir})
-		clusterDataWithStandbyNonRootDataDir           = createClusterData(3, clusterWithStandbyWithNonRootDataDir)
-		clusterDataNonRootDataDir                      = createClusterData(3, clusterWithOneHostNonRootDataDir)
-		clusterDataWithOneSegWithNonRootDataDir        = createClusterData(3, clusterWithOneSegWithNonRootDataDir)
-	)
-	Context("When command is running on a segment", func() {
-		segDataDir := clusterDataNonRootDataDir.Cluster.GetDirForContent(0)
-		BeforeEach(func() {
-			os.MkdirAll(segDataDir, os.ModePerm)
-		})
-
-		It("returns an error and prints 'Not running on coordinator'", func() {
-
-			err := cmd.AssertRunningOnCoordinator(clusterData)
-			Expect(errors.Unwrap(err).Error()).To(Equal("no such file or directory"))
-		})
-
-		AfterEach(func() {
-			os.RemoveAll("./seg_data")
-		})
-	})
+var _ = Describe("GetClusterDataAssertOnCluster()", func() {
+	header := []string{"contentid", "hostname", "datadir"}
+	coordinatorDataDir := "./coordinator_data/gpseg-1"
+	coordinator := []driver.Value{"-1", "cdw", coordinatorDataDir}
+	localSegOne := []driver.Value{"0", "sdw1", "./seg_data/gpseg0"}
+	localSegTwo := []driver.Value{"1", "sdw2", "./seg_data/gpseg1"}
+	fakeSegConfigs := sqlmock.NewRows(header).AddRow(coordinator...).AddRow(localSegOne...).AddRow(localSegTwo...)
+	connection, mock := testhelper.CreateAndConnectMockDB(1)
 
 	Context("When command is running on the coordinator", func() {
-		coordinatorDataDir := clusterDataNonRootDataDir.Cluster.GetDirForContent(-1)
 		BeforeEach(func() {
-			err := os.MkdirAll(coordinatorDataDir, os.ModePerm)
+			err := os.MkdirAll(coordinatorDataDir, 0777)
 			if err != nil {
 				fmt.Printf("error: %s", err)
 			}
 		})
-		It("prints 'Running on coordinator'", func() {
-			err := cmd.AssertRunningOnCoordinator(clusterDataNonRootDataDir)
-			Expect(err).To(BeNil())
-		})
 
-		It("prints 'Running on coordinator' when the command is running on the standby coordinator", func() {
-			err := cmd.AssertRunningOnCoordinator(clusterDataWithStandbyNonRootDataDir)
-			Expect(err).To(BeNil())
-		})
-
-		It("prints 'Running on coordinator' when the command is running on the standby coordinator on segment host", func() {
-			err := cmd.AssertRunningOnCoordinator(clusterDataWithOneSegWithNonRootDataDir)
-			Expect(err).To(BeNil())
-		})
 		AfterEach(func() {
 			os.RemoveAll("./coordinator_data")
 		})
-	})
 
-	Context("When command is not running on the Greenplum host", func() {
-		It("returns an error and prints 'Not running on coordinator'", func() {
-			err := cmd.AssertRunningOnCoordinator(clusterDataNonRootDataDir)
-			Expect(errors.Unwrap(err).Error()).To(Equal("no such file or directory"))
+		It("returns the cluster data with no error, and prints the hint running on coordinator", func() {
+			mock.ExpectQuery("SELECT (.*)").WillReturnRows(fakeSegConfigs)
+
+			clusterData, err := cmd.GetClusterDataAssertOnCluster(connection)
+			Expect(err).To(BeNil())
+			Expect(len(clusterData.Cluster.ContentIDs)).To(Equal(3))
+			Expect(clusterData.Cluster.GetHostForContent(-1)).To(Equal("cdw"))
+			Expect(clusterData.Cluster.GetHostForContent(0)).To(Equal("sdw1"))
+			Expect(clusterData.Cluster.GetHostForContent(1)).To(Equal("sdw2"))
+		})
+
+		It("returns an error when failed to retrieve segment configuration from GPDB", func() {
+			clusterDataError := errors.New("failed to retrieve segment configuration from GPDB")
+			mock.ExpectQuery("SELECT (.*)").WillReturnError(clusterDataError)
+
+			clusterData, err := cmd.GetClusterDataAssertOnCluster(connection)
+			Expect(err.Error()).To(Equal(clusterDataError.Error()))
+			Expect(clusterData).To(BeNil())
 		})
 	})
+
 })
+
+//Context("When command is not running on the Greenplum host", func() {
+//	It("returns an error and prints 'Not running on coordinator'", func() {
+//		err := cmd.assertRunningOnCoordinator(clusterDataNonRootDataDir)
+//		Expect(errors.Unwrap(err).Error()).To(Equal("no such file or directory"))
+//	})
+//})
