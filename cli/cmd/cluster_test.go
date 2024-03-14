@@ -2,9 +2,9 @@ package cmd_test
 
 import (
 	"database/sql/driver"
-	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/greenplum-db/gp-common-go-libs/cluster"
+	"github.com/greenplum-db/gp-common-go-libs/dbconn"
 	"github.com/greenplum-db/gp-common-go-libs/testhelper"
 	"os"
 	"pxf-cli/cmd"
@@ -574,28 +574,36 @@ stderr line three`
 var _ = Describe("GetClusterDataAssertOnCluster()", func() {
 	header := []string{"contentid", "hostname", "datadir"}
 	coordinatorDataDir := "./coordinator_data/gpseg-1"
+	segOneDataDir := "./seg_data/gpseg0"
+	segTwoDataDir := "./seg_data/gpseg1"
 	coordinator := []driver.Value{"-1", "cdw", coordinatorDataDir}
-	localSegOne := []driver.Value{"0", "sdw1", "./seg_data/gpseg0"}
-	localSegTwo := []driver.Value{"1", "sdw2", "./seg_data/gpseg1"}
-	fakeSegConfigs := sqlmock.NewRows(header).AddRow(coordinator...).AddRow(localSegOne...).AddRow(localSegTwo...)
-	connection, mock := testhelper.CreateAndConnectMockDB(1)
+	localSegOne := []driver.Value{"0", "sdw1", segOneDataDir}
+	localSegTwo := []driver.Value{"1", "sdw2", segTwoDataDir}
+
+	var (
+		connection *dbconn.DBConn
+		mock       sqlmock.Sqlmock
+	)
+	BeforeEach(func() {
+		connection, mock = testhelper.CreateAndConnectMockDB(1)
+	})
 
 	Context("When command is running on the coordinator", func() {
 		BeforeEach(func() {
-			err := os.MkdirAll(coordinatorDataDir, 0777)
-			if err != nil {
-				fmt.Printf("error: %s", err)
-			}
+			_ = os.MkdirAll(coordinatorDataDir, 0777)
 		})
 
 		AfterEach(func() {
-			os.RemoveAll("./coordinator_data")
+			_ = os.RemoveAll("./coordinator_data")
 		})
 
 		It("returns the cluster data with no error, and prints the hint running on coordinator", func() {
+			// mock retrieving the segment configs
+			fakeSegConfigs := sqlmock.NewRows(header).AddRow(coordinator...).AddRow(localSegOne...).AddRow(localSegTwo...)
 			mock.ExpectQuery("SELECT (.*)").WillReturnRows(fakeSegConfigs)
 
 			clusterData, err := cmd.GetClusterDataAssertOnCluster(connection)
+
 			Expect(err).To(BeNil())
 			Expect(len(clusterData.Cluster.ContentIDs)).To(Equal(3))
 			Expect(clusterData.Cluster.GetHostForContent(-1)).To(Equal("cdw"))
@@ -604,15 +612,36 @@ var _ = Describe("GetClusterDataAssertOnCluster()", func() {
 		})
 
 		It("returns an error when failed to retrieve segment configuration from GPDB", func() {
+			// mock retrieving the segment configs
 			clusterDataError := errors.New("failed to retrieve segment configuration from GPDB")
 			mock.ExpectQuery("SELECT (.*)").WillReturnError(clusterDataError)
 
 			clusterData, err := cmd.GetClusterDataAssertOnCluster(connection)
+
 			Expect(err.Error()).To(Equal(clusterDataError.Error()))
 			Expect(clusterData).To(BeNil())
 		})
 	})
 
+	Context("When command is running on the segments", func() {
+		BeforeEach(func() {
+			_ = os.MkdirAll(segOneDataDir, 0777)
+		})
+
+		It("returns an error indicating that the command is not running on the coordinator", func() {
+			// mock retrieving the segment configs
+			fakeSegConfigs := sqlmock.NewRows(header).AddRow(coordinator...).AddRow(localSegOne...).AddRow(localSegTwo...)
+			mock.ExpectQuery("SELECT (.*)").WillReturnRows(fakeSegConfigs)
+
+			clusterData, err := cmd.GetClusterDataAssertOnCluster(connection)
+
+			Expect(clusterData).To(BeNil())
+			Expect(err.Error()).To(Equal("stat ./coordinator_data/gpseg-1: no such file or directory"))
+		})
+		AfterEach(func() {
+			_ = os.RemoveAll("./seg_data")
+		})
+	})
 })
 
 //Context("When command is not running on the Greenplum host", func() {
