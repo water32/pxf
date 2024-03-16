@@ -223,11 +223,11 @@
   on_success:
     in_parallel:
       steps:
-      - *destroy_dataproc_1
-      - *destroy_dataproc_2
-      - *destroy_gpdb_cluster
+#      - *destroy_dataproc_1
+#      - *destroy_dataproc_2
+#      - *destroy_gpdb_cluster
 {% if x.use_impers == 'true' %}
-      - *destroy_ipa-hadoop_cluster
+#      - *destroy_ipa-hadoop_cluster
 {% endif %}
 {% if gchat_notification %}
   <<: *gchat_alert

@@ -26,7 +26,7 @@
 
 1. There is also end to end testing for the pxf-cli located at `pxf/concourse/scripts/cli`. These tests can be run by flying the following pipeline:
 ```sh
-MULTINODE=true make -C ~/workspace/pxf/concourse dev
+MULTINODE_EL<version>=true make -C ~/workspace/pxf/concourse dev
 ```
 To make iteration times faster, feel free to comment out the task `test-pxf-gp[[gp_ver]]-hdp2-secure-multi-impers-on-rhel7` in the `dev_build_pipeline-tpl.yml` file.
 
