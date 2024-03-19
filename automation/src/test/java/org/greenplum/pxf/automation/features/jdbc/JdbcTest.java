@@ -4,7 +4,6 @@ import java.io.File;
 
 import annotations.FailsWithFDW;
 import annotations.WorksWithFDW;
-import org.apache.commons.lang3.ArrayUtils;
 import org.greenplum.pxf.automation.structures.tables.basic.Table;
 import org.greenplum.pxf.automation.structures.tables.pxf.ExternalTable;
 import org.greenplum.pxf.automation.structures.tables.utils.TableFactory;
@@ -301,6 +300,7 @@ public class JdbcTest extends BaseFeature {
                 gpdb.getUserName(), null);
         pxfJdbcWritable.setHost(pxfHost);
         pxfJdbcWritable.setPort(pxfPort);
+        pxfJdbcWritable.addUserParameter("date_wide_range=false");
         gpdb.createTableAndVerify(pxfJdbcWritable);
 
         pxfJdbcWritableWithDateWideRange = TableFactory.getPxfJdbcWritableTable(
@@ -312,6 +312,7 @@ public class JdbcTest extends BaseFeature {
                 gpdb.getUserName(), null);
         pxfJdbcWritableWithDateWideRange.setHost(pxfHost);
         pxfJdbcWritableWithDateWideRange.setPort(pxfPort);
+        pxfJdbcWritableWithDateWideRange.addUserParameter("date_wide_range=true");
         gpdb.createTableAndVerify(pxfJdbcWritableWithDateWideRange);
 
         pxfJdbcWritableNoBatch = TableFactory.getPxfJdbcWritableTable(
