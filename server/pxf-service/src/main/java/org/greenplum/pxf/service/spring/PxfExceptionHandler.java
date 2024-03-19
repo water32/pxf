@@ -4,7 +4,11 @@ import org.greenplum.pxf.api.error.PxfRuntimeException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import org.springframework.web.util.WebUtils;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
@@ -19,19 +23,22 @@ import java.io.IOException;
  * or the processing logic and was logged there, where the MDC context is still available.
  */
 @ControllerAdvice
-public class PxfExceptionHandler {
+public class PxfExceptionHandler /*extends ResponseEntityExceptionHandler*/ {
 
-//    @ExceptionHandler({PxfRuntimeException.class})
-//    public void handlePxfRuntimeException(PxfRuntimeException e, HttpServletResponse response) throws IOException {
-//        if (response.isCommitted()) {
-            // streaming has already started, so it's too late to send an error
-            // if we try to do anything, it will cause Tomcat to close the connection immediately
-//            response.flushBuffer();
+    @ExceptionHandler({PxfRuntimeException.class})
+    public void handlePxfRuntimeException(PxfRuntimeException e, HttpServletRequest request, HttpServletResponse response) throws IOException {
+        if (response.isCommitted()) {
+            // streaming has already started, it's too late to send an error
+            // re-throw the exception so that Tomcat can write the error response and
+            // terminate the connection immediately without writing the end 0-length chunk
+            // causing the client to recognize an error occurred
+            response.flushBuffer();
+            request.setAttribute(WebUtils.ERROR_EXCEPTION_ATTRIBUTE, e);
 //            throw e;
-//        } else {
 //            response.sendError(HttpStatus.INTERNAL_SERVER_ERROR.value());
-//            throw e;
-//        }
-//    }
-
+        } else {
+            // do not re-throw the error, just set the error status
+            response.sendError(HttpStatus.INTERNAL_SERVER_ERROR.value());
+        }
+    }
 }
