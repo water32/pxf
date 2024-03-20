@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import javax.servlet.http.HttpServletRequest;
-import java.io.IOException;
 
 /**
  * PXF REST endpoint for read data requests.
@@ -44,7 +43,7 @@ public class PxfReadResource extends PxfBaseResource<StreamingResponseBody> {
      */
     @GetMapping(value = "/read", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
     public ResponseEntity<StreamingResponseBody> read(@RequestHeader MultiValueMap<String, String> headers,
-                                                      HttpServletRequest request) throws IOException {
+                                                      HttpServletRequest request) {
         return processRequest(headers, request);
     }
 

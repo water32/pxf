@@ -17,7 +17,6 @@ import org.greenplum.pxf.service.security.SecurityService;
 import org.springframework.stereotype.Service;
 
 import java.io.DataOutputStream;
-import java.io.IOException;
 import java.io.OutputStream;
 import java.time.Duration;
 import java.time.Instant;
@@ -52,7 +51,7 @@ public class ReadServiceImpl extends BaseServiceImpl<OperationStats> implements 
     }
 
     @Override
-    public void readData(RequestContext context, OutputStream outputStream) throws IOException {
+    public void readData(RequestContext context, OutputStream outputStream) {
         // wrapping the invocation of processData(..) with the error reporting logic
         // since any exception thrown from it must be logged, as this method is called asynchronously
         // and is the last opportunity to log the exception while having MDC logging context defined

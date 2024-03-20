@@ -56,6 +56,11 @@ public class PxfThreadPoolTaskExecutor extends ThreadPoolTaskExecutor {
         }
     }
 
+    /**
+     * Logs the error when a client request is rejected and wraps it into PxfRuntimeException.
+     * @param e original exception
+     * @return PxfRuntimeException that wraps the original exception
+     */
     private TaskRejectedException updateException(TaskRejectedException e) {
         PxfRuntimeException exception = new PxfRuntimeException(
                 PXF_SERVER_PROCESSING_CAPACITY_EXCEEDED_MESSAGE,

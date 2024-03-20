@@ -69,7 +69,6 @@ public class PxfResourceIT {
                 .andExpect(content().string("Hello from write!"));
     }
 
-    /*
     @Test
     public void testLegacyFragmenterEndpoint() throws Exception {
         ResultActions result = mvc.perform(
@@ -106,7 +105,7 @@ public class PxfResourceIT {
                 .andExpect(r -> assertEquals("upgrade PXF extension (run 'pxf [cluster] register' and then 'ALTER EXTENSION pxf UPDATE')",
                         ((PxfRuntimeException) r.getResolvedException()).getHint()));
     }
-*/
+
     @TestConfiguration
     static class PxfResourceTestConfiguration {
         @Bean

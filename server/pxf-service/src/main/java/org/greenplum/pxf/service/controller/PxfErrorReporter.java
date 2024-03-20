@@ -22,16 +22,12 @@ import java.io.IOException;
 @Slf4j
 public abstract class PxfErrorReporter<T> {
 
-    protected T invokeWithErrorHandling(ThrowingSupplier<T, Exception> action) throws IOException {
+    protected T invokeWithErrorHandling(ThrowingSupplier<T, Exception> action) {
         try {
             // call the action and return the value if there are no errors
             return action.get();
-        } catch (PxfRuntimeException | Error e) {
-            // let PxfRuntimeException and Error propagate themselves
-            log.error(e.getMessage(), e);
-            throw e;
         } catch (IOException e) {
-            // if the exception is due to client disconnecting prematurely, log the fact and rethrow without wrapping
+            // if the exception is due to client disconnecting prematurely, log the appropriate message
             if (Utilities.isClientDisconnectException(e)) {
                 // this occurs when a client (GPDB) ends the connection which is common for LIMIT queries
                 // (ex: SELECT * FROM table LIMIT 1) so we want to log just a warning message,
@@ -42,16 +38,20 @@ public abstract class PxfErrorReporter<T> {
                 } else {
                     log.warn("Remote connection closed by the client (enable debug for the stacktrace).");
                 }
-                throw e; // throw back to SpringMVC without wrapping so that it can be properly handled
+            } else {
+                // some other IO error, log it as usual
+                log.error(StringUtils.defaultIfBlank(e.getMessage(), e.getClass().getName()), e);
             }
-            log.error(StringUtils.defaultIfBlank(e.getMessage(), e.getClass().getName()), e);
-            // wrap into PxfRuntimeException so that it can be handled by the PxfExceptionHandler
+            // wrap into PxfRuntimeException and throw back so that it can be handled by the PxfExceptionHandler
             throw new PxfRuntimeException(e);
+        } catch (PxfRuntimeException | Error e) {
+            // let PxfRuntimeException and Error propagate themselves
+            log.error(e.getMessage(), e);
+            throw e;
         } catch (Exception e) {
             log.error(StringUtils.defaultIfBlank(e.getMessage(), e.getClass().getName()), e);
-            // wrap into PxfRuntimeException so that it can be handled by the PxfExceptionHandler
+            // wrap into PxfRuntimeException and throw back so that it can be handled by the PxfExceptionHandler
             throw new PxfRuntimeException(e);
         }
     }
 }
-

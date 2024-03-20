@@ -4,11 +4,7 @@ import org.greenplum.pxf.api.error.PxfRuntimeException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.context.request.WebRequest;
-import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
-import org.springframework.web.util.WebUtils;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
@@ -23,21 +19,29 @@ import java.io.IOException;
  * or the processing logic and was logged there, where the MDC context is still available.
  */
 @ControllerAdvice
-public class PxfExceptionHandler /*extends ResponseEntityExceptionHandler*/ {
+public class PxfExceptionHandler {
 
+    /**
+     * Handles PxfRuntimeException that PXF controller methods can throw. If the response has already been committed,
+     * it re-throws the exception to signal Tomcat to abort the connection without properly terminating it
+     * with a 0-length chunk. If the response has not yet been committed, it sets the response status to 500 that will
+     * cause the exception to follow the error flow and be serialized as JSON by Spring Boot to the response message body.
+     * @param e exception to process
+     * @param response http response object
+     * @throws IOException if any operation fails
+     */
     @ExceptionHandler({PxfRuntimeException.class})
-    public void handlePxfRuntimeException(PxfRuntimeException e, HttpServletRequest request, HttpServletResponse response) throws IOException {
+    public void handlePxfRuntimeException(PxfRuntimeException e, HttpServletResponse response) throws IOException {
         if (response.isCommitted()) {
             // streaming has already started, it's too late to send an error
             // re-throw the exception so that Tomcat can write the error response and
             // terminate the connection immediately without writing the end 0-length chunk
             // causing the client to recognize an error occurred
-            response.flushBuffer();
-            request.setAttribute(WebUtils.ERROR_EXCEPTION_ATTRIBUTE, e);
-//            throw e;
-//            response.sendError(HttpStatus.INTERNAL_SERVER_ERROR.value());
+            // if the exception is not re-thrown, Tomcat thinks it has been handled and does not terminate the connection
+            // abnormally, which results in client not realizing there was an error in PXF server
+            throw e;
         } else {
-            // do not re-throw the error, just set the error status
+            // do not re-throw the error, otherwise it will be logged 2 more times by Tomcat, just set the error status
             response.sendError(HttpStatus.INTERNAL_SERVER_ERROR.value());
         }
     }

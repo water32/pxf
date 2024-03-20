@@ -9,7 +9,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
 
 import javax.servlet.http.HttpServletRequest;
-import java.io.IOException;
 
 /**
  * Base class for PXF REST resources that provides unified error logging and wrapping.
@@ -44,7 +43,7 @@ public abstract class PxfBaseResource<T> extends PxfErrorReporter<T> {
      * @return response entity to give to container
      */
     protected ResponseEntity<T> processRequest(final MultiValueMap<String, String> headers,
-                                               final HttpServletRequest httpServletRequest) throws IOException {
+                                               final HttpServletRequest httpServletRequest) {
         // use the request processing algorithm as a lambda for the invoking and error handling logic
         T response = this.invokeWithErrorHandling(
                 () -> {
