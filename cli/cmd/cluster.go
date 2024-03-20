@@ -211,11 +211,11 @@ func assertRunningOnCoordinator(clusterData *ClusterData) error {
 
 	// check if the current file system has the coordinator data dir
 	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
-		fmt.Sprintln("Not running on the coordinator node")
+		//fmt.Sprintln("Not running on the coordinator node")
 		return err
 	}
 
-	fmt.Println("Running on the coordinator node")
+	//fmt.Println("Running on the coordinator node")
 	return nil
 }
 
