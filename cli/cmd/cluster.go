@@ -36,6 +36,7 @@ func createCobraCommand(use string, short string, cmd *command) *cobra.Command {
 				} else {
 					gplog.Info(fmt.Sprintf("err after clusterRun: %s", err.Error()))
 				}
+				exitWithReturnCode(err)
 			} else {
 				gplog.Info(fmt.Sprintf("err after connectToGPDB: %s", err.Error()))
 			}
@@ -214,7 +215,7 @@ func assertRunningOnCoordinator(clusterData *ClusterData) error {
 		return err
 	}
 
-	gplog.Info(fmt.Sprintf("pxf cluster command is running on the coordinator node."))
+	//gplog.Info(fmt.Sprintf("pxf cluster command is running on the coordinator node."))
 	return nil
 }
 
