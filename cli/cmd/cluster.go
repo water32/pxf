@@ -34,10 +34,10 @@ func createCobraCommand(use string, short string, cmd *command) *cobra.Command {
 				if err == nil {
 					err = clusterRun(cmd, clusterData)
 				} else {
-					gplog.Error(fmt.Sprintf("err after clusterRun: %s", err.Error()))
+					gplog.Info(fmt.Sprintf("err after clusterRun: %s", err.Error()))
 				}
 			} else {
-				gplog.Error(fmt.Sprintf("err after connectToGPDB: %s", err.Error()))
+				gplog.Info(fmt.Sprintf("err after connectToGPDB: %s", err.Error()))
 			}
 			exitWithReturnCode(err)
 		},
@@ -76,10 +76,8 @@ func init() {
 }
 
 func exitWithReturnCode(err error) {
-	gplog.Error(fmt.Sprintf("exit code error: %s", err))
-
 	if err != nil {
-		gplog.Info(err.Error())
+		gplog.Error(fmt.Sprintf("exit code error: %s", err))
 		os.Exit(1)
 	}
 	os.Exit(0)
@@ -150,7 +148,7 @@ func GenerateOutput(cmd *command, clusterData *ClusterData) error {
 func GetClusterDataAssertOnCluster(connection *dbconn.DBConn) (*ClusterData, error) {
 	clusterData, err := getClusterData(connection)
 	if err != nil {
-		gplog.Error(fmt.Sprintf("%s", err))
+		gplog.Error(fmt.Sprintf("Failed to get cluster data %s", err))
 		return nil, err
 	}
 
@@ -194,12 +192,6 @@ func clusterRun(cmd *command, clusterData *ClusterData) error {
 		return err
 	}
 
-	//err = assertRunningOnCoordinator(clusterData)
-	//if err != nil {
-	//	gplog.Info(fmt.Sprintf("%s", err))
-	//	return err
-	//}
-
 	functionToExecute, err := cmd.GetFunctionToExecute()
 	if err != nil {
 		gplog.Error(fmt.Sprintf("Error: %s", err))
@@ -218,11 +210,11 @@ func assertRunningOnCoordinator(clusterData *ClusterData) error {
 
 	// check if the current file system has the coordinator data dir
 	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
-		//fmt.Sprintln("Not running on the coordinator node")
+		gplog.Error(fmt.Sprintf("Error: pxf cluster command is not running on the coordinator node. \n%s\n", err.Error()))
 		return err
 	}
 
-	//fmt.Println("Running on the coordinator node")
+	gplog.Info(fmt.Sprintf("pxf cluster command is running on the coordinator node."))
 	return nil
 }
 
