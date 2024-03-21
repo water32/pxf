@@ -76,7 +76,9 @@ func init() {
 }
 
 func exitWithReturnCode(err error) {
+	fmt.Errorf("exit code error: %s", err)
 	if err != nil {
+		gplog.Info(err.Error())
 		os.Exit(1)
 	}
 	os.Exit(0)
