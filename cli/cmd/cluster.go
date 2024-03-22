@@ -29,14 +29,21 @@ func createCobraCommand(use string, short string, cmd *command) *cobra.Command {
 		Short: short,
 		Run: func(cobraCmd *cobra.Command, args []string) {
 			connection, err := connectToGPDB()
-			if err == nil {
-				clusterData, err := GetClusterDataAssertOnCluster(connection)
-				if err == nil {
-					err = clusterRun(cmd, clusterData)
-				}
-				exitWithReturnCode(err)
+			if err != nil {
+				os.Exit(1)
 			}
-			exitWithReturnCode(err)
+
+			clusterData, err := GetClusterDataAssertOnCluster(connection)
+			if err != nil {
+				os.Exit(1)
+			}
+
+			err = clusterRun(cmd, clusterData)
+			if err != nil {
+				os.Exit(1)
+			}
+
+			os.Exit(0)
 		},
 	}
 }
@@ -72,14 +79,6 @@ func init() {
 	clusterCmd.AddCommand(migrateCmd)
 }
 
-func exitWithReturnCode(err error) {
-	if err != nil {
-		//gplog.Error(fmt.Sprintf("exit code error: %s", err))
-		os.Exit(1)
-	}
-	os.Exit(0)
-}
-
 func handlePlurality(num int) string {
 	if num == 1 {
 		return ""
@@ -104,10 +103,6 @@ func GenerateStatusReport(cmd *command, clusterData *ClusterData) {
 		numHosts--
 	}
 	gplog.Info(fmt.Sprintf(cmd.messages[status], standbyMsg, numHosts, handlePlurality(numHosts)))
-	//err := assertRunningOnCoordinator(clusterData)
-	//if err != nil {
-	//	gplog.Info(fmt.Sprintf("%s", err))
-	//}
 }
 
 // GenerateOutput is exported for testing
@@ -207,11 +202,10 @@ func assertRunningOnCoordinator(clusterData *ClusterData) error {
 
 	// check if the current file system has the coordinator data dir
 	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
-		gplog.Error(fmt.Sprintf("Error: pxf cluster command is not running on the coordinator node. \n%s\n", err.Error()))
+		gplog.Error(fmt.Sprintf("Error: PXF cluster command is not running on the coordinator node. \n%s\n", err.Error()))
 		return err
 	}
 
-	//gplog.Info(fmt.Sprintf("pxf cluster command is running on the coordinator node."))
 	return nil
 }
 
