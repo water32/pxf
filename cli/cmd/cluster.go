@@ -33,12 +33,8 @@ func createCobraCommand(use string, short string, cmd *command) *cobra.Command {
 				clusterData, err := GetClusterDataAssertOnCluster(connection)
 				if err == nil {
 					err = clusterRun(cmd, clusterData)
-				} else {
-					gplog.Info(fmt.Sprintf("err after clusterRun: %s", err.Error()))
 				}
 				exitWithReturnCode(err)
-			} else {
-				gplog.Info(fmt.Sprintf("err after connectToGPDB: %s", err.Error()))
 			}
 			exitWithReturnCode(err)
 		},
@@ -78,7 +74,7 @@ func init() {
 
 func exitWithReturnCode(err error) {
 	if err != nil {
-		gplog.Error(fmt.Sprintf("exit code error: %s", err))
+		//gplog.Error(fmt.Sprintf("exit code error: %s", err))
 		os.Exit(1)
 	}
 	os.Exit(0)
