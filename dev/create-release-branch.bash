@@ -3,6 +3,11 @@
 set -e
 : "${GIT_REMOTE:=origin}" # if your remote is not called origin, you can override it here
 
+GIT_SHA="${1}"
+MAJOR_MINOR_VERSION="${2}"
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+pxf_src=$(dirname ${SCRIPT_DIR})
+
 if [ $# -ne 2 ]; then
     echo "ERROR: 2 arguments required. See usage below"
     echo ""
@@ -16,23 +21,16 @@ if [ $# -ne 2 ]; then
     exit 1
 fi
 
-GIT_SHA="${1}"
-MAJOR_MINOR_VERSION="${2}"
-pwd_print=${PWD}
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-pxf_src=$(dirname ${SCRIPT_DIR})
-
-echo "SCRIPT_DIR: $SCRIPT_DIR"
-echo "pxf_src: $pxf_src"
-
-# validate new version:
-#  major + minor, numbers only, etc
+# validate version input
+if ! [[ "${MAJOR_MINOR_VERSION}" =~ ^[0-9]+\.[0-9]+$ ]]; then
+  echo "Expected <major.minor> and received \`${MAJOR_MINOR_VERSION}\`"
+fi
 
 branch_name=branch-"${MAJOR_MINOR_VERSION}".x
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 
-echo "Creating new branch ${branch_name}..."
 git checkout "${GIT_SHA}"
+echo "Creating new branch ${branch_name}..."
 git checkout -b "${branch_name}"
 
 pxf_version="${MAJOR_MINOR_VERSION}".0
