@@ -205,6 +205,7 @@ func assertRunningOnCoordinator(clusterData *ClusterData) error {
 		gplog.Error(fmt.Sprintf("Error: PXF cluster command is not running on the coordinator node. \n%s\n", err.Error()))
 		return err
 	}
+	gplog.Debug(fmt.Sprintf("PXF cluster command is running on the coordinator node."))
 
 	return nil
 }
