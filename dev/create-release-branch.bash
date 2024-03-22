@@ -29,6 +29,7 @@ echo "pxf_src: $pxf_src"
 #  major + minor, numbers only, etc
 
 branch_name=branch-"${MAJOR_MINOR_VERSION}".x
+current_branch=$(git rev-parse --abbrev-ref HEAD)
 
 echo "Creating new branch ${branch_name}..."
 git checkout "${GIT_SHA}"
@@ -47,3 +48,5 @@ git -C ${pxf_src} commit -m "Bump version to ${SNAPSHOT_VERSION} [skip ci]"
 
 echo "Pushing new branch ${TAG} and new SNAPSHOT version ${SNAPSHOT_VERSION}"
 git -C ${pxf_src} push -u ${GIT_REMOTE} $branch_name
+
+git checkout ${current_branch}
