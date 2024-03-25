@@ -10,7 +10,6 @@ import org.greenplum.pxf.automation.structures.tables.pxf.ExternalTable;
 import org.greenplum.pxf.automation.structures.tables.utils.TableFactory;
 import org.greenplum.pxf.automation.utils.system.ProtocolEnum;
 import org.greenplum.pxf.automation.utils.system.ProtocolUtils;
-import org.testng.SkipException;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
