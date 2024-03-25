@@ -10,7 +10,7 @@
     dataproc_env_files: dataproc_[[cluster_index]]_env_files
   config:
     run:
-#      path: pxf_src/concourse/scripts/cleanup_dataproc_cluster.bash
+      path: pxf_src/concourse/scripts/cleanup_dataproc_cluster.bash
     inputs:
     - name: pxf_src
     - name: dataproc_env_files

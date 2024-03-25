@@ -8,8 +8,8 @@
 - &destroy_[[cluster_type]]_cluster
   put: terraform-[[cluster_type]]
   params:
-#    action: destroy
+    action: destroy
     env_name_file: terraform-[[cluster_type]]/name
     terraform_source: [[terraform_source]]
   get_params:
-#    action: destroy
+    action: destroy

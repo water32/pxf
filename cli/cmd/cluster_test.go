@@ -584,6 +584,7 @@ var _ = Describe("GetClusterDataAssertOnCluster()", func() {
 		connection *dbconn.DBConn
 		mock       sqlmock.Sqlmock
 	)
+
 	BeforeEach(func() {
 		connection, mock = testhelper.CreateAndConnectMockDB(1)
 	})
@@ -597,7 +598,7 @@ var _ = Describe("GetClusterDataAssertOnCluster()", func() {
 			_ = os.RemoveAll("./coordinator_data")
 		})
 
-		It("returns the cluster data with no error, and prints the hint running on coordinator", func() {
+		It("returns the cluster data with no error", func() {
 			// mock retrieving the segment configs
 			fakeSegConfigs := sqlmock.NewRows(header).AddRow(coordinator...).AddRow(localSegOne...).AddRow(localSegTwo...)
 			mock.ExpectQuery("SELECT (.*)").WillReturnRows(fakeSegConfigs)
@@ -643,10 +644,3 @@ var _ = Describe("GetClusterDataAssertOnCluster()", func() {
 		})
 	})
 })
-
-//Context("When command is not running on the Greenplum host", func() {
-//	It("returns an error and prints 'Not running on coordinator'", func() {
-//		err := cmd.assertRunningOnCoordinator(clusterDataNonRootDataDir)
-//		Expect(errors.Unwrap(err).Error()).To(Equal("no such file or directory"))
-//	})
-//})

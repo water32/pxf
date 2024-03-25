@@ -146,7 +146,7 @@ func GetClusterDataAssertOnCluster(connection *dbconn.DBConn) (*ClusterData, err
 
 	err = assertRunningOnCoordinator(clusterData)
 	if err != nil {
-		gplog.Error(fmt.Sprintf("ERROR: Failed to execute the command.\n%s\n"+
+		gplog.Error(fmt.Sprintf("ERROR: Failed to execute the PXF cluster command.\n%s\n"+
 			"Please make sure you are on the coordinator node", err.Error()))
 		return nil, err
 	}
