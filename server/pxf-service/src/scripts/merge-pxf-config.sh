@@ -83,7 +83,7 @@ function addToDefaultPxfSite() {
 
     if [[ ! -f ${PXF_BASE}/servers/default/pxf-site.xml ]]; then
         echoGreen " - Creating pxf-site.xml in ${PXF_BASE}/servers/default/"
-        cp "${PXF_HOME}/templates/pxf-site.xml" "${PXF_BASE}/servers/default/pxf-site.xml"
+        cp "${PXF_HOME}/templates/servers/pxf-site.xml" "${PXF_BASE}/servers/default/pxf-site.xml"
     fi
 
     existingValue=$(sed -ne "/<name>${propertyName}<\/name>/{n;s/.*<value>\(.*\)<\/value>.*/\1/p;q;}" "${PXF_BASE}/servers/default/pxf-site.xml")
