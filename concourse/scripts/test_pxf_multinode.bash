@@ -154,19 +154,19 @@ EOF
 			if [[ ${PXF_VERSION} == 5 ]]; then
 				GPHOME=${GPHOME} PXF_CONF=${BASE_DIR} ${PXF_HOME}/bin/pxf cluster init
 			fi
-			cp ${TEMPLATES_DIR}/templates/{hdfs,mapred,yarn,core,hbase,hive}-site.xml ${BASE_DIR}/servers/default
+			cp ${TEMPLATES_DIR}/templates/server/{hdfs,mapred,yarn,core,hbase,hive}-site.xml ${BASE_DIR}/servers/default
 			sed -i -e 's/\(0.0.0.0\|localhost\|127.0.0.1\)/${hadoop_ip}/g' ${BASE_DIR}/servers/default/*-site.xml
 		else
-			cp ${TEMPLATES_DIR}/templates/mapred{,1}-site.xml
+			cp ${TEMPLATES_DIR}/templates/server/mapred{,1}-site.xml
 		fi &&
 		mkdir -p ${BASE_DIR}/servers/s3{,-invalid} &&
-		cp ${TEMPLATES_DIR}/templates/s3-site.xml ${BASE_DIR}/servers/s3 &&
-		cp ${TEMPLATES_DIR}/templates/s3-site.xml ${BASE_DIR}/servers/s3-invalid &&
+		cp ${TEMPLATES_DIR}/templates/server/s3-site.xml ${BASE_DIR}/servers/s3 &&
+		cp ${TEMPLATES_DIR}/templates/server/s3-site.xml ${BASE_DIR}/servers/s3-invalid &&
 		sed -i  -e \"s|YOUR_AWS_ACCESS_KEY_ID|${ACCESS_KEY_ID}|\" \
 			-e \"s|YOUR_AWS_SECRET_ACCESS_KEY|${SECRET_ACCESS_KEY}|\" \
 			${BASE_DIR}/servers/s3/s3-site.xml &&
 		mkdir -p ${BASE_DIR}/servers/database &&
-		cp ${TEMPLATES_DIR}/templates/jdbc-site.xml ${BASE_DIR}/servers/database/ &&
+		cp ${TEMPLATES_DIR}/templates/server/jdbc-site.xml ${BASE_DIR}/servers/database/ &&
 		sed -i  -e 's|YOUR_DATABASE_JDBC_DRIVER_CLASS_NAME|org.postgresql.Driver|' \
 			-e 's|YOUR_DATABASE_JDBC_URL|jdbc:postgresql://cdw:5432/pxfautomation|' \
 			-e 's|YOUR_DATABASE_JDBC_USER|gpadmin|' \
@@ -176,7 +176,7 @@ EOF
 		cp ${BASE_DIR}/servers/database/jdbc-site.xml ${BASE_DIR}/servers/database/testuser-user.xml &&
 		sed -i 's|pxfautomation|template1|' ${BASE_DIR}/servers/database/testuser-user.xml &&
 		mkdir -p ${BASE_DIR}/servers/db-session-params &&
-		cp ${TEMPLATES_DIR}/templates/jdbc-site.xml ${BASE_DIR}/servers/db-session-params &&
+		cp ${TEMPLATES_DIR}/templates/server/jdbc-site.xml ${BASE_DIR}/servers/db-session-params &&
 		sed -i  -e 's|YOUR_DATABASE_JDBC_DRIVER_CLASS_NAME|org.postgresql.Driver|' \
 			-e 's|YOUR_DATABASE_JDBC_URL|jdbc:postgresql://cdw:5432/pxfautomation|' \
 			-e 's|YOUR_DATABASE_JDBC_USER||' \
@@ -185,7 +185,7 @@ EOF
 			-e 's|</configuration>|<property><name>jdbc.session.property.default_statistics_target</name><value>123</value></property></configuration>|' \
 			${BASE_DIR}/servers/db-session-params/jdbc-site.xml &&
 		mkdir -p ${BASE_DIR}/servers/db-hive &&
-		cp ${TEMPLATES_DIR}/templates/jdbc-site.xml ${BASE_DIR}/servers/db-hive &&
+		cp ${TEMPLATES_DIR}/templates/server/jdbc-site.xml ${BASE_DIR}/servers/db-hive &&
 		sed -i  -e 's|YOUR_DATABASE_JDBC_DRIVER_CLASS_NAME|org.apache.hive.jdbc.HiveDriver|' \
 			-e \"s|YOUR_DATABASE_JDBC_URL|jdbc:hive2://${HADOOP_HOSTNAME}:10000/default|\" \
 			-e 's|YOUR_DATABASE_JDBC_USER||' \
@@ -194,8 +194,8 @@ EOF
 		cp ~gpadmin/hive-report.sql ${BASE_DIR}/servers/db-hive &&
 		if [[ \"${PROTOCOL}\" == \"file\" ]]; then
 			mkdir -p ${BASE_DIR}/servers/file
-			cp ${TEMPLATES_DIR}/templates/mapred-site.xml ${BASE_DIR}/servers/file
-			cp ${TEMPLATES_DIR}/templates/pxf-site.xml ${BASE_DIR}/servers/file
+			cp ${TEMPLATES_DIR}/templates/server/mapred-site.xml ${BASE_DIR}/servers/file
+			cp ${TEMPLATES_DIR}/templates/server/pxf-site.xml ${BASE_DIR}/servers/file
 			sed -i \
 			-e 's|</configuration>|<property><name>pxf.fs.basePath</name><value>${BASE_PATH}</value></property></configuration>|g' \
 			-e '/<name>pxf.service.user.impersonation<\/name>/ {n;s|<value>.*</value>|<value>false</value>|g;}' \
@@ -204,7 +204,7 @@ EOF
 		if [[ ${IMPERSONATION} == true ]]; then
 			cp -r ${BASE_DIR}/servers/default ${BASE_DIR}/servers/default-no-impersonation
 			if [[ ! -f ${BASE_DIR}/servers/default-no-impersonation/pxf-site.xml ]]; then
-				cp ${TEMPLATES_DIR}/templates/pxf-site.xml ${BASE_DIR}/servers/default-no-impersonation/pxf-site.xml
+				cp ${TEMPLATES_DIR}/templates/server/pxf-site.xml ${BASE_DIR}/servers/default-no-impersonation/pxf-site.xml
 			fi
 			sed -i \
 			-e '/<name>pxf.service.user.impersonation<\/name>/ {n;s|<value>.*</value>|<value>false</value>|g;}' \
@@ -227,7 +227,7 @@ function setup_pxf_kerberos_on_cluster() {
 		-e "s|</hive>|<kerberosPrincipal>${KERBERIZED_HADOOP_URI}</kerberosPrincipal><userName>gpadmin</userName></hive>|g" \
 		"$multiNodesCluster"
 	ssh gpadmin@cdw "
-		cp ${TEMPLATES_DIR}/templates/pxf-site.xml ${BASE_DIR}/servers/db-hive/pxf-site.xml &&
+		cp ${TEMPLATES_DIR}/templates/server/pxf-site.xml ${BASE_DIR}/servers/db-hive/pxf-site.xml &&
 		sed -i 's|gpadmin/_HOST@EXAMPLE.COM|gpadmin@${REALM}|g' ${BASE_DIR}/servers/db-hive/pxf-site.xml &&
 		sed -i 's|</configuration>|<property><name>hadoop.security.authentication</name><value>kerberos</value></property></configuration>|g' \
 			${BASE_DIR}/servers/db-hive/jdbc-site.xml &&
@@ -256,7 +256,7 @@ function setup_pxf_kerberos_on_cluster() {
 		KERBERIZED_HADOOP_2_URI="hive/${HADOOP_2_HOSTNAME}.${REALM2,,}@${REALM2};saslQop=auth-conf" # quoted because of semicolon
 		ssh gpadmin@cdw "
 			mkdir -p ${BASE_DIR}/servers/hdfs-secure &&
-			cp ${TEMPLATES_DIR}/templates/pxf-site.xml ${BASE_DIR}/servers/hdfs-secure &&
+			cp ${TEMPLATES_DIR}/templates/server/pxf-site.xml ${BASE_DIR}/servers/hdfs-secure &&
 			sed -i -e \"s|>gpadmin/_HOST@EXAMPLE.COM<|>${HADOOP_2_USER}/_HOST@${REALM2}<|g\" ${BASE_DIR}/servers/hdfs-secure/pxf-site.xml &&
 			sed -i -e 's|/pxf.service.keytab<|/pxf.service.2.keytab<|g' ${BASE_DIR}/servers/hdfs-secure/pxf-site.xml
 		"
@@ -270,14 +270,14 @@ function setup_pxf_kerberos_on_cluster() {
 		# Create the db-hive-kerberos server configuration
 		ssh "${SSH_OPTS[@]}" gpadmin@cdw "
 			mkdir -p ${BASE_DIR}/servers/db-hive-kerberos &&
-			cp ${TEMPLATES_DIR}/templates/jdbc-site.xml ${BASE_DIR}/servers/db-hive-kerberos &&
+			cp ${TEMPLATES_DIR}/templates/server/jdbc-site.xml ${BASE_DIR}/servers/db-hive-kerberos &&
 			sed -i -e 's|YOUR_DATABASE_JDBC_DRIVER_CLASS_NAME|org.apache.hive.jdbc.HiveDriver|' \
 				-e \"s|YOUR_DATABASE_JDBC_URL|jdbc:hive2://${HADOOP_2_HOSTNAME}:10000/default;principal=${KERBERIZED_HADOOP_2_URI}|\" \
 				-e 's|YOUR_DATABASE_JDBC_USER||' \
 				-e 's|YOUR_DATABASE_JDBC_PASSWORD||' \
 				${BASE_DIR}/servers/db-hive-kerberos/jdbc-site.xml &&
 			cp ~gpadmin/hive-report.sql ${BASE_DIR}/servers/db-hive-kerberos &&
-			cp ${TEMPLATES_DIR}/templates/pxf-site.xml ${BASE_DIR}/servers/db-hive-kerberos/pxf-site.xml &&
+			cp ${TEMPLATES_DIR}/templates/server/pxf-site.xml ${BASE_DIR}/servers/db-hive-kerberos/pxf-site.xml &&
 			sed -i 's|gpadmin/_HOST@EXAMPLE.COM|${HADOOP_2_USER}/_HOST@${REALM2}|g' ${BASE_DIR}/servers/db-hive-kerberos/pxf-site.xml &&
 			sed -i -e 's|/pxf.service.keytab<|/pxf.service.2.keytab<|g' ${BASE_DIR}/servers/db-hive-kerberos/pxf-site.xml &&
 			if [[ ${PXF_VERSION} == 5 ]]; then
@@ -338,7 +338,7 @@ function setup_pxf_kerberos_on_cluster() {
 		REALM3="${REALM3^^}" # make sure REALM3 is upper-case
 		ssh gpadmin@cdw "
 			mkdir -p ${BASE_DIR}/servers/hdfs-ipa &&
-			cp ${TEMPLATES_DIR}/templates/pxf-site.xml ${BASE_DIR}/servers/hdfs-ipa &&
+			cp ${TEMPLATES_DIR}/templates/server/pxf-site.xml ${BASE_DIR}/servers/hdfs-ipa &&
 			sed -i \
 				-e \"s|>gpadmin/_HOST@EXAMPLE.COM<|>${PXF_3_USER}@${REALM3}<|g\" \
 				-e 's|/pxf.service.keytab<|/pxf.service.3.keytab<|g' \
@@ -402,7 +402,7 @@ function setup_pxf_kerberos_on_cluster() {
 	NON_SECURE_HADOOP_IP=$(grep < cluster_env_files/etc_hostfile edw0 | awk '{print $1}')
 	ssh gpadmin@cdw "
 		mkdir -p ${BASE_DIR}/servers/db-hive-non-secure &&
-		cp ${TEMPLATES_DIR}/templates/jdbc-site.xml ${BASE_DIR}/servers/db-hive-non-secure &&
+		cp ${TEMPLATES_DIR}/templates/server/jdbc-site.xml ${BASE_DIR}/servers/db-hive-non-secure &&
 		sed -i -e 's|YOUR_DATABASE_JDBC_DRIVER_CLASS_NAME|org.apache.hive.jdbc.HiveDriver|' \
 			-e \"s|YOUR_DATABASE_JDBC_URL|jdbc:hive2://${NON_SECURE_HADOOP_IP}:10000/default|\" \
 			-e 's|YOUR_DATABASE_JDBC_USER||' \
@@ -410,7 +410,7 @@ function setup_pxf_kerberos_on_cluster() {
 			${BASE_DIR}/servers/db-hive-non-secure/jdbc-site.xml &&
 		cp ~gpadmin/hive-report.sql ${BASE_DIR}/servers/db-hive-non-secure &&
 		mkdir -p ${BASE_DIR}/servers/hdfs-non-secure &&
-		cp ${TEMPLATES_DIR}/templates/{hdfs,mapred,yarn,core,hbase,hive,pxf}-site.xml ${BASE_DIR}/servers/hdfs-non-secure &&
+		cp ${TEMPLATES_DIR}/templates/server/{hdfs,mapred,yarn,core,hbase,hive,pxf}-site.xml ${BASE_DIR}/servers/hdfs-non-secure &&
 		sed -i -e 's/\(0.0.0.0\|localhost\|127.0.0.1\)/${NON_SECURE_HADOOP_IP}/g' ${BASE_DIR}/servers/hdfs-non-secure/*-site.xml &&
 		sed -i -e 's|</configuration>|<property><name>pxf.service.user.name</name><value>${PROXY_USER}</value></property></configuration>|g' ${BASE_DIR}/servers/hdfs-non-secure/pxf-site.xml &&
 		PXF_BASE=${BASE_DIR} ${PXF_HOME}/bin/pxf cluster sync
@@ -421,7 +421,7 @@ function setup_pxf_kerberos_on_cluster() {
 	ssh gpadmin@cdw "
 		mkdir -p ${BASE_DIR}/servers/secure-hdfs-invalid-principal &&
 		cp ${BASE_DIR}/servers/default/*-site.xml ${BASE_DIR}/servers/secure-hdfs-invalid-principal &&
-		cp ${TEMPLATES_DIR}/templates/pxf-site.xml ${BASE_DIR}/servers/secure-hdfs-invalid-principal &&
+		cp ${TEMPLATES_DIR}/templates/server/pxf-site.xml ${BASE_DIR}/servers/secure-hdfs-invalid-principal &&
 		sed -i -e 's|>gpadmin/_HOST@EXAMPLE.COM<|>foobar/_HOST@INVALID.REALM.INTERNAL<|g' ${BASE_DIR}/servers/secure-hdfs-invalid-principal/pxf-site.xml &&
 		PXF_BASE=${BASE_DIR} ${PXF_HOME}/bin/pxf cluster sync
 	"
@@ -430,7 +430,7 @@ function setup_pxf_kerberos_on_cluster() {
 	ssh gpadmin@cdw "
 		mkdir -p ${BASE_DIR}/servers/secure-hdfs-invalid-keytab &&
 		cp ${BASE_DIR}/servers/default/*-site.xml ${BASE_DIR}/servers/secure-hdfs-invalid-keytab &&
-		cp ${TEMPLATES_DIR}/templates/pxf-site.xml ${BASE_DIR}/servers/secure-hdfs-invalid-keytab &&
+		cp ${TEMPLATES_DIR}/templates/server/pxf-site.xml ${BASE_DIR}/servers/secure-hdfs-invalid-keytab &&
 		sed -i -e 's|/pxf.service.keytab<|/non.existent.keytab<|g' ${BASE_DIR}/servers/secure-hdfs-invalid-keytab/pxf-site.xml &&
 		PXF_BASE=${BASE_DIR} ${PXF_HOME}/bin/pxf cluster sync
 	"
