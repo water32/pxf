@@ -37,7 +37,11 @@ ifeq "$(PROTOCOL)" "minio"
 endif
 
 PXF_BASE ?= $(PXF_HOME)
-SERVER_TEMPLATES_DIR=$(PXF_HOME)/templates/server
+ifeq" ${PXF_VERSION}" "7"
+	SERVER_TEMPLATES_DIR=${PXF_HOME}/templates/server
+else
+	SERVER_TEMPLATES_DIR=${PXF_HOME}/templates
+endif
 
 PXF_BASE_SERVERS=$(PXF_BASE)/servers
 

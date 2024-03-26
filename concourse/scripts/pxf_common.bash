@@ -19,7 +19,11 @@ if [[ ${PXF_VERSION} == 5 ]]; then
 else
 	BASE_DIR=${PXF_BASE_DIR:-$PXF_HOME}
 	SHARE_DIR="${PXF_HOME}/share"
-	SERVER_TEMPLATES_DIR=${PXF_HOME}/templates/server
+	if [[ ${PXF_VERSION} == 6 ]]; then
+	  SERVER_TEMPLATES_DIR=${PXF_HOME}/templates
+  else
+    SERVER_TEMPLATES_DIR=${PXF_HOME}/templates/server
+  fi
 fi
 
 if [[ -f ~/.pxfrc ]]; then
