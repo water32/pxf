@@ -43,8 +43,10 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.DateTimeParseException;
 import java.time.format.SignStyle;
 import java.time.temporal.ChronoField;
+import java.time.temporal.TemporalAccessor;
 import java.util.EnumSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -194,19 +196,16 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
                     // getObject() is used for date, timestamp, and timestamptz because the java.sql.* types do not support wide date ranges.
                     // JDBC API 4.2 and later should have support for these types through getObject().
                     LocalDate localDate = result.getObject(colName, LocalDate.class);
-                    DateTimeFormatter dtFormatter = isDateWideRange ? LOCAL_DATE_FORMATTER : GreenplumDateTime.DATE_FORMATTER;
-                    value = localDate != null ? localDate.format(dtFormatter) : null;
+                    value = formatDateTimeValues(localDate, LOCAL_DATE_FORMATTER, GreenplumDateTime.DATE_FORMATTER);
                     break;
                 case TIMESTAMP:
                     LocalDateTime localDateTime = result.getObject(colName, LocalDateTime.class);
-                    DateTimeFormatter ldtFormatter = isDateWideRange ? LOCAL_DATE_TIME_FORMATTER : GreenplumDateTime.DATETIME_FORMATTER;
-                    value = localDateTime != null ? localDateTime.format(ldtFormatter) : null;
+                    value = formatDateTimeValues(localDateTime, LOCAL_DATE_TIME_FORMATTER, GreenplumDateTime.DATETIME_FORMATTER);
                     break;
                 case TIMESTAMP_WITH_TIME_ZONE:
                     // OffsetDateTime is the only class that JDBC drivers will most likely to respect for returning timestamptz.
                     OffsetDateTime offsetDateTime = result.getObject(colName, OffsetDateTime.class);
-                    DateTimeFormatter odtFormatter = isDateWideRange ? OFFSET_DATE_TIME_FORMATTER : GreenplumDateTime.DATETIME_WITH_TIMEZONE_FORMATTER;
-                    value = offsetDateTime != null ? offsetDateTime.format(odtFormatter) : null;
+                    value = formatDateTimeValues(offsetDateTime, OFFSET_DATE_TIME_FORMATTER, GreenplumDateTime.DATETIME_WITH_TIMEZONE_FORMATTER);
                     break;
                 case UUID:
                     value = result.getObject(colName, java.util.UUID.class);
@@ -485,5 +484,42 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
         } catch (Exception e) {
             throw new IllegalArgumentException("Failed to convert timestamp with timezone '" + rawVal + "' to the OffsetDateTime class: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Formats a java.time.* datetime value using two formatters in a order depending on if DateWideRange is on.
+     * If DateWideRange is off but the value successfully parses with the DateWideRange formatter, log a warning
+     * to turn on the DateWideRange.
+     *
+     * @param datetime
+     * @param DWR
+     * @param DwrFormatter
+     * @param RegFormatter
+     * @return
+     */
+    private String formatDateTimeValues(TemporalAccessor datetime, DateTimeFormatter DwrFormatter, DateTimeFormatter RegFormatter) throws DateTimeParseException {
+        if (datetime == null) {
+            return null;
+        }
+
+        String value;
+        if (isDateWideRange) {
+            try {
+                value = DwrFormatter.format(datetime);
+            } catch (DateTimeParseException e) {
+                value = RegFormatter.format(datetime);
+            }
+        } else {
+            try {
+                value = RegFormatter.format(datetime); // The regular formatter will produce bad data if used on BC era
+                if (value.charAt(0) == '+') {
+                    throw new DateTimeParseException("year was too long", value, 0);
+                }
+            } catch (DateTimeParseException e) {
+                value = DwrFormatter.format(datetime);
+                LOG.trace("This datetime failed to parse with the regular formatter, dateWideRange formatter was used instead");
+            }
+        }
+        return value;
     }
 }
