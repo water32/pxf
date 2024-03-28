@@ -29,14 +29,13 @@ func createCobraCommand(use string, short string, cmd *command) *cobra.Command {
 		Short: short,
 		Run: func(cobraCmd *cobra.Command, args []string) {
 			connection, err := connectToGPDB()
-			exitIfError(err)
-
-			clusterData, err := GetClusterDataAssertOnCluster(connection)
-			exitIfError(err)
-
-			err = clusterRun(cmd, clusterData)
-			exitIfError(err)
-			os.Exit(0)
+			if err == nil {
+				clusterData, err := GetClusterDataAssertOnCluster(connection)
+				if err == nil {
+					err = clusterRun(cmd, clusterData)
+				}
+			}
+			exitWithReturnCode(err)
 		},
 	}
 }
@@ -72,10 +71,11 @@ func init() {
 	clusterCmd.AddCommand(migrateCmd)
 }
 
-func exitIfError(err error) {
+func exitWithReturnCode(err error) {
 	if err != nil {
 		os.Exit(1)
 	}
+	os.Exit(0)
 }
 
 func handlePlurality(num int) string {

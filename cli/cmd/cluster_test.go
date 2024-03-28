@@ -573,9 +573,9 @@ stderr line three`
 
 var _ = Describe("GetClusterDataAssertOnCluster()", func() {
 	header := []string{"contentid", "hostname", "datadir"}
-	coordinatorDataDir := "./coordinator_data/gpseg-1"
-	segOneDataDir := "./seg_data/gpseg0"
-	segTwoDataDir := "./seg_data/gpseg1"
+	coordinatorDataDir := "./testDataDirCdw"
+	segOneDataDir := "./testDataDirSeg0"
+	segTwoDataDir := "./testDataDirSeg1"
 	coordinator := []driver.Value{"-1", "cdw", coordinatorDataDir}
 	localSegOne := []driver.Value{"0", "sdw1", segOneDataDir}
 	localSegTwo := []driver.Value{"1", "sdw2", segTwoDataDir}
@@ -595,7 +595,7 @@ var _ = Describe("GetClusterDataAssertOnCluster()", func() {
 		})
 
 		AfterEach(func() {
-			_ = os.RemoveAll("./coordinator_data")
+			_ = os.RemoveAll("./testDataDirCdw")
 		})
 
 		It("returns the cluster data with no error", func() {
@@ -629,6 +629,10 @@ var _ = Describe("GetClusterDataAssertOnCluster()", func() {
 			_ = os.MkdirAll(segOneDataDir, 0777)
 		})
 
+		AfterEach(func() {
+			_ = os.RemoveAll("./testDataDirSeg0")
+		})
+
 		It("returns an error indicating that the command is not running on the coordinator", func() {
 			// mock retrieving the segment configs
 			fakeSegConfigs := sqlmock.NewRows(header).AddRow(coordinator...).AddRow(localSegOne...).AddRow(localSegTwo...)
@@ -637,10 +641,7 @@ var _ = Describe("GetClusterDataAssertOnCluster()", func() {
 			clusterData, err := cmd.GetClusterDataAssertOnCluster(connection)
 
 			Expect(clusterData).To(BeNil())
-			Expect(err.Error()).To(Equal("stat ./coordinator_data/gpseg-1: no such file or directory"))
-		})
-		AfterEach(func() {
-			_ = os.RemoveAll("./seg_data")
+			Expect(err.Error()).To(Equal("stat ./testDataDirCdw: no such file or directory"))
 		})
 	})
 })
