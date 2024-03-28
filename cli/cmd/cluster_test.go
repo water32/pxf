@@ -605,7 +605,7 @@ var _ = Describe("GetClusterDataAssertOnCluster()", func() {
 
 			clusterData, err := cmd.GetClusterDataAssertOnCluster(connection)
 
-			Expect(err).To(BeNil())
+			Expect(err).ShouldNot(HaveOccurred())
 			Expect(len(clusterData.Cluster.ContentIDs)).To(Equal(3))
 			Expect(clusterData.Cluster.GetHostForContent(-1)).To(Equal("cdw"))
 			Expect(clusterData.Cluster.GetHostForContent(0)).To(Equal("sdw1"))
