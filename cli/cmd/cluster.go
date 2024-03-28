@@ -29,20 +29,13 @@ func createCobraCommand(use string, short string, cmd *command) *cobra.Command {
 		Short: short,
 		Run: func(cobraCmd *cobra.Command, args []string) {
 			connection, err := connectToGPDB()
-			if err != nil {
-				os.Exit(1)
-			}
+			exitIfError(err)
 
 			clusterData, err := GetClusterDataAssertOnCluster(connection)
-			if err != nil {
-				os.Exit(1)
-			}
+			exitIfError(err)
 
 			err = clusterRun(cmd, clusterData)
-			if err != nil {
-				os.Exit(1)
-			}
-
+			exitIfError(err)
 			os.Exit(0)
 		},
 	}
@@ -77,6 +70,12 @@ func init() {
 	clusterCmd.AddCommand(restartCmd)
 	clusterCmd.AddCommand(prepareCmd)
 	clusterCmd.AddCommand(migrateCmd)
+}
+
+func exitIfError(err error) {
+	if err != nil {
+		os.Exit(1)
+	}
 }
 
 func handlePlurality(num int) string {
@@ -140,28 +139,24 @@ func GenerateOutput(cmd *command, clusterData *ClusterData) error {
 func GetClusterDataAssertOnCluster(connection *dbconn.DBConn) (*ClusterData, error) {
 	clusterData, err := getClusterData(connection)
 	if err != nil {
-		gplog.Error(fmt.Sprintf("Failed to get cluster data %s", err))
 		return nil, err
 	}
 
-	err = assertRunningOnCoordinator(clusterData)
-	if err != nil {
-		gplog.Error(fmt.Sprintf("ERROR: Failed to execute the PXF cluster command.\n%s\n"+
-			"Please make sure you are on the coordinator node", err.Error()))
+	if err := assertRunningOnCoordinator(clusterData); err != nil {
 		return nil, err
 	}
+
 	return clusterData, nil
 }
 
 func connectToGPDB() (*dbconn.DBConn, error) {
 	connection := dbconn.NewDBConnFromEnvironment("postgres")
-	err := connection.Connect(1)
-	if err != nil {
+	if err := connection.Connect(1); err != nil {
 		gplog.Error(fmt.Sprintf("ERROR: Could not connect to GPDB.\n%s\n"+
 			"Please make sure that your Greenplum database is running and you are on the coordinator node.", err.Error()))
 		return nil, err
 	}
-	return connection, err
+	return connection, nil
 }
 
 func getClusterData(connection *dbconn.DBConn) (*ClusterData, error) {
@@ -178,8 +173,7 @@ func getClusterData(connection *dbconn.DBConn) (*ClusterData, error) {
 func clusterRun(cmd *command, clusterData *ClusterData) error {
 	defer clusterData.connection.Close()
 
-	err := cmd.Warn(os.Stdin)
-	if err != nil {
+	if err := cmd.Warn(os.Stdin); err != nil {
 		gplog.Info(fmt.Sprintf("%s", err))
 		return err
 	}
@@ -202,10 +196,10 @@ func assertRunningOnCoordinator(clusterData *ClusterData) error {
 
 	// check if the current file system has the coordinator data dir
 	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
-		gplog.Error(fmt.Sprintf("Error: PXF cluster command is not running on the coordinator node. \n%s\n", err.Error()))
+		gplog.Error(fmt.Sprintf("Error: PXF cluster command is not running on the coordinator node. \n%s\nPlease make sure you are on the coordinator node", err.Error()))
 		return err
 	}
-	gplog.Debug(fmt.Sprintf("PXF cluster command is running on the coordinator node."))
+	gplog.Debug("PXF cluster command is running on the coordinator node.")
 
 	return nil
 }
