@@ -74,6 +74,10 @@ stage:
 	./gradlew $(PXF_GRADLE_PROPERTIES) test stage
 	install -m 744 -d "build/stage/lib"
 	install -m 744 -d "build/stage/lib/native"
+	install -m 744 -d "build/stage/servers"
+	install -m 744 -d "build/stage/servers/default"
+	install -m 700 -d "build/stage/logs"
+	install -m 700 -d "build/stage/run"
 	install -m 700 -d "build/stage/keytabs"
 
 .PHONY: stage-notest
@@ -81,6 +85,10 @@ stage-notest:
 	./gradlew $(PXF_GRADLE_PROPERTIES) stage -x test
 	install -m 744 -d "build/stage/lib"
 	install -m 744 -d "build/stage/lib/native"
+	install -m 744 -d "build/stage/servers"
+	install -m 744 -d "build/stage/servers/default"
+	install -m 700 -d "build/stage/logs"
+	install -m 700 -d "build/stage/run"
 	install -m 700 -d "build/stage/keytabs"
 
 clean:
