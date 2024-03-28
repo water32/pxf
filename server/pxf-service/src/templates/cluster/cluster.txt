@@ -1,4 +1,0 @@
-cluster.name=__CLUSTER_NAME__
-cluster.collocated=__CLUSTER_COLLOCATED__
-group.default.ports=5888
-group.default.ssl=false
