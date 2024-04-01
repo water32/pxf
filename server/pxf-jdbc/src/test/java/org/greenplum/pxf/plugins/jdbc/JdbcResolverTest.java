@@ -73,7 +73,7 @@ class JdbcResolverTest {
     @Test
     void getFieldDateWithoutWideRangeTest() throws SQLException {
         isDateWideRange = false;
-        LocalDate date = Date.valueOf("1977-12-11").toLocalDate();
+        Date date = Date.valueOf("1977-12-11");
         OneField oneField = getOneField(date, DataType.DATE.getOID(), "date");
         assertTrue(oneField.val instanceof String);
         assertEquals("1977-12-11", oneField.val);
@@ -136,7 +136,7 @@ class JdbcResolverTest {
     @Test
     void getFieldDateTimeWithoutWideRangeTest() throws SQLException {
         isDateWideRange = false;
-        LocalDateTime timestamp = Timestamp.valueOf("1977-12-11 11:15:30.1234").toLocalDateTime();
+        Timestamp timestamp = Timestamp.valueOf("1977-12-11 11:15:30.1234");
         OneField oneField = getOneField(timestamp, DataType.TIMESTAMP.getOID(), "timestamp");
         assertTrue(oneField.val instanceof String);
         assertEquals("1977-12-11 11:15:30.1234", oneField.val);
@@ -536,6 +536,8 @@ class JdbcResolverTest {
         when(row.getData()).thenReturn(result);
         if (date instanceof LocalDate) {
             when(result.getObject("birth_date", LocalDate.class)).thenReturn((LocalDate) date);
+        } else if (date instanceof Date) {
+            when(result.getDate("birth_date")).thenReturn((Date) date);
         } else if (date instanceof LocalDateTime) {
             when(result.getObject("birth_date", LocalDateTime.class)).thenReturn((LocalDateTime) date);
         } else if (date instanceof Timestamp) {

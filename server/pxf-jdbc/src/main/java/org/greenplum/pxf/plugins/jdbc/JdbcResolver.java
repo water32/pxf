@@ -193,18 +193,25 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
                 case DATE:
                     // getObject() is used for date, timestamp, and timestamptz because the java.sql.* types do not support wide date ranges.
                     // JDBC API 4.2 and later should have support for these types through getObject().
-                    LocalDate localDate = result.getObject(colName, LocalDate.class);
+                    // TODO: Add comment about why we need getObject and getDate/getTimestamp because of hive jdbc
                     if (isDateWideRange) {
+                        LocalDate localDate = result.getObject(colName, LocalDate.class);
                         value = formatDateTimeValues(localDate, LOCAL_DATE_FORMATTER, GreenplumDateTime.DATE_FORMATTER);
                     } else {
+                        LocalDate localDate = result.getDate(colName) == null
+                                ? null
+                                : result.getDate(colName).toLocalDate();
                         value = formatDateTimeValues(localDate, GreenplumDateTime.DATE_FORMATTER, LOCAL_DATE_FORMATTER);
                     }
                     break;
                 case TIMESTAMP:
-                    LocalDateTime localDateTime = result.getObject(colName, LocalDateTime.class);
                     if (isDateWideRange) {
+                        LocalDateTime localDateTime = result.getObject(colName, LocalDateTime.class);
                         value = formatDateTimeValues(localDateTime, LOCAL_DATE_TIME_FORMATTER, GreenplumDateTime.DATETIME_FORMATTER);
                     } else {
+                        LocalDateTime localDateTime = result.getTimestamp(colName) == null
+                                ? null
+                                : result.getTimestamp(colName).toLocalDateTime();
                         value = formatDateTimeValues(localDateTime, GreenplumDateTime.DATETIME_FORMATTER, LOCAL_DATE_TIME_FORMATTER);
                     }
                     break;
