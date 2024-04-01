@@ -26,7 +26,7 @@
     {# non-cloud impersonation tests (regular) run a standard group combination #}
     {% set test_group = 'gpdb,proxy,profile' %}
 {% endif %}
-{% if extension == 'fdw' %}
+{% if x.use_fdw == 'true' %}
     {% set test_group = test_group + ',pxfFdwExtensionVersion2' %}
 {% endif %}
 

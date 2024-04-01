@@ -674,8 +674,8 @@ function configure_hdfs_client_for_abfss() {
 	ABFSS_CORE_SITE_XML=$(mktemp)
 	cat <<-EOF > "${ABFSS_CORE_SITE_XML}"
 		<property>
-		   <name>fs.azure.account.auth.type</name>
-		   <value>OAuth</value>
+		    <name>fs.azure.account.auth.type</name>
+		    <value>OAuth</value>
 		</property>
 		<property>
 		    <name>fs.azure.account.oauth.provider.type</name>

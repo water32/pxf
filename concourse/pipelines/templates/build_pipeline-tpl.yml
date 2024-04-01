@@ -187,12 +187,10 @@ resources:
     [[macros.resource_pxf5_gp6_el7_artifact()]]
 
 ## ---------- PXF 6.MINOR Artifact ---------------
-# This is for pxf extension upgrade testing. PXF 6.6.X contains pxf extension version 2.0. PXF 6.7.+ contains version 2.1
-# We test PXF 6.6 for gp6 on centos7
-    [[macros.resource_pxf6_minor_rpm_artifact('6', '6', '7')]]
-# This is for pxf_fdw extension upgrade testing. PXF 6.9.X contains pxf_fdw extension version 1.0. PXF 6.10.+ contains version 2.0
-# We test PXF 6.9 for gp7 on rocky8
-    [[macros.resource_pxf6_minor_rpm_artifact('9', '7', '8')]]
+# These are for pxf and pxf_fdw extension upgrade testing.
+{% call(x) macros.for_each_config(build_test_pxf_combinations) %}
+    {% include 'resources/pxf6_minor-rpm-artifact-tpl.yml' %}
+{% endcall %}
 
 ## ---------- Auxiliary Resources ----------
     [[macros.resource_terraform('gpdb')]]
