@@ -595,7 +595,7 @@ var _ = Describe("GetClusterDataAssertOnCluster()", func() {
 		})
 
 		AfterEach(func() {
-			_ = os.RemoveAll("./testDataDirCdw")
+			_ = os.RemoveAll(coordinatorDataDir)
 		})
 
 		It("returns the cluster data with no error", func() {
@@ -630,7 +630,7 @@ var _ = Describe("GetClusterDataAssertOnCluster()", func() {
 		})
 
 		AfterEach(func() {
-			_ = os.RemoveAll("./testDataDirSeg0")
+			_ = os.RemoveAll(segOneDataDir)
 		})
 
 		It("returns an error indicating that the command is not running on the coordinator", func() {

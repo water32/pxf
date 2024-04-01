@@ -17,14 +17,25 @@
    ```
    make install
    ```
-1. Run unit tests with Focused
+1. Run unit tests with Pending Specs
    
-   To run some specific unit tests, you can prepend an `F` to the `Describe` or `Context` to make them _Focused_, then run
+   If some unit tests are still under development, and you don't want them to be run,
+   you can prepend a `P` or an `X` to the `Describe` or `Context` to mark them as _Pending_, then run the tests:
    ```
    cd cmd
    ginkgo
    ```
-   See more in [Ginkgo documentation](https://onsi.github.io/ginkgo/#focused-specs).
+   See more in [Ginkgo Pending Specs](https://onsi.github.io/ginkgo/#pending-specs).
+
+1. Run unit tests with Focused
+
+   By default, ginkgo runs all the unit tests in the current path.
+   To run some specific unit tests, you can prepend an `F` to the `Describe` or `Context` to mark them as _Focused_, then run the tests:
+   ```
+   cd cmd
+   ginkgo
+   ```
+   See more in [Ginkgo Focused Specs](https://onsi.github.io/ginkgo/#focused-specs).
 
 1. There is also end to end testing for the pxf-cli located at `pxf/concourse/scripts/cli`. These tests can be run by flying the following pipeline:
 

@@ -201,7 +201,7 @@ func assertRunningOnCoordinator(clusterData *ClusterData) error {
 
 	// check if the current file system has the coordinator data dir
 	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
-		gplog.Error(fmt.Sprintf("Error: PXF cluster command is not running on the coordinator node. \n%s\nPlease make sure you are on the coordinator node", err.Error()))
+		gplog.Error(fmt.Sprintf("Error: Could not find the data directory:\n%s\nPlease make sure you are on the coordinator node", err.Error()))
 		return err
 	}
 	gplog.Debug("PXF cluster command is running on the coordinator node.")
