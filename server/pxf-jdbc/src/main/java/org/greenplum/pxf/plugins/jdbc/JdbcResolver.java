@@ -121,7 +121,7 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
     private static final Logger LOG = LoggerFactory.getLogger(JdbcResolver.class);
 
     private boolean logDebugForDateWideRange = false;
-    private static final String dateWideRangeDebugMsg = "Please consider turning on DateWideRange for better performance.";
+    private static final String dateWideRangeWarnMsg = "Please consider turning on DateWideRange for better performance.";
 
     /**
      * Creates a new instance of the JdbcResolver
@@ -241,7 +241,7 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
         }
 
         if (logDebugForDateWideRange) {
-            LOG.debug(dateWideRangeDebugMsg);
+            LOG.warn(dateWideRangeWarnMsg);
         }
 
         return fields;
@@ -356,7 +356,7 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
         }
 
         if (logDebugForDateWideRange) {
-            LOG.debug(dateWideRangeDebugMsg);
+            LOG.warn(dateWideRangeWarnMsg);
         }
 
         return new OneRow(record);
