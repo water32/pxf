@@ -20,7 +20,6 @@ else
 	BASE_DIR=${PXF_BASE_DIR:-$PXF_HOME}
 	SHARE_DIR="${PXF_HOME}/share"
 	SERVER_TEMPLATES_DIR="${PXF_HOME}/templates/servers"
-	fi
 fi
 
 if [[ -f ~/.pxfrc ]]; then
