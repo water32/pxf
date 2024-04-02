@@ -17,7 +17,7 @@
 
 SET timezone='utc';
 
-SELECT * FROM pxf_jdbc_readable_date_wide_range_on ORDER BY t1;
+SELECT tm, dt, tmz FROM pxf_jdbc_readable_date_wide_range_on ORDER BY t1;
 
 SET timezone='America/Los_Angeles';
 

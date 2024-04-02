@@ -70,7 +70,8 @@ public class JdbcTest extends BaseFeature {
     private ExternalTable pxfJdbcReadServerConfigAll; // all server-based props coming from there, not DDL
     private ExternalTable pxfJdbcReadViewNoParams, pxfJdbcReadViewSessionParams;
     private ExternalTable pxfJdbcWritable;
-    private ExternalTable pxfJdbcWritableWithDateWideRange;
+    private ExternalTable pxfJdbcDateTimeWritableWithDateWideRangeOn;
+    private ExternalTable pxfJdbcDateTimeWritableWithDateWideRangeOff;
     private ExternalTable pxfJdbcWritableNoBatch;
     private ExternalTable pxfJdbcWritablePool;
     private ExternalTable pxfJdbcColumns;
@@ -81,7 +82,7 @@ public class JdbcTest extends BaseFeature {
     private static final String gpdbTypesWithDateWideRangeDataFileName = "gpdb_types_with_date_wide_range.txt";
     private static final String gpdbTypesDataFileName = "gpdb_types.txt";
     private static final String gpdbColumnsDataFileName = "gpdb_columns.txt";
-    private Table gpdbNativeTableTypes, gpdbNativeTableTypesWithDateWideRange, gpdbNativeTableColumns, gpdbWritableTargetTable, gpdbWritableTargetTableWithDateWideRange;
+    private Table gpdbNativeTableTypes, gpdbNativeTableTypesWithDateWideRange, gpdbNativeTableColumns, gpdbWritableTargetTable, dateTimeWritableTargetTableWithDateWideRangeOn, dateTimeWritableTargetTableWithDateWideRangeOff;
     private Table gpdbWritableTargetTableNoBatch, gpdbWritableTargetTablePool;
     private Table gpdbDeptTable, gpdbEmpTable;
 
@@ -127,10 +128,15 @@ public class JdbcTest extends BaseFeature {
         gpdbWritableTargetTable.setDistributionFields(new String[]{"t1"});
         gpdb.createTableAndVerify(gpdbWritableTargetTable);
 
-        // create a table to be filled by the writable test case
-        gpdbWritableTargetTableWithDateWideRange = new Table("gpdb_types_target_with_date_wide_range", TYPES_TABLE_FIELDS);
-        gpdbWritableTargetTableWithDateWideRange.setDistributionFields(new String[]{"t1"});
-        gpdb.createTableAndVerify(gpdbWritableTargetTableWithDateWideRange);
+        // create a table for testing datetime values when DateWideRange is turned on
+        dateTimeWritableTargetTableWithDateWideRangeOn = new Table("datetime_writable_with_date_wide_range_on", TYPES_TABLE_FIELDS);
+        dateTimeWritableTargetTableWithDateWideRangeOn.setDistributionFields(new String[]{"t1"});
+        gpdb.createTableAndVerify(dateTimeWritableTargetTableWithDateWideRangeOn);
+
+        // create a table for testing datetime values when DateWideRange is turned off
+        dateTimeWritableTargetTableWithDateWideRangeOff = new Table("datetime_writable_with_date_wide_range_off", TYPES_TABLE_FIELDS);
+        dateTimeWritableTargetTableWithDateWideRangeOff.setDistributionFields(new String[]{"t1"});
+        gpdb.createTableAndVerify(dateTimeWritableTargetTableWithDateWideRangeOff);
 
         // create a table to be filled by the writable test case with no batch
         gpdbWritableTargetTableNoBatch = new Table("gpdb_types_nobatch_target", TYPES_TABLE_FIELDS_SMALL);
@@ -303,17 +309,29 @@ public class JdbcTest extends BaseFeature {
         pxfJdbcWritable.addUserParameter("date_wide_range=false");
         gpdb.createTableAndVerify(pxfJdbcWritable);
 
-        pxfJdbcWritableWithDateWideRange = TableFactory.getPxfJdbcWritableTable(
-                "pxf_jdbc_writable_date_wide_range_on",
+        pxfJdbcDateTimeWritableWithDateWideRangeOn = TableFactory.getPxfJdbcWritableTable(
+                "pxf_jdbc_datetime_writable_date_wide_range_on",
                 TYPES_TABLE_FIELDS,
-                gpdbWritableTargetTableWithDateWideRange.getName(),
+                dateTimeWritableTargetTableWithDateWideRangeOn.getName(),
                 POSTGRES_DRIVER_CLASS,
                 GPDB_PXF_AUTOMATION_DB_JDBC + gpdb.getMasterHost() + ":" + gpdb.getPort() + "/pxfautomation",
                 gpdb.getUserName(), null);
-        pxfJdbcWritableWithDateWideRange.setHost(pxfHost);
-        pxfJdbcWritableWithDateWideRange.setPort(pxfPort);
-        pxfJdbcWritableWithDateWideRange.addUserParameter("date_wide_range=true");
-        gpdb.createTableAndVerify(pxfJdbcWritableWithDateWideRange);
+        pxfJdbcDateTimeWritableWithDateWideRangeOn.setHost(pxfHost);
+        pxfJdbcDateTimeWritableWithDateWideRangeOn.setPort(pxfPort);
+        pxfJdbcDateTimeWritableWithDateWideRangeOn.addUserParameter("date_wide_range=true");
+        gpdb.createTableAndVerify(pxfJdbcDateTimeWritableWithDateWideRangeOn);
+
+        pxfJdbcDateTimeWritableWithDateWideRangeOff = TableFactory.getPxfJdbcWritableTable(
+                "pxf_jdbc_datetime_writable_date_wide_range_off",
+                TYPES_TABLE_FIELDS,
+                dateTimeWritableTargetTableWithDateWideRangeOff.getName(),
+                POSTGRES_DRIVER_CLASS,
+                GPDB_PXF_AUTOMATION_DB_JDBC + gpdb.getMasterHost() + ":" + gpdb.getPort() + "/pxfautomation",
+                gpdb.getUserName(), null);
+        pxfJdbcDateTimeWritableWithDateWideRangeOff.setHost(pxfHost);
+        pxfJdbcDateTimeWritableWithDateWideRangeOff.setPort(pxfPort);
+        pxfJdbcDateTimeWritableWithDateWideRangeOff.addUserParameter("date_wide_range=false");
+        gpdb.createTableAndVerify(pxfJdbcDateTimeWritableWithDateWideRangeOff);
 
         pxfJdbcWritableNoBatch = TableFactory.getPxfJdbcWritableTable(
                 "pxf_jdbc_writable_nobatch",

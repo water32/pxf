@@ -120,6 +120,9 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
 
     private static final Logger LOG = LoggerFactory.getLogger(JdbcResolver.class);
 
+    private boolean logDebugForDateWideRange = false;
+    private static final String dateWideRangeDebugMsg = "Please consider turning on DateWideRange for better performance.";
+
     /**
      * Creates a new instance of the JdbcResolver
      */
@@ -145,6 +148,7 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
      */
     @Override
     public List<OneField> getFields(OneRow row) throws SQLException {
+        logDebugForDateWideRange = false;
         ResultSet result = (ResultSet) row.getData();
         LinkedList<OneField> fields = new LinkedList<>();
 
@@ -191,9 +195,8 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
                     value = result.getString(colName);
                     break;
                 case DATE:
-                    // getObject() is used for date, timestamp, and timestamptz because the java.sql.* types do not support wide date ranges.
-                    // JDBC API 4.2 and later should have support for these types through getObject().
-                    // TODO: Add comment about why we need getObject and getDate/getTimestamp because of hive jdbc
+                    // As of JDBC 4.2, getObject API supports retrieval of LocalDate, LocalDateTime, and OffsetDateTime.
+                    // We use getDate and getTimestamp because Hive JDBC connector does not fully support JDBC 4.2 API.
                     if (isDateWideRange) {
                         LocalDate localDate = result.getObject(colName, LocalDate.class);
                         value = formatDateTimeValues(localDate, LOCAL_DATE_FORMATTER, GreenplumDateTime.DATE_FORMATTER);
@@ -236,6 +239,11 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
 
             oneField.val = result.wasNull() ? null : value;
         }
+
+        if (logDebugForDateWideRange) {
+            LOG.debug(dateWideRangeDebugMsg);
+        }
+
         return fields;
     }
 
@@ -251,6 +259,7 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
      */
     @Override
     public OneRow setFields(List<OneField> record) throws UnsupportedOperationException {
+        logDebugForDateWideRange = false;
         int columnIndex = 0;
 
         for (OneField oneField : record) {
@@ -344,6 +353,10 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
                                         oneFieldType, column));
                 }
             }
+        }
+
+        if (logDebugForDateWideRange) {
+            LOG.debug(dateWideRangeDebugMsg);
         }
 
         return new OneRow(record);
@@ -464,6 +477,7 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
         } catch (DateTimeParseException e) {
             value = formatterTwo.format(datetime);
             LOG.trace("First formatter failed, used second formatter");
+            logDebugForDateWideRange = true;
         }
         return value;
     }
@@ -475,6 +489,7 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
         } catch (DateTimeParseException e) {
             value = OffsetDateTime.parse(rawVal, formatterTwo);
             LOG.trace("First formatter failed, used second formatter");
+            logDebugForDateWideRange = true;
         }
         return value;
     }
@@ -486,6 +501,7 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
         } catch (DateTimeParseException e) {
             value = LocalDate.parse(rawVal, formatterTwo);
             LOG.trace("First formatter failed, used second formatter");
+            logDebugForDateWideRange = true;
         }
         return value;
     }
@@ -497,6 +513,7 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
         } catch (DateTimeParseException e) {
             value = LocalDateTime.parse(rawVal, formatterTwo);
             LOG.trace("First formatter failed, used second formatter");
+            logDebugForDateWideRange = true;
         }
         return value;
     }
