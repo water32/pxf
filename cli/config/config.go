@@ -5,16 +5,16 @@ type PxfServiceGroup struct {
 	Ports []int
 	IsSsl bool
 }
-type PxfServiceGroupValidator func(p PxfServiceGroup) error
+type pxfServiceGroupValidator func(p PxfServiceGroup) error
 
 type PxfCluster struct {
 	Name       string
 	Collocated bool
-	Hosts      []PxfHost
+	Hosts      []*PxfHost
 	Endpoint   string
 	Groups     map[string]*PxfServiceGroup
 }
-type PxfClusterValidator func(p PxfCluster) error
+type pxfClusterValidator func(p PxfCluster) error
 
 type PxfHost struct {
 	Hostname string
@@ -24,7 +24,7 @@ type PxfDeployment struct {
 	Name     string
 	Clusters map[string]*PxfCluster
 }
-type PxfDeploymentValidator func(p PxfDeployment) error
+type pxfDeploymentValidator func(p PxfDeployment) error
 
 // Validate on deployment level
 // (DONE by map) Cluster::name MUST be unique.
@@ -34,14 +34,14 @@ type PxfDeploymentValidator func(p PxfDeployment) error
 // (DONE) There MUST be no more than one Cluster::collocated==true
 // (DONE) ServiceGroup::name MUST be unique across all Clusters
 func (p PxfDeployment) Validate() error {
-	var pxfDeploymentValidators = []PxfDeploymentValidator{
-		PxfDeploymentNameNotEmpty,
-		PxfDeploymentAtLeastOneCluster,
-		PxfDeploymentHostnameUnique,
-		PxfDeploymentNoMoreThanOneCollocated,
-		PxfDeploymentGroupNameUnique,
+	var validators = []pxfDeploymentValidator{
+		pxfDeploymentNameNotEmpty,
+		pxfDeploymentAtLeastOneCluster,
+		pxfDeploymentHostnameUnique,
+		pxfDeploymentNoMoreThanOneCollocated,
+		pxfDeploymentGroupNameUnique,
 	}
-	for _, validator := range pxfDeploymentValidators {
+	for _, validator := range validators {
 		if err := validator(p); err != nil {
 			return err
 		}
@@ -54,24 +54,24 @@ func (p PxfDeployment) Validate() error {
 	return nil
 }
 
-// Validate on level validations:
+// Validate on cluster level:
 // (DONE by bool) Cluster::collocated MUST not be NULL.
 // (DONE) Cluster::name MUST NOT be null / empty.
 // (DONE) Cluster::collocated==true SHOULD NOT have a list of hosts, they WILL be ignored.
 // (DONE) Cluster::collocated==true SHOULD NOT have a Cluster::endpoint, it WILL be ignored.
 // (DONE) Cluster::collocated==false AND Cluster::endpoint==NULL MUST have a non-empty list of hosts.
-// TODO: Cluster::endpoint != NULL MUST have a value of a valid IPv4, IPv6 of FQDN compliant syntax.
+// (DONE) Cluster::endpoint != NULL MUST have a value of a valid IPv4, IPv6 of FQDN compliant syntax.
 // (DONE) There MUST be at least one ServiceGroup per Cluster
 func (p PxfCluster) Validate() error {
-	var pxfDeploymentValidators = []PxfClusterValidator{
-		PxfClusterNameNotEmpty,
-		PxfClusterIgnoreHostsWhenCollocated,
-		PxfClusterIgnoreEndpointWhenCollocated,
-		PxfClusterEndpointOrHostsMustExistWhenExternal,
-		PxfClusterValidEndpoint,
-		PxfClusterAtLeastOneServiceGroup,
+	var validators = []pxfClusterValidator{
+		pxfClusterNameNotEmpty,
+		pxfClusterIgnoreHostsWhenCollocated,
+		pxfClusterIgnoreEndpointWhenCollocated,
+		pxfClusterEndpointOrHostsMustExistWhenExternal,
+		pxfClusterValidEndpoint,
+		pxfClusterAtLeastOneServiceGroup,
 	}
-	for _, validator := range pxfDeploymentValidators {
+	for _, validator := range validators {
 		if err := validator(p); err != nil {
 			return err
 		}
@@ -90,9 +90,9 @@ func (p PxfCluster) Validate() error {
 }
 
 // Validate on PxfHost level:
-// TODO: Host::hostname MUST have a value with either IPv4, IPv6 of FQDN compliant syntax.
-func (p *PxfHost) Validate() error {
-	return nil
+// (DONE) Host::hostname MUST have a value with either IPv4, IPv6 of FQDN compliant syntax.
+func (p PxfHost) Validate() error {
+	return pxfHostValidHostname(p)
 }
 
 // Validate on service group level:
@@ -101,13 +101,13 @@ func (p *PxfHost) Validate() error {
 // (DONE) ServiceGroup::ports elements MUST be an integer value between 1-65535
 // (DONE) ServiceGroup::ports elements SHOULD be larger than 1023 and smaller than 32768 (between privileged and ephemeral ranges)
 func (p PxfServiceGroup) Validate() error {
-	pxfServiceGroupValidators := []PxfServiceGroupValidator{
-		PxfServiceGroupNameNotEmpty,
-		PxfServiceGroupAtLeastOnePort,
-		PxfServiceGroupValidPorts,
-		PxfServiceGroupPortsWarning,
+	validators := []pxfServiceGroupValidator{
+		pxfServiceGroupNameNotEmpty,
+		pxfServiceGroupAtLeastOnePort,
+		pxfServiceGroupValidPorts,
+		pxfServiceGroupPortsWarning,
 	}
-	for _, validator := range pxfServiceGroupValidators {
+	for _, validator := range validators {
 		if err := validator(p); err != nil {
 			return err
 		}
