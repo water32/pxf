@@ -15,11 +15,12 @@ CCP_OS_USER=""
 if [[ ${PXF_VERSION} == 5 ]]; then
 	BASE_DIR=~gpadmin/pxf
 	SHARE_DIR="${PXF_HOME}/lib"
-	TEMPLATES_DIR=${BASE_DIR}
+	SERVER_TEMPLATES_DIR="${BASE_DIR}/templates"
 else
 	BASE_DIR=${PXF_BASE_DIR:-$PXF_HOME}
 	SHARE_DIR="${PXF_HOME}/share"
-	TEMPLATES_DIR=${PXF_HOME}
+	SERVER_TEMPLATES_DIR="${PXF_HOME}/templates/servers"
+	fi
 fi
 
 if [[ -f ~/.pxfrc ]]; then
@@ -604,7 +605,7 @@ function configure_pxf_server() {
 	if [[ ! ${IMPERSONATION} == true ]]; then
 		echo 'Impersonation is disabled, updating pxf-site.xml property'
 		if [[ ! -f ${BASE_DIR}/servers/default/pxf-site.xml ]]; then
-			cp ${PXF_HOME}/templates/pxf-site.xml ${BASE_DIR}/servers/default/pxf-site.xml
+			cp ${SERVER_TEMPLATES_DIR}/pxf-site.xml ${BASE_DIR}/servers/default/pxf-site.xml
 		fi
 		sed -i -e "s|<value>true</value>|<value>false</value>|g" ${BASE_DIR}/servers/default/pxf-site.xml
 	elif [[ -z ${PROTOCOL} ]]; then
@@ -612,7 +613,7 @@ function configure_pxf_server() {
 		# pxf.service.user.name property value to use the PROXY_USER
 		# Only copy this file when testing against non-cloud
 		if [[ ! -f ${BASE_DIR}/servers/default/pxf-site.xml ]]; then
-			cp ${TEMPLATES_DIR}/templates/pxf-site.xml ${BASE_DIR}/servers/default/pxf-site.xml
+			cp ${SERVER_TEMPLATES_DIR}/pxf-site.xml ${BASE_DIR}/servers/default/pxf-site.xml
 			sed -i -e "s|</configuration>|<property><name>pxf.service.user.name</name><value>${PROXY_USER}</value></property></configuration>|g" ${BASE_DIR}/servers/default/pxf-site.xml
 		fi
 	fi
@@ -740,17 +741,17 @@ function configure_pxf_gs_server() {
 	echo "${GOOGLE_CREDENTIALS}" > "${GOOGLE_KEYFILE}"
 	chown gpadmin "${GOOGLE_KEYFILE}"
 	sed -e "s|YOUR_GOOGLE_STORAGE_KEYFILE|${GOOGLE_KEYFILE}|" \
-		${TEMPLATES_DIR}/templates/gs-site.xml >"${BASE_DIR}/servers/gs/gs-site.xml"
+		${SERVER_TEMPLATES_DIR}/gs-site.xml >"${BASE_DIR}/servers/gs/gs-site.xml"
 }
 
 function configure_pxf_s3_server() {
 	mkdir -p ${BASE_DIR}/servers/s3
 	sed -e "s|YOUR_AWS_ACCESS_KEY_ID|${ACCESS_KEY_ID}|" \
 		-e "s|YOUR_AWS_SECRET_ACCESS_KEY|${SECRET_ACCESS_KEY}|" \
-		${TEMPLATES_DIR}/templates/s3-site.xml >${BASE_DIR}/servers/s3/s3-site.xml
+		${SERVER_TEMPLATES_DIR}/s3-site.xml >${BASE_DIR}/servers/s3/s3-site.xml
 
 	mkdir -p ${BASE_DIR}/servers/s3-invalid
-	cp ${TEMPLATES_DIR}/templates/s3-site.xml ${BASE_DIR}/servers/s3-invalid/s3-site.xml
+	cp ${SERVER_TEMPLATES_DIR}/s3-site.xml ${BASE_DIR}/servers/s3-invalid/s3-site.xml
 	chown -R gpadmin:gpadmin "${BASE_DIR}/servers/s3" "${BASE_DIR}/servers/s3-invalid"
 }
 
@@ -759,7 +760,7 @@ function configure_pxf_minio_server() {
 	sed -e "s|YOUR_AWS_ACCESS_KEY_ID|${ACCESS_KEY_ID}|" \
 		-e "s|YOUR_AWS_SECRET_ACCESS_KEY|${SECRET_ACCESS_KEY}|" \
 		-e "s|YOUR_MINIO_URL|http://localhost:9000|" \
-		${TEMPLATES_DIR}/templates/minio-site.xml >${BASE_DIR}/servers/minio/minio-site.xml
+		${SERVER_TEMPLATES_DIR}/minio-site.xml >${BASE_DIR}/servers/minio/minio-site.xml
 }
 
 function configure_pxf_adl_server() {
@@ -767,14 +768,14 @@ function configure_pxf_adl_server() {
 	sed -e "s|YOUR_ADL_REFRESH_URL|${ADL_OAUTH2_REFRESH_URL}|g" \
 		-e "s|YOUR_ADL_CLIENT_ID|${ADL_OAUTH2_CLIENT_ID}|g" \
 		-e "s|YOUR_ADL_CREDENTIAL|${ADL_OAUTH2_CREDENTIAL}|g" \
-		"${TEMPLATES_DIR}/templates/adl-site.xml" >"${BASE_DIR}/servers/adl/adl-site.xml"
+		"${SERVER_TEMPLATES_DIR}/adl-site.xml" >"${BASE_DIR}/servers/adl/adl-site.xml"
 }
 
 function configure_pxf_wasbs_server() {
 	mkdir -p ${BASE_DIR}/servers/wasbs
 	sed -e "s|YOUR_AZURE_BLOB_STORAGE_ACCOUNT_NAME|${WASBS_ACCOUNT_NAME}|g" \
 		-e "s|YOUR_AZURE_BLOB_STORAGE_ACCOUNT_KEY|${WASBS_ACCOUNT_KEY}|g" \
-		"${TEMPLATES_DIR}/templates/wasbs-site.xml" >"${BASE_DIR}/servers/wasbs/wasbs-site.xml"
+		"${SERVER_TEMPLATES_DIR}/wasbs-site.xml" >"${BASE_DIR}/servers/wasbs/wasbs-site.xml"
 }
 
 function configure_pxf_default_server() {
@@ -793,7 +794,7 @@ function configure_pxf_default_server() {
 		cp -r ${BASE_DIR}/servers/default ${BASE_DIR}/servers/default-no-impersonation
 
 		if [[ ! -f ${BASE_DIR}/servers/default-no-impersonation/pxf-site.xml ]]; then
-			cp ${TEMPLATES_DIR}/templates/pxf-site.xml ${BASE_DIR}/servers/default-no-impersonation/pxf-site.xml
+			cp ${SERVER_TEMPLATES_DIR}/pxf-site.xml ${BASE_DIR}/servers/default-no-impersonation/pxf-site.xml
 		fi
 
 		sed -i \
