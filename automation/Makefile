@@ -37,7 +37,7 @@ ifeq "$(PROTOCOL)" "minio"
 endif
 
 PXF_BASE ?= $(PXF_HOME)
-SERVER_TEMPLATES_DIR=$(PXF_HOME)/templates/server
+SERVER_TEMPLATES_DIR=$(PXF_HOME)/templates/servers
 
 PXF_BASE_SERVERS=$(PXF_BASE)/servers
 

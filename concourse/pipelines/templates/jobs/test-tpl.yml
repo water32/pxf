@@ -79,9 +79,7 @@
 {% if x.feature == 'jdk11' %}
       RUN_JDK_VERSION: 11
 {% endif %}
-{% if x.test_os == 'ubuntu' %}
       PXF_BASE_DIR: /home/gpadmin/pxf
-{% endif %}
       USE_FDW: [[x.use_fdw]]
 {# --- include credential for external clouds --- #}
 {# S3 credentials are needed for all tests for CloudAccessTest #}

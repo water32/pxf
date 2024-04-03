@@ -591,12 +591,15 @@ function configure_pxf_server() {
 	# requires a login shell to source startup scripts (JAVA_HOME)
 	su --login gpadmin -c "${PXF_HOME}/bin/pxf register"
 
-	# prepare pxf
-	echo "Prepare PXF in $BASE_DIR"
-	su --login gpadmin -c "PXF_BASE=${BASE_DIR} pxf prepare"
-	export PXF_BASE=${BASE_DIR}
-	echo "export PXF_BASE=${BASE_DIR}" >> ~/.pxfrc
-	echo "export PXF_BASE=${BASE_DIR}" >> ~gpadmin/.bashrc
+	# prepare pxf if BASE_DIR is different from PXF_HOME
+	# TODO: have not resolved issues when use the PXF_HOME as the PXF_BASE
+	if [[ "$BASE_DIR" != "$PXF_HOME" ]]; then
+		echo "Prepare PXF in $BASE_DIR"
+		su --login gpadmin -c "PXF_BASE=${BASE_DIR} pxf prepare"
+		export PXF_BASE=${BASE_DIR}
+		echo "export PXF_BASE=${BASE_DIR}" >> ~/.pxfrc
+		echo "export PXF_BASE=${BASE_DIR}" >> ~gpadmin/.bashrc
+	fi
 
 	# update impersonation value based on CI parameter
 	if [[ ! ${IMPERSONATION} == true ]]; then
