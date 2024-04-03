@@ -22,7 +22,7 @@ else
 	SERVER_TEMPLATES_DIR="${PXF_HOME}/templates/servers"
 	# if PXF_BASE_DIR is not set, server templates will be copied
 	# from SERVER_TEMPLATES_DIR to ${PXF_HOME}/servers/default which does not exist
-	mkdir -p "${BASE_DIR}/servers/default"
+	mkdir -p "${PXF_HOME}/servers/default"
 fi
 
 if [[ -f ~/.pxfrc ]]; then
