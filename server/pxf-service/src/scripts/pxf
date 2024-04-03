@@ -176,10 +176,10 @@ function createPxfBaseDirectories() {
 
 # copies configuration files inside $PXF_BASE
 function copyConfigurationFilesToPxfBase() {
-    cp -Lv "${PXF_HOME}/conf/pxf-application.properties" "${PXF_BASE}/conf"
-    cp -Lv "${PXF_HOME}/conf/pxf-env.sh"                 "${PXF_BASE}/conf"
-    cp -Lv "${PXF_HOME}/conf/pxf-log4j2.xml"             "${PXF_BASE}/conf"
-    cp -Lv "${PXF_HOME}/conf/pxf-profiles.xml"           "${PXF_BASE}/conf"
+    cp -Lv "${PXF_HOME}/templates/conf/pxf-application.properties" "${PXF_BASE}/conf"
+    cp -Lv "${PXF_HOME}/templates/conf/pxf-env.sh"                 "${PXF_BASE}/conf"
+    cp -Lv "${PXF_HOME}/templates/conf/pxf-log4j2.xml"             "${PXF_BASE}/conf"
+    cp -Lv "${PXF_HOME}/templates/conf/pxf-profiles.xml"           "${PXF_BASE}/conf"
 }
 
 function validate_system() {

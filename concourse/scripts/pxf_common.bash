@@ -20,9 +20,6 @@ else
 	BASE_DIR=${PXF_BASE_DIR:-$PXF_HOME}
 	SHARE_DIR="${PXF_HOME}/share"
 	SERVER_TEMPLATES_DIR="${PXF_HOME}/templates/servers"
-	# if PXF_BASE_DIR is not set, server templates will be copied
-	# from SERVER_TEMPLATES_DIR to ${PXF_HOME}/servers/default which does not exist
-	mkdir -p "${PXF_HOME}/servers/default"
 fi
 
 if [[ -f ~/.pxfrc ]]; then
@@ -601,6 +598,10 @@ function configure_pxf_server() {
 		export PXF_BASE=${BASE_DIR}
 		echo "export PXF_BASE=${BASE_DIR}" >> ~/.pxfrc
 		echo "export PXF_BASE=${BASE_DIR}" >> ~gpadmin/.bashrc
+	else
+		# now BASE_DIR is PXF_HOME, which does not contain the following directories
+		mkdir -p "${BASE_DIR}/servers/default"
+		mkdir -p "${BASE_DIR}/conf"
 	fi
 
 	# update impersonation value based on CI parameter
