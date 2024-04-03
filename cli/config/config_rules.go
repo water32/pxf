@@ -9,7 +9,7 @@ import (
 )
 
 // pxfDeploymentNameNotEmpty
-// Deployment::name MUST NOT be null / empty.
+// PXF deployment name MUST NOT be empty
 func pxfDeploymentNameNotEmpty(p PxfDeployment) error {
 	if p.Name == "" {
 		return errors.New("the name of the deployment cannot be empty string")
@@ -19,7 +19,7 @@ func pxfDeploymentNameNotEmpty(p PxfDeployment) error {
 }
 
 // pxfDeploymentAtLeastOneCluster
-// There MUST be at least one Cluster
+// PXF deployment MUST have at least one cluster
 func pxfDeploymentAtLeastOneCluster(p PxfDeployment) error {
 	if len(p.Clusters) == 0 {
 		return fmt.Errorf("there should be at least one PXF cluster in the PXF deployment `%s`", p.Name)
@@ -29,7 +29,7 @@ func pxfDeploymentAtLeastOneCluster(p PxfDeployment) error {
 }
 
 // pxfDeploymentHostnameUnique
-// Host::hostname MUST be unique (a single host must belong to only one cluster)
+// PXF hosts MUST have unique hostnames (a single host must belong to only one PXF cluster)
 func pxfDeploymentHostnameUnique(p PxfDeployment) error {
 	hostnameMap := make(map[string]bool)
 	for _, cluster := range p.Clusters {
@@ -45,7 +45,7 @@ func pxfDeploymentHostnameUnique(p PxfDeployment) error {
 }
 
 // pxfDeploymentGroupNameUnique
-// ServiceGroup::name MUST be unique across all Clusters
+// PXF service group MUST have unique names across all PXF clusters
 func pxfDeploymentGroupNameUnique(p PxfDeployment) error {
 	groupNameMap := make(map[string]bool)
 	for _, cluster := range p.Clusters {
@@ -61,7 +61,7 @@ func pxfDeploymentGroupNameUnique(p PxfDeployment) error {
 }
 
 // pxfDeploymentNoMoreThanOneCollocated
-// There MUST be no more than one Cluster::collocated==true
+// There MUST be no more than one collocated PXF cluster
 func pxfDeploymentNoMoreThanOneCollocated(p PxfDeployment) error {
 	found := false
 	for _, cluster := range p.Clusters {
@@ -76,7 +76,8 @@ func pxfDeploymentNoMoreThanOneCollocated(p PxfDeployment) error {
 	return nil
 }
 
-// pxfClusterNameNotEmpty Cluster::name MUST NOT be null / empty.
+// pxfClusterNameNotEmpty
+// PXF cluster name MUST NOT be empty
 func pxfClusterNameNotEmpty(p PxfCluster) error {
 	if p.Name == "" {
 		return errors.New("the name of the PXF cluster cannot be empty string")
@@ -86,7 +87,8 @@ func pxfClusterNameNotEmpty(p PxfCluster) error {
 }
 
 // pxfClusterIgnoreHostsWhenCollocatedWarning
-// Cluster::collocated==true SHOULD NOT have a list of hosts, they WILL be ignored.
+// A collocated PXF cluster SHOULD NOT have a list of hosts, and they will be ignored
+// A warning will be generated
 func pxfClusterIgnoreHostsWhenCollocatedWarning(p PxfCluster) error {
 	if p.Collocated && len(p.Hosts) != 0 {
 		gplog.Warn("PXF host list of cluster `%s` will be ignored, "+
@@ -96,7 +98,8 @@ func pxfClusterIgnoreHostsWhenCollocatedWarning(p PxfCluster) error {
 }
 
 // pxfClusterIgnoreEndpointWhenCollocatedWarning
-// Cluster::collocated==true SHOULD NOT have a Cluster::endpoint, it WILL be ignored.
+// A collocated PXF cluster SHOULD NOT have an endpoint, and it will be ignored
+// A warning will be generated
 func pxfClusterIgnoreEndpointWhenCollocatedWarning(p PxfCluster) error {
 	if p.Collocated && p.Endpoint != "" {
 		gplog.Warn("PXF endpoint `%s` of cluster `%s` will be ignored, "+
@@ -106,7 +109,7 @@ func pxfClusterIgnoreEndpointWhenCollocatedWarning(p PxfCluster) error {
 }
 
 // pxfClusterEndpointOrHostsMustExistWhenExternal
-// Cluster::collocated==false AND Cluster::endpoint==NULL MUST have a non-empty list of hosts.
+// An external cluster MUST have either a non-empty list of hosts or an endpoint or both
 func pxfClusterEndpointOrHostsMustExistWhenExternal(p PxfCluster) error {
 	if !p.Collocated && p.Endpoint == "" && len(p.Hosts) == 0 {
 		return fmt.Errorf("the host list and endpoint cannot be both empty for the external PXF cluster `%s`",
@@ -116,7 +119,7 @@ func pxfClusterEndpointOrHostsMustExistWhenExternal(p PxfCluster) error {
 }
 
 // pxfClusterValidEndpoint
-// Cluster::endpoint != NULL MUST have a value of a valid IPv4 or compliant syntax.
+// A non-empty endpoint of a PXF cluster MUST have a value of either a valid IPv4 address or FQDN
 func pxfClusterValidEndpoint(p PxfCluster) error {
 	if p.Endpoint != "" && !IsValidAddress(p.Endpoint) {
 		return fmt.Errorf("the endpoint `%s` of the PXF cluster `%s` is not a valid IPv4 address "+
@@ -126,7 +129,7 @@ func pxfClusterValidEndpoint(p PxfCluster) error {
 }
 
 // pxfClusterAtLeastOneServiceGroup
-// There MUST be at least one ServiceGroup per Cluster
+// A PXF cluster MUST have at least one PXF service group
 func pxfClusterAtLeastOneServiceGroup(p PxfCluster) error {
 	if len(p.Groups) == 0 {
 		return fmt.Errorf("there should be at least one service group in PXF cluster `%s`", p.Name)
@@ -135,7 +138,7 @@ func pxfClusterAtLeastOneServiceGroup(p PxfCluster) error {
 }
 
 // pxfServiceGroupNameNotEmpty
-// ServiceGroup::name MUST NOT be null / empty.
+// PXF service group name MUST NOT be empty
 func pxfServiceGroupNameNotEmpty(p PxfServiceGroup) error {
 	if p.Name == "" {
 		return errors.New("the name of the service group cannot be empty string")
@@ -145,7 +148,7 @@ func pxfServiceGroupNameNotEmpty(p PxfServiceGroup) error {
 }
 
 // pxfServiceGroupAtLeastOnePort
-// ServiceGroup::ports MUST be a non-empty array with at least 1 element
+// PXF service group MUST have more than one port
 func pxfServiceGroupAtLeastOnePort(p PxfServiceGroup) error {
 	if len(p.Ports) == 0 {
 		return fmt.Errorf("there should be at least one port in PXF service group `%s`", p.Name)
@@ -154,7 +157,7 @@ func pxfServiceGroupAtLeastOnePort(p PxfServiceGroup) error {
 }
 
 // pxfServiceGroupValidPorts
-// ServiceGroup::ports elements MUST be an integer value between 1-65535
+// PXF service group MUST have ports which are integers between 1-65535
 func pxfServiceGroupValidPorts(p PxfServiceGroup) error {
 	MinPortNumber := 1
 	MaxPortNumber := 65535
@@ -168,7 +171,7 @@ func pxfServiceGroupValidPorts(p PxfServiceGroup) error {
 }
 
 // pxfServiceGroupPortsWarning
-// ServiceGroup::ports elements SHOULD be larger than 1023 and smaller than 32768
+// PXF service group SHOULD have ports which are integers between 1023 and 32768
 // (between privileged and ephemeral ranges)
 func pxfServiceGroupPortsWarning(p PxfServiceGroup) error {
 	MinPortNumber := 1024
@@ -184,7 +187,7 @@ func pxfServiceGroupPortsWarning(p PxfServiceGroup) error {
 }
 
 // pxfHostValidHostname
-// Host::hostname MUST have a value with either IPv4 or FQDN compliant syntax.
+// A PXF host MUST have a hostname which is either a valid IPv4 address or FQDN
 func pxfHostValidHostname(p PxfHost) error {
 	if p.Hostname != "" && !IsValidAddress(p.Hostname) {
 		return fmt.Errorf("the hostname `%s` is not a valid IPv4 address "+
@@ -194,7 +197,7 @@ func pxfHostValidHostname(p PxfHost) error {
 }
 
 // IsValidAddress
-// A utility function to check if it is a valid IPv4 or FQDN address.
+// A utility function to check if it is a valid IPv4 address or FQDN
 func IsValidAddress(address string) bool {
 	// Check if it is a parsable IPv4 address
 	if parsedIP := net.ParseIP(address); parsedIP != nil && parsedIP.To4() != nil {
