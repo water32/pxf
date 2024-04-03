@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"github.com/greenplum-db/gp-common-go-libs/gplog"
 	"net"
 	"regexp"
 )
@@ -84,21 +85,21 @@ func pxfClusterNameNotEmpty(p PxfCluster) error {
 	}
 }
 
-// pxfClusterIgnoreHostsWhenCollocated
+// pxfClusterIgnoreHostsWhenCollocatedWarning
 // Cluster::collocated==true SHOULD NOT have a list of hosts, they WILL be ignored.
-func pxfClusterIgnoreHostsWhenCollocated(p PxfCluster) error {
+func pxfClusterIgnoreHostsWhenCollocatedWarning(p PxfCluster) error {
 	if p.Collocated && len(p.Hosts) != 0 {
-		fmt.Printf("[Warning] PXF host list of cluster `%s` will be ignored, "+
+		gplog.Warn("PXF host list of cluster `%s` will be ignored, "+
 			"because cluster `%s` is marked as collocated", p.Name, p.Name)
 	}
 	return nil
 }
 
-// pxfClusterIgnoreEndpointWhenCollocated
+// pxfClusterIgnoreEndpointWhenCollocatedWarning
 // Cluster::collocated==true SHOULD NOT have a Cluster::endpoint, it WILL be ignored.
-func pxfClusterIgnoreEndpointWhenCollocated(p PxfCluster) error {
+func pxfClusterIgnoreEndpointWhenCollocatedWarning(p PxfCluster) error {
 	if p.Collocated && p.Endpoint != "" {
-		fmt.Printf("[Warning] PXF endpoint `%s` of cluster `%s` will be ignored, "+
+		gplog.Warn("PXF endpoint `%s` of cluster `%s` will be ignored, "+
 			"because cluster `%s` is marked as collocated", p.Endpoint, p.Name, p.Name)
 	}
 	return nil
@@ -117,7 +118,7 @@ func pxfClusterEndpointOrHostsMustExistWhenExternal(p PxfCluster) error {
 // pxfClusterValidEndpoint
 // Cluster::endpoint != NULL MUST have a value of a valid IPv4, IPv6 of FQDN compliant syntax.
 func pxfClusterValidEndpoint(p PxfCluster) error {
-	if !IsValidAddress(p.Endpoint) {
+	if p.Endpoint != "" && !IsValidAddress(p.Endpoint) {
 		return fmt.Errorf("the endpoint `%s` of the PXF cluster `%s` is not a valid IPv4 address "+
 			"or FQDN", p.Endpoint, p.Name)
 	}
@@ -174,7 +175,7 @@ func pxfServiceGroupPortsWarning(p PxfServiceGroup) error {
 	MaxPortNumber := 32767
 	for _, port := range p.Ports {
 		if port < MinPortNumber || port > MaxPortNumber {
-			fmt.Printf("[Warning] recommend using port numbers bewteen `%d` - `%d`, "+
+			gplog.Warn("recommend using port numbers between `%d` - `%d`, "+
 				"rather than `%d` under the service group `%s`", MinPortNumber, MaxPortNumber, port, p.Name,
 			)
 		}
@@ -185,7 +186,7 @@ func pxfServiceGroupPortsWarning(p PxfServiceGroup) error {
 // pxfHostValidHostname
 // Host::hostname MUST have a value with either IPv4, IPv6 of FQDN compliant syntax.
 func pxfHostValidHostname(p PxfHost) error {
-	if !IsValidAddress(p.Hostname) {
+	if p.Hostname != "" && !IsValidAddress(p.Hostname) {
 		return fmt.Errorf("the hostname `%s` is not a valid IPv4 address "+
 			"or FQDN", p.Hostname)
 	}

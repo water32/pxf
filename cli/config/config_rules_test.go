@@ -1,10 +1,13 @@
 package config_test
 
 import (
+	"bytes"
 	"errors"
+	"github.com/greenplum-db/gp-common-go-libs/gplog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"pxf-cli/config"
+	"regexp"
 )
 
 var _ = Describe("validate host address", func() {
@@ -54,8 +57,18 @@ var _ = Describe("validate host address", func() {
 })
 
 var _ = Describe("PXF config validation rules", func() {
-	var pxfDeployment config.PxfDeployment
+	var (
+		pxfDeployment config.PxfDeployment
+		fakeStdout    *bytes.Buffer
+		fakeStderr    *bytes.Buffer
+		fakeLogFile   *bytes.Buffer
+	)
 	BeforeEach(func() {
+		fakeStdout = &bytes.Buffer{}
+		fakeStderr = &bytes.Buffer{}
+		fakeLogFile = &bytes.Buffer{}
+		gplog.SetLogger(gplog.NewLogger(fakeStdout, fakeStderr, fakeLogFile,
+			"test-log-file", gplog.LOGINFO, "test-program"))
 		pxfDeployment = config.PxfDeployment{
 			Name: "test-deployment",
 			Clusters: map[string]*config.PxfCluster{
@@ -186,8 +199,67 @@ var _ = Describe("PXF config validation rules", func() {
 			Expect(err).To(Equal(errors.New("the name of the PXF cluster cannot be empty string")))
 		})
 	})
-	// TODO: pxfClusterIgnoreHostsWhenCollocated - How to test the UI output
-	// TODO: pxfClusterIgnoreEndpointWhenCollocated - How to test the UI output
+	Context("host list will be ignored if cluster is collocated", func() {
+		It("prints a warning if host list is provided while cluster is collocated", func() {
+			pxfDeployment.Clusters["test-cluster-1"].Collocated = true
+			pxfDeployment.Clusters["test-cluster-1"].Endpoint = ""
+			pxfDeployment.Clusters["test-cluster-1"].Hosts = []*config.PxfHost{
+				{Hostname: "host1.test.com"},
+				{Hostname: "host2.test.com"},
+			}
+
+			err := pxfDeployment.Validate()
+
+			Expect(err).ToNot(HaveOccurred())
+
+			warningRegex := regexp.QuoteMeta("PXF host list of cluster `test-cluster-1` will be ignored, " +
+				"because cluster `test-cluster-1` is marked as collocated")
+			Expect(fakeStdout.String()).To(MatchRegexp(warningRegex))
+			Expect(fakeLogFile.String()).To(MatchRegexp(warningRegex))
+			Expect(fakeStderr.String()).To(Equal(""))
+		})
+	})
+	Context("endpoint will be ignored if cluster is collocated", func() {
+		It("prints a warning if endpoint is provided while cluster is collocated", func() {
+			pxfDeployment.Clusters["test-cluster-1"].Collocated = true
+			pxfDeployment.Clusters["test-cluster-1"].Endpoint = "endpoint.test.com"
+			pxfDeployment.Clusters["test-cluster-1"].Hosts = []*config.PxfHost{}
+
+			err := pxfDeployment.Validate()
+
+			Expect(err).ToNot(HaveOccurred())
+
+			warningRegex := regexp.QuoteMeta("PXF endpoint `endpoint.test.com` of cluster " +
+				"`test-cluster-1` will be ignored, because cluster `test-cluster-1` is marked as collocated")
+			Expect(fakeStdout.String()).To(MatchRegexp(warningRegex))
+			Expect(fakeLogFile.String()).To(MatchRegexp(warningRegex))
+			Expect(fakeStderr.String()).To(Equal(""))
+		})
+	})
+	Context("endpoint and hosts will be both ignored if cluster is collocated", func() {
+		It("prints both warnings if both endpoint and hosts are provided while cluster is collocated", func() {
+			pxfDeployment.Clusters["test-cluster-1"].Collocated = true
+			pxfDeployment.Clusters["test-cluster-1"].Endpoint = "endpoint.test.com"
+			pxfDeployment.Clusters["test-cluster-1"].Hosts = []*config.PxfHost{
+				{Hostname: "host1.test.com"},
+				{Hostname: "host2.test.com"},
+			}
+
+			err := pxfDeployment.Validate()
+
+			Expect(err).ToNot(HaveOccurred())
+
+			warningRegex1 := regexp.QuoteMeta("PXF endpoint `endpoint.test.com` of cluster " +
+				"`test-cluster-1` will be ignored, because cluster `test-cluster-1` is marked as collocated")
+			warningRegex2 := regexp.QuoteMeta("PXF host list of cluster `test-cluster-1` will be ignored, " +
+				"because cluster `test-cluster-1` is marked as collocated")
+			Expect(fakeStdout.String()).To(MatchRegexp(warningRegex1))
+			Expect(fakeStdout.String()).To(MatchRegexp(warningRegex2))
+			Expect(fakeLogFile.String()).To(MatchRegexp(warningRegex1))
+			Expect(fakeLogFile.String()).To(MatchRegexp(warningRegex2))
+			Expect(fakeStderr.String()).To(Equal(""))
+		})
+	})
 	Context("external cluster must have either hosts or endpoint specified", func() {
 		It("returns an error if both host list and endpoint are empty while collocated is false", func() {
 			pxfDeployment.Clusters["test-cluster-1"].Collocated = false
@@ -239,7 +311,7 @@ var _ = Describe("PXF config validation rules", func() {
 			err := pxfDeployment.Validate()
 
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(Equal(errors.New("there should be at least one port in PXF service group `test-group-1`\"")))
+			Expect(err).To(Equal(errors.New("there should be at least one port in PXF service group `test-group-1`")))
 		})
 	})
 	Context("service group must have valid ports", func() {
@@ -252,7 +324,29 @@ var _ = Describe("PXF config validation rules", func() {
 			Expect(err).To(Equal(errors.New("invalid port number `0` under service group `test-group-1`, a port number must be between `1` - `65535`")))
 		})
 	})
-	// TODO: pxfServiceGroupPortsWarning - How to handle the warning message
+	Context("service group ports should be within the recommended range", func() {
+		It("prints a warning if any port is out of the recommended range", func() {
+			pxfDeployment.Clusters["test-cluster-1"].Groups["test-group-1"].Ports = []int{1000, 30000, 33333}
+
+			err := pxfDeployment.Validate()
+
+			Expect(err).ToNot(HaveOccurred())
+
+			warningRegex1 := regexp.QuoteMeta("recommend using port numbers between `1024` - `32767`, " +
+				"rather than `1000` under the service group `test-group-1`")
+			warningRegex2 := regexp.QuoteMeta("recommend using port numbers between `1024` - `32767`, " +
+				"rather than `33333` under the service group `test-group-1`")
+			shouldNotWarningRegex := regexp.QuoteMeta("recommend using port numbers between `1024` - `32767`, " +
+				"rather than `30000` under the service group `test-group-1`")
+			Expect(fakeStdout.String()).To(MatchRegexp(warningRegex1))
+			Expect(fakeStdout.String()).To(MatchRegexp(warningRegex2))
+			Expect(fakeStdout.String()).ToNot(MatchRegexp(shouldNotWarningRegex))
+			Expect(fakeLogFile.String()).To(MatchRegexp(warningRegex1))
+			Expect(fakeLogFile.String()).To(MatchRegexp(warningRegex2))
+			Expect(fakeLogFile.String()).ToNot(MatchRegexp(shouldNotWarningRegex))
+			Expect(fakeStderr.String()).To(Equal(""))
+		})
+	})
 	Context("hosts must all have valid IPv4 address or FQDN as hostnames", func() {
 		It("returns an error if any host address is invalid", func() {
 			pxfDeployment.Clusters["test-cluster-1"].Hosts = []*config.PxfHost{
