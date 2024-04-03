@@ -30,7 +30,7 @@
 1. Run unit tests with Focused
 
    By default, ginkgo runs all the unit tests in the current path.
-   To run some specific unit tests, you can prepend an `F` to the `Describe` or `Context` to mark them as _Focused_, then run the tests:
+   To run specific unit tests, you can prepend an `F` to the `Describe` or `Context` to mark them as _Focused_, then run the tests:
    ```
    cd cmd
    ginkgo
@@ -41,7 +41,7 @@
 
    ```sh
    # GP7_CLI=true brings in a standalone cli test test-pxf-gp7-cli-rocky8
-   # MULTINODE_NO_IMPERSONATION=true brings in an embeded cli test in test-pxf-gp6-ext-hdp2-secure-multi-no-impers-centos7
+   # MULTINODE_NO_IMPERSONATION=true brings in an embedded cli test in test-pxf-gp6-ext-hdp2-secure-multi-no-impers-centos7
    GP7_CLI=true MULTINODE_NO_IMPERSONATION=true make -C ~/workspace/pxf/concourse dev
    ```
 
@@ -55,7 +55,7 @@ Because it's hard to mock out a Greenplum cluster, it's useful to debug on a rea
    go install github.com/go-delve/delve/cmd/dlv@latest
    ```
 
-1. Optionally create a file with a list of commands, this could be useful to save you from re-running commands. You can actually run them with the `source` command in the `dlv` REPL:
+1. Optionally create a file `debug_command.txt` with a list of commands, this could be useful to save you from re-running commands. You can actually run them with the `source` command in the `dlv` REPL:
 
    ```
    config max-string-len 1000
@@ -108,7 +108,8 @@ both Greenplum multi-node cluster and PXF have been set up. Use `fly i` command 
 
 ## IDE Setup (GoLand)
 * Start GoLand. Click "Open" and select the cli folder inside the pxf repo.
-* Open preferences/settings and set under GO > GOPATH, set Project GOPATH to ~/workspace/pxf/cli/go or the equivalent.
-* Open preferences/settings and set under GO > GOROOT, set GOROOT to be the go version in the `go.mod`.
-* Under GO > GO Modules, select the enable button and leave the environment field empty.
+* Open Preferences/Settings and set the following:
+  * Under GO > GOPATH, set Project GOPATH to ~/workspace/pxf/cli/go or the equivalent.
+  * Under GO > GOROOT, set GOROOT to be the go version in the `go.mod`.
+  * Under GO > GO Modules, select the enable button and leave the environment field empty.
 * Check that it worked by running a test file (ex: go test pxf-cli/cmd)
