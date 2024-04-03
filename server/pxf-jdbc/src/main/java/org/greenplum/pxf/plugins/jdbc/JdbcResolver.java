@@ -44,7 +44,7 @@ import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.time.format.SignStyle;
 import java.time.temporal.ChronoField;
-import java.time.temporal.TemporalAccessor;
+import java.time.temporal.Temporal;
 import java.util.EnumSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -63,7 +63,7 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
     /**
      * LOCAL_DATE_FORMATTER is used to translate between String and LocalDate.
      * Examples: "1977-12-11" <-> 1977-12-11
-     *           "456789-12-11" <-> +456789-12-11
+     *           "456789-12-11" <-> 456789-12-11
      *           "0010-12-11 BC" <-> -0009-12-11
      */
     private static final DateTimeFormatter LOCAL_DATE_FORMATTER = (new DateTimeFormatterBuilder())
@@ -81,8 +81,8 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
      */
     private static final DateTimeFormatter LOCAL_DATE_TIME_FORMATTER = (new DateTimeFormatterBuilder())
             .appendValue(ChronoField.YEAR_OF_ERA, 4, 9, SignStyle.NORMAL).appendLiteral('-')
-            .appendValue(ChronoField.MONTH_OF_YEAR, 2, 2, SignStyle.NORMAL).appendLiteral('-')
-            .appendValue(ChronoField.DAY_OF_MONTH, 2, 2, SignStyle.NORMAL).appendLiteral(" ")
+            .appendValue(ChronoField.MONTH_OF_YEAR, 2).appendLiteral('-')
+            .appendValue(ChronoField.DAY_OF_MONTH, 2).appendLiteral(' ')
             .append(ISO_LOCAL_TIME)
             .optionalStart().appendPattern(DATE_TIME_FORMATTER_SPECIFIER).optionalEnd()
             .toFormatter();
@@ -95,8 +95,8 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
      */
     private static final DateTimeFormatter OFFSET_DATE_TIME_FORMATTER = (new DateTimeFormatterBuilder())
             .appendValue(ChronoField.YEAR_OF_ERA, 4, 9, SignStyle.NORMAL).appendLiteral('-')
-            .appendValue(ChronoField.MONTH_OF_YEAR, 2, 2, SignStyle.NORMAL).appendLiteral('-')
-            .appendValue(ChronoField.DAY_OF_MONTH, 2, 2, SignStyle.NORMAL).appendLiteral(" ")
+            .appendValue(ChronoField.MONTH_OF_YEAR, 2).appendLiteral('-')
+            .appendValue(ChronoField.DAY_OF_MONTH, 2).appendLiteral(' ')
             .append(ISO_LOCAL_TIME)
             .appendOffset("+HH:mm", "Z")
             .optionalStart().appendPattern(DATE_TIME_FORMATTER_SPECIFIER).optionalEnd()
@@ -120,8 +120,11 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
 
     private static final Logger LOG = LoggerFactory.getLogger(JdbcResolver.class);
 
-    private boolean logDebugForDateWideRange = false;
+    private boolean logWarnForDateWideRange = false;
     private static final String dateWideRangeWarnMsg = "Please consider turning on DateWideRange for better performance.";
+    private final String dateWideRangelogMsg = isDateWideRange 
+            ? "Date Wide Range formatter failed, try with the default formatter"
+            : "The default formatter failed, try with the Date Wide Range formatter";
 
     /**
      * Creates a new instance of the JdbcResolver
@@ -148,7 +151,7 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
      */
     @Override
     public List<OneField> getFields(OneRow row) throws SQLException {
-        logDebugForDateWideRange = false;
+        logWarnForDateWideRange = false;
         ResultSet result = (ResultSet) row.getData();
         LinkedList<OneField> fields = new LinkedList<>();
 
@@ -201,9 +204,7 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
                         LocalDate localDate = result.getObject(colName, LocalDate.class);
                         value = formatDateTimeValues(localDate, LOCAL_DATE_FORMATTER, GreenplumDateTime.DATE_FORMATTER);
                     } else {
-                        LocalDate localDate = result.getDate(colName) == null
-                                ? null
-                                : result.getDate(colName).toLocalDate();
+                        LocalDate localDate = result.getDate(colName) == null ? null : result.getDate(colName).toLocalDate();
                         value = formatDateTimeValues(localDate, GreenplumDateTime.DATE_FORMATTER, LOCAL_DATE_FORMATTER);
                     }
                     break;
@@ -212,9 +213,7 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
                         LocalDateTime localDateTime = result.getObject(colName, LocalDateTime.class);
                         value = formatDateTimeValues(localDateTime, LOCAL_DATE_TIME_FORMATTER, GreenplumDateTime.DATETIME_FORMATTER);
                     } else {
-                        LocalDateTime localDateTime = result.getTimestamp(colName) == null
-                                ? null
-                                : result.getTimestamp(colName).toLocalDateTime();
+                        LocalDateTime localDateTime = result.getTimestamp(colName) == null ? null : result.getTimestamp(colName).toLocalDateTime();
                         value = formatDateTimeValues(localDateTime, GreenplumDateTime.DATETIME_FORMATTER, LOCAL_DATE_TIME_FORMATTER);
                     }
                     break;
@@ -240,7 +239,7 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
             oneField.val = result.wasNull() ? null : value;
         }
 
-        if (logDebugForDateWideRange) {
+        if (logWarnForDateWideRange) {
             LOG.warn(dateWideRangeWarnMsg);
         }
 
@@ -259,7 +258,7 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
      */
     @Override
     public OneRow setFields(List<OneField> record) throws UnsupportedOperationException {
-        logDebugForDateWideRange = false;
+        logWarnForDateWideRange = false;
         int columnIndex = 0;
 
         for (OneField oneField : record) {
@@ -355,7 +354,7 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
             }
         }
 
-        if (logDebugForDateWideRange) {
+        if (logWarnForDateWideRange) {
             LOG.warn(dateWideRangeWarnMsg);
         }
 
@@ -455,15 +454,14 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
     }
 
     /**
-     * Formats a java.time.* datetime value using two formatters in a order depending on if DateWideRange is on.
-     * If DateWideRange is off but the value successfully parses with the DateWideRange formatter, log a warning
-     * to turn on the DateWideRange.
+     * Formats a java.time.Temporal value using two formatters in order and logs a warning if the first formatter fails.
      *
-     * @param datetime
-     * @param formatterOne
-     * @param formatterTwo
+     * @param datetime a LocalDate, LocalDateTime, or OffsetDateTime to convert to a String
+     * @param formatterOne first formatter
+     * @param formatterTwo second formatter
+     * @return the formatted String from Temporal object
      */
-    private String formatDateTimeValues(TemporalAccessor datetime, DateTimeFormatter formatterOne, DateTimeFormatter formatterTwo) throws DateTimeParseException {
+    private String formatDateTimeValues(Temporal datetime, DateTimeFormatter formatterOne, DateTimeFormatter formatterTwo) throws DateTimeParseException {
         if (datetime == null) {
             return null;
         }
@@ -472,48 +470,74 @@ public class JdbcResolver extends JdbcBasePlugin implements Resolver {
         try {
             value = formatterOne.format(datetime);
             if (value.charAt(0) == '+') {
+                // When non-DateWideRange formatter is used first and the number of digits in the YEAR is greater than 4,
+                // it will add an unwanted '+' to the start of the string which causes an error.
                 throw new DateTimeParseException("year was too long", value, 0);
             }
         } catch (DateTimeParseException e) {
+            LOG.info(dateWideRangelogMsg);
             value = formatterTwo.format(datetime);
-            LOG.trace("First formatter failed, used second formatter");
-            logDebugForDateWideRange = true;
+            logWarnForDateWideRange = true;
         }
         return value;
     }
 
-    private OffsetDateTime parseOffsetDateTime(String rawVal, DateTimeFormatter formatterOne, DateTimeFormatter formatterTwo) {
-        OffsetDateTime value;
-        try {
-            value = OffsetDateTime.parse(rawVal, formatterOne);
-        } catch (DateTimeParseException e) {
-            value = OffsetDateTime.parse(rawVal, formatterTwo);
-            LOG.trace("First formatter failed, used second formatter");
-            logDebugForDateWideRange = true;
-        }
-        return value;
-    }
-
+    /**
+     * Parses a String to LocalDate using two formatters in order and logs a warning if first formatter fails.
+     *
+     * @param rawVal String to parse into LocalDate
+     * @param formatterOne first formatter
+     * @param formatterTwo second formatter
+     * @return the LocalDate created from String
+     */
     private LocalDate parseLocalDate(String rawVal, DateTimeFormatter formatterOne, DateTimeFormatter formatterTwo) {
         LocalDate value;
         try {
             value = LocalDate.parse(rawVal, formatterOne);
         } catch (DateTimeParseException e) {
+            LOG.info(dateWideRangelogMsg);
             value = LocalDate.parse(rawVal, formatterTwo);
-            LOG.trace("First formatter failed, used second formatter");
-            logDebugForDateWideRange = true;
+            logWarnForDateWideRange = true;
         }
         return value;
     }
 
+    /**
+     * Parses a String to LocalDateTime using two formatters in order and logs a warning if first formatter fails.
+     *
+     * @param rawVal String to parse into LocalDateTime
+     * @param formatterOne first formatter
+     * @param formatterTwo second formatter
+     * @return the LocalDateTime created from String
+     */
     private LocalDateTime parseLocalDateTime(String rawVal, DateTimeFormatter formatterOne, DateTimeFormatter formatterTwo) {
         LocalDateTime value;
         try {
             value = LocalDateTime.parse(rawVal, formatterOne);
         } catch (DateTimeParseException e) {
+            LOG.info(dateWideRangelogMsg);
             value = LocalDateTime.parse(rawVal, formatterTwo);
-            LOG.trace("First formatter failed, used second formatter");
-            logDebugForDateWideRange = true;
+            logWarnForDateWideRange = true;
+        }
+        return value;
+    }
+
+    /**
+     * Parses a String to OffsetDateTime using two formatters in order and logs a warning if first formatter fails.
+     *
+     * @param rawVal String to parse into OffsetDateTime
+     * @param formatterOne first formatter
+     * @param formatterTwo second formatter
+     * @return the OffsetDateTime created from String
+     */
+    private OffsetDateTime parseOffsetDateTime(String rawVal, DateTimeFormatter formatterOne, DateTimeFormatter formatterTwo) {
+        OffsetDateTime value;
+        try {
+            value = OffsetDateTime.parse(rawVal, formatterOne);
+        } catch (DateTimeParseException e) {
+            LOG.info(dateWideRangelogMsg);
+            value = OffsetDateTime.parse(rawVal, formatterTwo);
+            logWarnForDateWideRange = true;
         }
         return value;
     }
