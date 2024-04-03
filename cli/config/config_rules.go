@@ -116,7 +116,7 @@ func pxfClusterEndpointOrHostsMustExistWhenExternal(p PxfCluster) error {
 }
 
 // pxfClusterValidEndpoint
-// Cluster::endpoint != NULL MUST have a value of a valid IPv4, IPv6 of FQDN compliant syntax.
+// Cluster::endpoint != NULL MUST have a value of a valid IPv4 or compliant syntax.
 func pxfClusterValidEndpoint(p PxfCluster) error {
 	if p.Endpoint != "" && !IsValidAddress(p.Endpoint) {
 		return fmt.Errorf("the endpoint `%s` of the PXF cluster `%s` is not a valid IPv4 address "+
@@ -184,7 +184,7 @@ func pxfServiceGroupPortsWarning(p PxfServiceGroup) error {
 }
 
 // pxfHostValidHostname
-// Host::hostname MUST have a value with either IPv4, IPv6 of FQDN compliant syntax.
+// Host::hostname MUST have a value with either IPv4 or FQDN compliant syntax.
 func pxfHostValidHostname(p PxfHost) error {
 	if p.Hostname != "" && !IsValidAddress(p.Hostname) {
 		return fmt.Errorf("the hostname `%s` is not a valid IPv4 address "+
