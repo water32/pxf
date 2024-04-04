@@ -75,6 +75,8 @@ function create_pxf_installer_scripts() {
 
 		GPHOME=${GPHOME}
 		PXF_HOME=${PXF_HOME}
+		SERVER_TEMPLATES_DIR=${PXF_HOME}/templates/servers
+
 		if [[ ${PXF_VERSION} == 5 ]]; then
 		  PXF_CONF=${BASE_DIR}
 		else
@@ -93,7 +95,7 @@ function create_pxf_installer_scripts() {
 		    else
 		      echo 'Impersonation is disabled, updating pxf-site.xml property'
 		      if [[ ! -f \${PXF_BASE}/servers/default/pxf-site.xml ]]; then
-		        cp \${PXF_HOME}/templates/pxf-site.xml \${PXF_BASE}/servers/default/pxf-site.xml
+		        cp \${SERVER_TEMPLATES_DIR}/pxf-site.xml \${PXF_BASE}/servers/default/pxf-site.xml
 		      fi
 		      sed -i -e "s|<value>true</value>|<value>false</value>|g" \${PXF_BASE}/servers/default/pxf-site.xml
 		    fi
@@ -137,7 +139,7 @@ function create_pxf_installer_scripts() {
 		      ${GP_SCP_CMD} -f ~gpadmin/hostfile_all -v -r -u gpadmin ~/dataproc_env_files/pxf.service.keytab =:/home/gpadmin/pxf/keytabs/
 		    else
 		      if [[ ! -f \${PXF_BASE}/servers/default/pxf-site.xml ]]; then
-		        cp \${PXF_HOME}/templates/pxf-site.xml \${PXF_BASE}/servers/default/pxf-site.xml
+		        cp \${SERVER_TEMPLATES_DIR}/pxf-site.xml \${PXF_BASE}/servers/default/pxf-site.xml
 		      fi
 
 		      sed -i -e "s|gpadmin/_HOST@EXAMPLE.COM|gpadmin@${REALM}|g" ${BASE_DIR}/servers/default/pxf-site.xml
@@ -170,9 +172,9 @@ function create_pxf_installer_scripts() {
 		    if [[ -d ~/dataproc_env_files/conf ]]; then
 		      cp ~/dataproc_env_files/conf/*-site.xml "\$PXF_BASE/servers/default"
 		      # required for recursive directories tests
-		      cp "\$PXF_HOME/templates/mapred-site.xml" "\$PXF_BASE/servers/default/mapred1-site.xml"
+		      cp "\${SERVER_TEMPLATES_DIR}/mapred-site.xml" "\$PXF_BASE/servers/default/mapred1-site.xml"
 		    else
-		      cp \$PXF_HOME/templates/{hdfs,mapred,yarn,core,hbase,hive,pxf}-site.xml "\$PXF_BASE/servers/default"
+		      cp \${SERVER_TEMPLATES_DIR}/{hdfs,mapred,yarn,core,hbase,hive,pxf}-site.xml "\$PXF_BASE/servers/default"
 		      sed -i -e 's/\(0.0.0.0\|localhost\|127.0.0.1\)/${HADOOP_IP}/g' \$PXF_BASE/servers/default/*-site.xml
 		      sed -i -e 's|\${user.name}|${PROXY_USER}|g' \$PXF_BASE/servers/default/pxf-site.xml
 		    fi

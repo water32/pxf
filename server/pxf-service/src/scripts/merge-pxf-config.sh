@@ -12,6 +12,8 @@
 : "${PXF_BASE:?PXF_BASE must be set}"
 : "${PXF_HOME:?PXF_HOME must be set}"
 
+SERVER_TEMPLATES_DIR="${PXF_HOME}/templates/servers"
+
 # ANSI Colors
 echoRed() { echo $'\e[0;31m'"$1"$'\e[0m'; }
 echoGreen() { echo $'\e[0;32m'"$1"$'\e[0m'; }
@@ -83,7 +85,7 @@ function addToDefaultPxfSite() {
 
     if [[ ! -f ${PXF_BASE}/servers/default/pxf-site.xml ]]; then
         echoGreen " - Creating pxf-site.xml in ${PXF_BASE}/servers/default/"
-        cp "${PXF_HOME}/templates/pxf-site.xml" "${PXF_BASE}/servers/default/pxf-site.xml"
+        cp "${SERVER_TEMPLATES_DIR}/pxf-site.xml" "${PXF_BASE}/servers/default/pxf-site.xml"
     fi
 
     existingValue=$(sed -ne "/<name>${propertyName}<\/name>/{n;s/.*<value>\(.*\)<\/value>.*/\1/p;q;}" "${PXF_BASE}/servers/default/pxf-site.xml")

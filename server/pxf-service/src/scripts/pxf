@@ -39,6 +39,9 @@ cd "$WORKING_DIR" || exit 1
 # establish PXF_HOME and global vars used by all commands
 export PXF_HOME=${parent_script_dir}
 
+# path to PXF conf templates
+export CONF_TEMPLATES_DIR="${PXF_HOME}/templates/conf"
+
 # Path to PXF_BASE directories, defaults to PXF_HOME
 export PXF_BASE=${PXF_BASE:=$PXF_HOME}
 
@@ -176,10 +179,10 @@ function createPxfBaseDirectories() {
 
 # copies configuration files inside $PXF_BASE
 function copyConfigurationFilesToPxfBase() {
-    cp -Lv "${PXF_HOME}/templates/conf/pxf-application.properties" "${PXF_BASE}/conf"
-    cp -Lv "${PXF_HOME}/templates/conf/pxf-env.sh"                 "${PXF_BASE}/conf"
-    cp -Lv "${PXF_HOME}/templates/conf/pxf-log4j2.xml"             "${PXF_BASE}/conf"
-    cp -Lv "${PXF_HOME}/templates/conf/pxf-profiles.xml"           "${PXF_BASE}/conf"
+    cp -Lv "${CONF_TEMPLATES_DIR}/pxf-application.properties" "${PXF_BASE}/conf"
+    cp -Lv "${CONF_TEMPLATES_DIR}/conf/pxf-env.sh"                 "${PXF_BASE}/conf"
+    cp -Lv "${CONF_TEMPLATES_DIR}/conf/pxf-log4j2.xml"             "${PXF_BASE}/conf"
+    cp -Lv "${CONF_TEMPLATES_DIR}/conf/pxf-profiles.xml"           "${PXF_BASE}/conf"
 }
 
 function validate_system() {

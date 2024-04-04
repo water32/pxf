@@ -22,7 +22,7 @@ params:
   HADOOP_CLIENT: HDP
   IMPERSONATION: true
   PGPORT: 5432
-  PXF_BASE_DIR: /home/gpadmin/pxf
+  PXF_BASE_DIR:
   SECRET_ACCESS_KEY:
   TEST_ENV:
   TEST_OS:

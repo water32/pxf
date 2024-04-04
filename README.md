@@ -172,7 +172,7 @@ export JAVA_HOME=`/usr/libexec/java_home -v 1.8`
 
 Initialize the default server configurations:
 ```
-cp ${PXF_HOME}/templates/*-site.xml ${PXF_BASE}/servers/default
+cp ${PXF_HOME}/templates/servers/*-site.xml ${PXF_BASE}/servers/default
 ```
 
 # Development With Docker
@@ -295,7 +295,7 @@ All tests use a database named `pxfautomation`.
 pushd ~/workspace/pxf/automation
 
 # Initialize default server configs using template
-cp ${PXF_HOME}/templates/{hdfs,mapred,yarn,core,hbase,hive}-site.xml ${PXF_BASE}/servers/default
+cp ${PXF_HOME}/templates/servers/{hdfs,mapred,yarn,core,hbase,hive}-site.xml ${PXF_BASE}/servers/default
 
 # Run specific tests. Example: Hdfs Smoke Test
 make TEST=HdfsSmokeTest

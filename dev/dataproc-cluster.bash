@@ -16,6 +16,7 @@ NETWORK="${NETWORK:-default}"
 # https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-version-clusters
 IMAGE_VERSION="${IMAGE_VERSION:-2.0-debian10}"
 KERBERIZED="${KERBERIZED:-false}"
+SERVER_TEMPLATES_DIR="${PXF_HOME}/templates/servers"
 
 function check_pre_requisites() {
     if ! type gcloud &>/dev/null; then
@@ -155,7 +156,7 @@ function create_dataproc_env_files() {
         --subnode '/configuration/property[last()]' --type elem -n name -v "dfs.client.use.datanode.hostname" \
         --subnode '/configuration/property[last()]' --type elem -n value -v "true" dataproc_env_files/conf/hdfs-site.xml
 
-    cp "${PXF_HOME}/templates/pxf-site.xml" dataproc_env_files/conf
+    cp "${SERVER_TEMPLATES_DIR}/pxf-site.xml" dataproc_env_files/conf
     # set impersonation property to false for the PXF server
     xmlstarlet ed --inplace --pf --update "/configuration/property[name = 'pxf.service.user.impersonation']/value" -v false dataproc_env_files/conf/pxf-site.xml
 
