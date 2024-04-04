@@ -36,7 +36,7 @@ ifeq "$(PROTOCOL)" "minio"
 	PROTOCOL=s3
 endif
 
-PXF_BASE = /home/gpadmin/pxf
+PXF_BASE ?= $(PXF_HOME)
 SERVER_TEMPLATES_DIR="$(PXF_HOME)/templates/servers"
 
 PXF_BASE_SERVERS=$(PXF_BASE)/servers
