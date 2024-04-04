@@ -1,4 +1,4 @@
-cluster.name=__CLUSTER_NAME__
-cluster.collocated=__CLUSTER_COLLOCATED__
-group.default.ports=5888
+cluster.name=foobar_cluster
+cluster.collocated=true
+group.default.ports=5888,5999
 group.default.ssl=false
