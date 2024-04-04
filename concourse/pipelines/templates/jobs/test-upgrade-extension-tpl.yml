@@ -38,6 +38,7 @@
       GROUP: pxfExtensionVersion2
       SECOND_GROUP: pxfExtensionVersion2_1
       SECRET_ACCESS_KEY: ((tf-machine-secret-access-key))
+      PXF_BASE_DIR: /home/gpadmin/pxf
 {% if gchat_notification %}
   <<: *gchat_alert
 {% endif %}

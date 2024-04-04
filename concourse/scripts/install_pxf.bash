@@ -174,7 +174,7 @@ function create_pxf_installer_scripts() {
 		      # required for recursive directories tests
 		      cp "\${SERVER_TEMPLATES_DIR}/mapred-site.xml" "\$PXF_BASE/servers/default/mapred1-site.xml"
 		    else
-		      cp \${SERVER_TEMPLATES_DIR}/{hdfs,mapred,yarn,core,hbase,hive,pxf}-site.xml "\$PXF_BASE/servers/default"
+		      cp \${SERVER_TEMPLATES_DIR}/{hdfs,mapred,yarn,core,hbase,hive,pxf}-site.xml "\$PXF_BASE/servers/default/"
 		      sed -i -e 's/\(0.0.0.0\|localhost\|127.0.0.1\)/${HADOOP_IP}/g' \$PXF_BASE/servers/default/*-site.xml
 		      sed -i -e 's|\${user.name}|${PROXY_USER}|g' \$PXF_BASE/servers/default/pxf-site.xml
 		    fi
