@@ -192,6 +192,7 @@
       GP_VER: [[x.gp_ver]]
       KERBEROS: ((kerberos-enabled))
       PXF_JVM_OPTS: ((pxf-jvm-opts))
+      PXF_BASE_DIR: /home/gpadmin/pxf
 {% if x.use_impers == 'true' %}
       PXF_BASE_DIR: /home/gpadmin/pxf-boot
 {% endif %}
