@@ -19,15 +19,15 @@ var _ = Describe("validate host address", func() {
 
 		Entry("invalid empty string", "", false),
 
-		Entry("invalid IPv4 address with missing octet", "192.168.1.", false),
-		Entry("invalid IPv4 address with one octet", "192", false),
-		Entry("invalid IPv4 address with octet out of range", "256.2.2.2", false),
+		Entry("invalid IPv4 address with a missing octet", "192.168.1.", false),
+		Entry("invalid IPv4 address with only one octet", "192", false),
+		Entry("invalid IPv4 address with a out-of-range octet", "256.2.2.2", false),
 		Entry("invalid IPv4 address with too many octets", "256.2.2.2.1", false),
 
 		Entry("IPv6 address is not allowed even it is valid", "2001:0db8:85a3:0000:0000:8a2e:0370:7334", false),
 		Entry("IPv6 address with consecutive zeros is not allowed even it is valid", "2001::8a2e:0370:7334", false),
 
-		Entry("invalid IPv6 address with missing hextet", "2001:0db8:85a3:0000:0000:8a2e:0370:", false),
+		Entry("invalid IPv6 address with a missing hextet", "2001:0db8:85a3:0000:0000:8a2e:0370:", false),
 		Entry("invalid IPv6 address with too many hextets", "2001:0db8:85a3:0000:0000:8a2e:0370:7334:1111", false),
 
 		Entry("valid simple FQDN with 2 groups", "test123.com", true),
@@ -42,17 +42,17 @@ var _ = Describe("validate host address", func() {
 		Entry("valid FQDN with upper case", "wwW.Test.com", true),
 
 		Entry("invalid FQDN with only hostname", "test", false),
-		Entry("invalid FQDN with trailing space", "test.com ", false),
+		Entry("invalid FQDN with a trailing space", "test.com ", false),
 		Entry("invalid FQDN with 2 dots", "test.test..com", false),
 		Entry("invalid FQDN with TLD length shorter than 1", "test.test.test.c", false),
-		Entry("invalid FQDN separated by comma", "test,com", false),
-		Entry("invalid FQDN without TLD", "test.", false),
-		Entry("invalid FQDN with invalid TLD", "www.test.123", false),
-		Entry("invalid FQDN with extra dot", "www.test.com.", false),
-		Entry("invalid FQDN separated by space", "test com", false),
+		Entry("invalid FQDN separated by a comma", "test,com", false),
+		Entry("invalid FQDN without a TLD", "test.", false),
+		Entry("invalid FQDN with an invalid TLD", "www.test.123", false),
+		Entry("invalid FQDN with an extra dot", "www.test.com.", false),
+		Entry("invalid FQDN separated by a space", "test com", false),
 		Entry("invalid FQDN with @", "abc@test.com", false),
-		Entry("invalid FQDN with space in hostname", "abc test.com", false),
-		Entry("invalid FQDN with underscore in hostname", "abc_test.com", false),
+		Entry("invalid FQDN with a space in hostname", "abc test.com", false),
+		Entry("invalid FQDN with an underscore in hostname", "abc_test.com", false),
 	)
 })
 
