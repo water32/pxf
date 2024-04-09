@@ -5,7 +5,7 @@
 {% import "macros/macros.j2" as macros %}
 
 {# define test features (single-cluster test jobs) that can be requested by the Makefile via context variables #}
-{% set requested_features = {'s3': s3, 'gs': gs, 'adl': adl, 'wasbs': wasbs, 'minio': minio, 'hdp2': hdp2, 'hdp3': hdp3, 'cdh': cdh, 'jdk11': jdk11, 'load': load} %}
+{% set requested_features = {'s3': s3, 'gs': gs, 'abfss': abfss, 'wasbs': wasbs, 'minio': minio, 'hdp2': hdp2, 'hdp3': hdp3, 'cdh': cdh, 'jdk11': jdk11, 'load': load} %}
 {# define common test features (single-cluster test jobs) that are all requestable features other than load testing #}
 {% set common_features = requested_features.keys() | list | reject('eq','load') %}
 
@@ -45,7 +45,7 @@
 
 
 {# define supported clouds that have their own 'protocols' #}
-{% set clouds = ['s3', 'gs', 'adl', 'wasbs', 'minio'] %}
+{% set clouds = ['s3', 'gs', 'abfss', 'wasbs', 'minio'] %}
 
 {# define distros we use for singlecluster setup #}
 {% set distros = ['hdp2', 'hdp3', 'cdh'] %}

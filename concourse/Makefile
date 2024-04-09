@@ -35,7 +35,7 @@ CDH                         ?= false
 HDP2                        ?= false
 HDP3                        ?= false
 S3                          ?= false
-ADL                         ?= false
+ABFSS                       ?= false
 WASBS                       ?= false
 GS                          ?= false
 MINIO                       ?= false
@@ -137,7 +137,7 @@ set-dev-build-pipeline:
 		hdp3=$(HDP3) \
 		file=$(FILE) \
 		s3=$(S3) \
-		adl=$(ADL) \
+		abfss=$(ABFSS) \
 		wasbs=$(WASBS) \
 		gs=$(GS) \
 		minio=$(MINIO) \
