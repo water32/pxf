@@ -164,8 +164,8 @@ resources:
 ## ---------- Google Chat Notification ----------
 {% if gchat_notification %}
     {% if environment == 'prod' %}
-        [[macros.resource_gchat_notification('gchat-alert', 'gchat-gp-extended-federation-ci-webhook')]]
-        [[macros.resource_gchat_notification('notify-releng', 'gchat-gp-extended-ci-webhook')]]
+        [[macros.resource_gchat_notification('gchat-alert', 'gchat-gp-federation-ci-webhook')]]
+        [[macros.resource_gchat_notification('notify-releng', 'gchat-gp-releng-ci-webhook')]]
     {% else %}
         [[macros.resource_gchat_notification('gchat-alert', 'gchat-' ~ user ~ '-ci-webhook')]]
         [[macros.resource_gchat_notification('notify-releng', 'gchat-' ~ user ~ '-ci-webhook')]]

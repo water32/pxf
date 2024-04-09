@@ -76,7 +76,7 @@ resources:
 {% endcall %}
 
 {% if gchat_notification %}
-    [[macros.resource_gchat_notification('gchat-alert', 'gchat-gp-extended-federation-ci-webhook')]]
+    [[macros.resource_gchat_notification('gchat-alert', 'gchat-gp-federation-ci-webhook')]]
 {% endif %}
 
 ## ======================================================================

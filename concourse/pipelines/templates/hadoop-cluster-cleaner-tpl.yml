@@ -16,7 +16,7 @@ resources:
     [[macros.resource_github_repo('ccp')]]
     [[macros.resource_github_repo('pxf')]]
 
-    [[macros.resource_gchat_notification('gchat-alert', 'gchat-gp-extended-federation-ci-webhook')]]
+    [[macros.resource_gchat_notification('gchat-alert', 'gchat-gp-federation-ci-webhook')]]
 
 jobs:
 - name: hadoop-cluster-cleaner
