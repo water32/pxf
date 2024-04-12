@@ -19,10 +19,11 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.text.ParseException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TimeZone;
@@ -61,14 +62,6 @@ class JdbcResolverTest {
     }
 
     @Test
-    void getFieldDateWithWideRangeTest() throws SQLException {
-        isDateWideRange = true;
-        LocalDate localDate = LocalDate.of(1977, 12, 11);
-        OneField oneField = getOneField(localDate, DataType.DATE.getOID(), "date");
-        assertEquals("1977-12-11 AD", oneField.val);
-    }
-
-    @Test
     void getFieldDateWithoutWideRangeTest() throws SQLException {
         isDateWideRange = false;
         Date date = Date.valueOf("1977-12-11");
@@ -89,6 +82,7 @@ class JdbcResolverTest {
         isDateWideRange = true;
         LocalDate localDate = LocalDate.of(3, 5, 4);
         OneField oneField = getOneField(localDate, DataType.DATE.getOID(), "date");
+        assertTrue(oneField.val instanceof String);
         assertEquals("0003-05-04 AD", oneField.val);
     }
 
@@ -97,6 +91,7 @@ class JdbcResolverTest {
         isDateWideRange = true;
         LocalDate localDate = LocalDate.of(+12345678, 12, 11);
         OneField oneField = getOneField(localDate, DataType.DATE.getOID(), "date");
+        assertTrue(oneField.val instanceof String);
         assertEquals("12345678-12-11 AD", oneField.val);
     }
 
@@ -106,6 +101,7 @@ class JdbcResolverTest {
         LocalDate localDate = LocalDate.of(-1234567, 6, 1);
         OneField oneField = getOneField(localDate, DataType.DATE.getOID(), "date");
         // The year -1234567 is transferred to 1234568 BC: https://en.wikipedia.org/wiki/Astronomical_year_numbering
+        assertTrue(oneField.val instanceof String);
         assertEquals("1234568-06-01 BC", oneField.val);
     }
 
@@ -115,15 +111,8 @@ class JdbcResolverTest {
         LocalDate localDate = LocalDate.of(-1234, 6, 1);
         OneField oneField = getOneField(localDate, DataType.DATE.getOID(), "date");
         // The year -1234 is transferred to 1235 BC: https://en.wikipedia.org/wiki/Astronomical_year_numbering
+        assertTrue(oneField.val instanceof String);
         assertEquals("1235-06-01 BC", oneField.val);
-    }
-
-    @Test
-    void getFieldDateTimeWithWideRangeTest() throws SQLException {
-        isDateWideRange = true;
-        LocalDateTime localDateTime = LocalDateTime.parse("1977-12-11T11:15:30.1234");
-        OneField oneField = getOneField(localDateTime, DataType.TIMESTAMP.getOID(), "timestamp");
-        assertEquals("1977-12-11 11:15:30.1234 AD", oneField.val);
     }
 
     @Test
@@ -136,7 +125,16 @@ class JdbcResolverTest {
     }
 
     @Test
-    void getFieldDateNullTimeWithWideRangeTest() throws SQLException {
+    void getFieldDateTimeWithWideRangeTest() throws SQLException {
+        isDateWideRange = true;
+        LocalDateTime localDateTime = LocalDateTime.parse("1977-12-11T11:15:30.1234");
+        OneField oneField = getOneField(localDateTime, DataType.TIMESTAMP.getOID(), "timestamp");
+        assertTrue(oneField.val instanceof String);
+        assertEquals("1977-12-11 11:15:30.1234 AD", oneField.val);
+    }
+
+    @Test
+    void getFieldDateTimeNullWithWideRangeTest() throws SQLException {
         isDateWideRange = true;
         OneField oneField = getOneField(null, DataType.TIMESTAMP.getOID(), "timestamp");
         assertNull(oneField.val);
@@ -147,6 +145,7 @@ class JdbcResolverTest {
         isDateWideRange = true;
         LocalDateTime localDateTime = LocalDateTime.parse("0003-01-02T04:05:06.0000015");
         OneField oneField = getOneField(localDateTime, DataType.TIMESTAMP.getOID(), "timestamp");
+        assertTrue(oneField.val instanceof String);
         assertEquals("0003-01-02 04:05:06.0000015 AD", oneField.val);
     }
 
@@ -155,6 +154,7 @@ class JdbcResolverTest {
         isDateWideRange = true;
         LocalDateTime localDateTime = LocalDateTime.parse("+9876543-12-11T11:15:30.1234");
         OneField oneField = getOneField(localDateTime, DataType.TIMESTAMP.getOID(), "timestamp");
+        assertTrue(oneField.val instanceof String);
         assertEquals("9876543-12-11 11:15:30.1234 AD", oneField.val);
     }
 
@@ -163,8 +163,26 @@ class JdbcResolverTest {
         isDateWideRange = true;
         LocalDateTime localDateTime = LocalDateTime.parse("-3456-12-11T11:15:30");
         OneField oneField = getOneField(localDateTime, DataType.TIMESTAMP.getOID(), "timestamp");
+        assertTrue(oneField.val instanceof String);
         // The year -3456 is transferred to 3457 BC: https://en.wikipedia.org/wiki/Astronomical_year_numbering
         assertEquals("3457-12-11 11:15:30 BC", oneField.val);
+    }
+
+    @Test
+    void getFieldOffsetDateTimeTest() throws SQLException {
+        isDateWideRange = false;
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+        OffsetDateTime offsetDateTime = OffsetDateTime.parse("1977-12-11T10:15:30.1234+05:00");
+        OneField oneField = getOneField(offsetDateTime, DataType.TIMESTAMP_WITH_TIME_ZONE.getOID(), "timestamptz");
+        assertTrue(oneField.val instanceof String);
+        assertEquals("1977-12-11 10:15:30.1234+05", oneField.val);
+    }
+
+    @Test
+    void getFieldOffsetDateTimeNull() throws SQLException {
+        isDateWideRange = false;
+        OneField oneField = getOneField(null, DataType.TIMESTAMP_WITH_TIME_ZONE.getOID(), "timestamptz");
+        assertNull(oneField.val);
     }
 
     @Test
@@ -173,7 +191,8 @@ class JdbcResolverTest {
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
         OffsetDateTime offsetDateTime = OffsetDateTime.parse("1977-12-11T10:15:30.1234+05:00");
         OneField oneField = getOneField(offsetDateTime, DataType.TIMESTAMP_WITH_TIME_ZONE.getOID(), "timestamptz");
-        assertEquals("1977-12-11 10:15:30.1234+05:00 AD", oneField.val);
+        assertTrue(oneField.val instanceof String);
+        assertEquals("1977-12-11 10:15:30.1234+05 AD", oneField.val);
     }
 
     @Test
@@ -184,12 +203,23 @@ class JdbcResolverTest {
     }
 
     @Test
+    void getFieldOffsetDateTimeWithLeadingZeroTest() throws SQLException {
+        isDateWideRange = false;
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+        OffsetDateTime offsetDateTime = OffsetDateTime.parse("0003-01-02T04:05:06.000001+03:00");
+        OneField oneField = getOneField(offsetDateTime, DataType.TIMESTAMP_WITH_TIME_ZONE.getOID(), "timestamptz");
+        assertTrue(oneField.val instanceof String);
+        assertEquals("0003-01-02 04:05:06.000001+03", oneField.val);
+    }
+
+    @Test
     void getFieldOffsetDateTimeWithWideRangeWithLeadingZeroTest() throws SQLException {
         isDateWideRange = true;
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
         OffsetDateTime offsetDateTime = OffsetDateTime.parse("0003-01-02T04:05:06.0000015+03:00");
         OneField oneField = getOneField(offsetDateTime, DataType.TIMESTAMP_WITH_TIME_ZONE.getOID(), "timestamptz");
-        assertEquals("0003-01-02 04:05:06.0000015+03:00 AD", oneField.val);
+        assertTrue(oneField.val instanceof String);
+        assertEquals("0003-01-02 04:05:06.0000015+03 AD", oneField.val);
     }
 
     @Test
@@ -198,7 +228,8 @@ class JdbcResolverTest {
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
         OffsetDateTime offsetDateTime = OffsetDateTime.parse("+9876543-12-11T11:15:30.1234-03:00");
         OneField oneField = getOneField(offsetDateTime, DataType.TIMESTAMP_WITH_TIME_ZONE.getOID(), "timestamptz");
-        assertEquals("9876543-12-11 11:15:30.1234-03:00 AD", oneField.val);
+        assertTrue(oneField.val instanceof String);
+        assertEquals("9876543-12-11 11:15:30.1234-03 AD", oneField.val);
     }
 
     @Test
@@ -207,8 +238,29 @@ class JdbcResolverTest {
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
         OffsetDateTime offsetDateTime = OffsetDateTime.parse("-3456-12-11T11:15:30+02:00");
         OneField oneField = getOneField(offsetDateTime, DataType.TIMESTAMP_WITH_TIME_ZONE.getOID(), "timestamptz");
+        assertTrue(oneField.val instanceof String);
         // The year -3456 is transferred to 3457 BC: https://en.wikipedia.org/wiki/Astronomical_year_numbering
-        assertEquals("3457-12-11 11:15:30+02:00 BC", oneField.val);
+        assertEquals("3457-12-11 11:15:30+02 BC", oneField.val);
+    }
+
+    @Test
+    void getFieldOffsetDateTime() throws SQLException {
+        isDateWideRange = false;
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+        OffsetDateTime offsetDateTime = OffsetDateTime.parse("1234-11-22T11:15:30+02:00");
+        OneField oneField = getOneField(offsetDateTime, DataType.TIMESTAMP_WITH_TIME_ZONE.getOID(), "timestamptz");
+        assertTrue(oneField.val instanceof String);
+        assertEquals("1234-11-22 11:15:30+02", oneField.val);
+    }
+
+    @Test
+    void getFieldOffsetDateTimeWithHalfHourOffset() throws SQLException {
+        isDateWideRange = false;
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+        OffsetDateTime offsetDateTime = OffsetDateTime.parse("1234-11-22T11:15:30+02:30");
+        OneField oneField = getOneField(offsetDateTime, DataType.TIMESTAMP_WITH_TIME_ZONE.getOID(), "timestamptz");
+        assertTrue(oneField.val instanceof String);
+        assertEquals("1234-11-22 11:15:30+02:30", oneField.val);
     }
 
     @Test
@@ -228,7 +280,7 @@ class JdbcResolverTest {
     }
 
     @Test
-    void setFieldDateWithWideRangeTest() throws ParseException {
+    void setFieldDateWithWideRangeTest() {
         isDateWideRange = true;
         LocalDate expectedLocalDate = LocalDate.of(1977, 12, 11);
         String date = "1977-12-11";
@@ -238,17 +290,17 @@ class JdbcResolverTest {
     }
 
     @Test
-    void setFieldDateWithoutWideRangeTest() throws ParseException {
+    void setFieldDateWithoutWideRangeTest() {
         isDateWideRange = false;
         String date = "1977-12-11";
-        Date expectedDate = Date.valueOf(date);
+        LocalDate expectedLocalDate = LocalDate.of(1977, 12, 11);
         OneField oneField = setFields(date, DataType.DATE.getOID(), "date");
-        assertTrue(oneField.val instanceof Date);
-        assertEquals(expectedDate, oneField.val);
+        assertTrue(oneField.val instanceof LocalDate);
+        assertEquals(expectedLocalDate, oneField.val);
     }
 
     @Test
-    void setFieldDateWithWideRangeWithLeadingZeroTest() throws ParseException {
+    void setFieldDateWithWideRangeWithLeadingZeroTest() {
         isDateWideRange = true;
         LocalDate expectedLocalDate = LocalDate.of(3, 5, 4);
         String date = "0003-05-04";
@@ -258,24 +310,31 @@ class JdbcResolverTest {
     }
 
     @Test
-    void setFieldDateWithoutWideRangeWithLeadingZeroTest() throws ParseException {
+    void setFieldDateWithoutWideRangeWithLeadingZeroTest() {
         isDateWideRange = false;
-        String date = "0003-5-4";
-        Date expectedDate = Date.valueOf(date);
+        String date = "0003-05-04";
+        LocalDate expectedLocalDate = LocalDate.of(3, 5, 4);
         OneField oneField = setFields(date, DataType.DATE.getOID(), "date");
-        assertTrue(oneField.val instanceof Date);
-        assertEquals(expectedDate, oneField.val);
+        assertTrue(oneField.val instanceof LocalDate);
+        assertEquals(expectedLocalDate, oneField.val);
     }
 
     @Test
     void setFieldDateWithoutWideRangeWithoutLeadingZeroTest() {
         isDateWideRange = false;
         String date = "3-5-4";
-        assertThrows(IllegalArgumentException.class, () -> setFields(date, DataType.DATE.getOID(), "date"));
+        assertThrows(DateTimeParseException.class, () -> setFields(date, DataType.DATE.getOID(), "date"));
     }
 
     @Test
-    void setFieldDateWithMoreThan4digitsInYearTest() throws ParseException {
+    void setFieldDateWithWideRangeWithoutLeadingZeroTest() {
+        isDateWideRange = true;
+        String date = "3-5-4";
+        assertThrows(DateTimeParseException.class, () -> setFields(date, DataType.DATE.getOID(), "date"));
+    }
+
+    @Test
+    void setFieldDateWithMoreThan4digitsInYearTest() {
         isDateWideRange = true;
         LocalDate expectedLocalDate = LocalDate.of(+12345678, 12, 11);
         String date = "12345678-12-11";
@@ -285,14 +344,7 @@ class JdbcResolverTest {
     }
 
     @Test
-    void setFieldDateWithMoreThan4digitsInYearWithoutWideRangeTest() throws ParseException {
-        isDateWideRange = false;
-        String date = "12345678-12-11";
-        assertThrows(IllegalArgumentException.class, () -> setFields(date, DataType.DATE.getOID(), "date"));
-    }
-
-    @Test
-    void setFieldDateWithEraWithMoreThan4digitsInYearTest() throws ParseException {
+    void setFieldDateWithEraWithMoreThan4digitsInYearTest() {
         isDateWideRange = true;
         LocalDate expectedLocalDate = LocalDate.of(-1234567, 6, 1);
         String date = "1234568-06-01 BC";
@@ -302,7 +354,7 @@ class JdbcResolverTest {
     }
 
     @Test
-    void setFieldDateWithEraTest() throws ParseException {
+    void setFieldDateWithEraTest() {
         isDateWideRange = true;
         LocalDate expectedLocalDate = LocalDate.of(-1234, 11, 1);
         String date = "1235-11-01 BC";
@@ -314,12 +366,15 @@ class JdbcResolverTest {
     @Test
     void setFieldDateWithEraWithoutWideRangeTest() {
         isDateWideRange = false;
+        LocalDate expectedLocalDate = LocalDate.of(-1234, 11, 1);
         String date = "1235-11-01 BC";
-        assertThrows(IllegalArgumentException.class, () -> setFields(date, DataType.DATE.getOID(), "date"));
+        OneField oneField = setFields(date, DataType.DATE.getOID(), "date");
+        assertTrue(oneField.val instanceof LocalDate);
+        assertEquals(expectedLocalDate, oneField.val);
     }
 
     @Test
-    void setFieldDateTimeWithWideRangeTest() throws ParseException {
+    void setFieldDateTimeWithWideRangeTest() {
         isDateWideRange = true;
         LocalDateTime expectedLocalDateTime = LocalDateTime.of(1977, 12, 11, 15, 12, 11, 123456789);
         String timestamp = "1977-12-11 15:12:11.123456789";
@@ -329,17 +384,17 @@ class JdbcResolverTest {
     }
 
     @Test
-    void setFieldDateTimeWithoutWideRangeTest() throws ParseException {
+    void setFieldDateTimeWithoutWideRangeTest() {
         isDateWideRange = false;
         String timestamp = "1977-12-11 15:12:11.123456789";
-        Timestamp expectedDateTime = Timestamp.valueOf(timestamp);
+        LocalDateTime expectedDateTime = LocalDateTime.of(1977, 12, 11, 15, 12, 11, 123456789);
         OneField oneField = setFields(timestamp, DataType.TIMESTAMP.getOID(), "timestamp");
-        assertTrue(oneField.val instanceof Timestamp);
+        assertTrue(oneField.val instanceof LocalDateTime);
         assertEquals(expectedDateTime, oneField.val);
     }
 
     @Test
-    void setFieldDateTimeWithWideRangeWithLeadingZeroTest() throws ParseException {
+    void setFieldDateTimeWithWideRangeWithLeadingZeroTest() {
         isDateWideRange = true;
         LocalDateTime expectedLocalDateTime = LocalDateTime.of(3, 5, 4, 1, 2, 1);
         String timestamp = "0003-05-04 01:02:01";
@@ -349,17 +404,31 @@ class JdbcResolverTest {
     }
 
     @Test
-    void setFieldDateTimeWithoutWideRangeWithLeadingZeroTest() throws ParseException {
+    void setFieldDateTimeWithoutWideRangeWithLeadingZeroTest() {
         isDateWideRange = false;
-        String timestamp = "0003-05-04 01:02:01.23";
-        Timestamp expectedTimestamp = Timestamp.valueOf(timestamp);
+        LocalDateTime expectedLocalDateTime = LocalDateTime.of(3, 5, 4, 1, 2, 1);
+        String timestamp = "0003-05-04 01:02:01";
         OneField oneField = setFields(timestamp, DataType.TIMESTAMP.getOID(), "timestamp");
-        assertTrue(oneField.val instanceof Timestamp);
-        assertEquals(expectedTimestamp, oneField.val);
+        assertTrue(oneField.val instanceof LocalDateTime);
+        assertEquals(expectedLocalDateTime, oneField.val);
     }
 
     @Test
-    void setFieldDateTimeWithMoreThan4digitsInYearTest() throws ParseException {
+    void setFieldDateTimeWithoutWideRangeWithoutLeadingZeroTest() {
+        isDateWideRange = false;
+        String timestamp = "3-5-4 01:02:01";
+        assertThrows(DateTimeParseException.class, () -> setFields(timestamp, DataType.TIMESTAMP.getOID(), "timestamp"));
+    }
+
+    @Test
+    void setFieldDateTimeWithWideRangeWithoutLeadingZeroTest() {
+        isDateWideRange = true;
+        String timestamp = "3-5-4 01:02:01";
+        assertThrows(DateTimeParseException.class, () -> setFields(timestamp, DataType.TIMESTAMP.getOID(), "timestamp"));
+    }
+
+    @Test
+    void setFieldDateTimeWithWideRangeWithMoreThan4digitsInYearTest() {
         isDateWideRange = true;
         LocalDateTime expectedLocalDateTime = LocalDateTime.of(+12345678, 12, 11, 15, 35);
         String timestamp = "12345678-12-11 15:35 AD";
@@ -369,14 +438,17 @@ class JdbcResolverTest {
     }
 
     @Test
-    void setFieldDateTimeWithMoreThan4digitsInYearWithoutWideRangeTest() {
+    void setFieldDateTimeWithoutWideRangeWithMoreThan4digitsInYearTest() {
         isDateWideRange = false;
+        LocalDateTime expectedLocalDateTime = LocalDateTime.of(+12345678, 12, 11, 15, 35);
         String timestamp = "12345678-12-11 15:35 AD";
-        assertThrows(IllegalArgumentException.class, () -> setFields(timestamp, DataType.TIMESTAMP.getOID(), "timestamp"));
+        OneField oneField = setFields(timestamp, DataType.TIMESTAMP.getOID(), "timestamp");
+        assertTrue(oneField.val instanceof LocalDateTime);
+        assertEquals(expectedLocalDateTime, oneField.val);
     }
 
     @Test
-    void setFieldDateTimeWithEraWithMoreThan4digitsInYearTest() throws ParseException {
+    void setFieldDateTimeWithEraWithMoreThan4digitsInYearTest() {
         isDateWideRange = true;
         LocalDateTime expectedLocalDateTime = LocalDateTime.of(-1234567, 6, 1, 19, 56, 43, 12);
         String timestamp = "1234568-06-01 19:56:43.000000012 BC";
@@ -386,7 +458,17 @@ class JdbcResolverTest {
     }
 
     @Test
-    void setFieldDateTimeWithEraTest() throws ParseException {
+    void setFieldDateTimeWithEraWithMoreThan4digitsInYearWithDateWideRangeOffTest() {
+        isDateWideRange = false;
+        LocalDateTime expectedLocalDateTime = LocalDateTime.of(-1234567, 6, 1, 19, 56, 43, 12);
+        String timestamp = "1234568-06-01 19:56:43.000000012 BC";
+        OneField oneField = setFields(timestamp, DataType.TIMESTAMP.getOID(), "timestamp");
+        assertTrue(oneField.val instanceof LocalDateTime);
+        assertEquals(expectedLocalDateTime, oneField.val);
+    }
+
+    @Test
+    void setFieldDateTimeWithEraTest() {
         isDateWideRange = true;
         LocalDateTime expectedLocalDateTime = LocalDateTime.of(-1234, 11, 1, 16, 20);
         String timestamp = "1235-11-01 16:20 BC";
@@ -396,14 +478,72 @@ class JdbcResolverTest {
     }
 
     @Test
-    void setFieldDateTimeWithEraWithoutWideRangeTest() throws ParseException {
+    void setFieldDateTimeWithEraWithoutWideRangeTest() {
         isDateWideRange = false;
+        LocalDateTime expectedLocalDateTime = LocalDateTime.of(-1234, 11, 1, 16, 20);
         String timestamp = "1235-11-01 16:20 BC";
-        assertThrows(IllegalArgumentException.class, () -> setFields(timestamp, DataType.TIMESTAMP.getOID(), "timestamp"));
+        OneField oneField = setFields(timestamp, DataType.TIMESTAMP.getOID(), "timestamp");
+        assertTrue(oneField.val instanceof LocalDateTime);
+        assertEquals(expectedLocalDateTime, oneField.val);
     }
 
     @Test
-    void setFieldUUIDTest() throws ParseException {
+    void setFieldOffsetDateTimeWithoutWideRangeTest() {
+        isDateWideRange = false;
+        OffsetDateTime expectedOffsetDateTime = OffsetDateTime.of(1234, 1, 23, 11, 22, 33, 440000000, ZoneOffset.of("+12:34"));
+        String timestamptz = "1234-01-23 11:22:33.44+12:34";
+        OneField oneField = setFields(timestamptz, DataType.TIMESTAMP_WITH_TIME_ZONE.getOID(), "timestamptz");
+        assertTrue(oneField.val instanceof OffsetDateTime);
+        assertEquals(expectedOffsetDateTime, oneField.val);
+    }
+
+    @Test
+    void setFieldOffsetDateTimeWithWideRangeTest() {
+        isDateWideRange = true;
+        OffsetDateTime expectedOffsetDateTime = OffsetDateTime.of(12345, 1, 23, 11, 22, 33, 440000000, ZoneOffset.of("+12:34"));
+        String timestamptz = "12345-01-23 11:22:33.44+12:34";
+        OneField oneField = setFields(timestamptz, DataType.TIMESTAMP_WITH_TIME_ZONE.getOID(), "timestamptz");
+        assertTrue(oneField.val instanceof OffsetDateTime);
+        assertEquals(expectedOffsetDateTime, oneField.val);
+    }
+
+    @Test
+    void setFieldOffsetDateTimeWithMoreThan4digitsInYearWithoutWideRangeTest() {
+        isDateWideRange = false;
+        OffsetDateTime expectedOffsetDateTime = OffsetDateTime.of(12345, 1, 23, 11, 22, 33, 440000000, ZoneOffset.of("+12:34"));
+        String timestamptz = "12345-01-23 11:22:33.44+12:34";
+        OneField oneField = setFields(timestamptz, DataType.TIMESTAMP_WITH_TIME_ZONE.getOID(), "timestamptz");
+        assertTrue(oneField.val instanceof OffsetDateTime);
+        assertEquals(expectedOffsetDateTime, oneField.val);
+    }
+
+    @Test
+    void setFieldOffsetDateTimeWithEraWithoutWideRangeTest() {
+        isDateWideRange = false;
+        String timestamptz = "1234-01-23 11:22:33.44+12:34 BC";
+        OffsetDateTime expectedOffsetDateTime = OffsetDateTime.of(-1233, 1, 23, 11, 22, 33, 440000000, ZoneOffset.of("+12:34"));
+        OneField oneField = setFields(timestamptz, DataType.TIMESTAMP_WITH_TIME_ZONE.getOID(), "timestamptz");
+        assertTrue(oneField.val instanceof OffsetDateTime);
+        assertEquals(expectedOffsetDateTime, oneField.val);
+    }
+
+    @Test
+    void setFieldOffsetDateTimeWithoutWideRangeWithoutLeadingZeroTest() {
+        isDateWideRange = false;
+        String timestamptz = "4-1-3 11:22:33.44+12:34 BC";
+        assertThrows(DateTimeParseException.class, () -> setFields(timestamptz, DataType.TIMESTAMP_WITH_TIME_ZONE.getOID(), "timestamptz"));
+    }
+
+    @Test
+    void setFieldOffsetDateTimeWithWideRangeWithoutLeadingZeroTest() {
+        isDateWideRange = true;
+        String timestamptz = "4-1-3 11:22:33.44+12:34 BC";
+        assertThrows(DateTimeParseException.class, () -> setFields(timestamptz, DataType.TIMESTAMP_WITH_TIME_ZONE.getOID(), "timestamptz"));
+    }
+
+
+    @Test
+    void setFieldUUIDTest() {
         oneFieldList.add(new OneField(DataType.TEXT.getOID(), "decafbad-0000-0000-0000-000000000000"));
         columnDescriptors.add(new ColumnDescriptor("uuid_col", DataType.UUID.getOID(), 1, DataType.UUID.name(), null));
         context.setTupleDescription(columnDescriptors);
@@ -450,7 +590,7 @@ class JdbcResolverTest {
         return oneFields.get(0);
     }
 
-    private OneField setFields(String date, int dataTypeOid, String typeName) throws ParseException {
+    private OneField setFields(String date, int dataTypeOid, String typeName) {
         oneFieldList.add(new OneField(DataType.TEXT.getOID(), date));
         columnDescriptors.add(new ColumnDescriptor("birth_date", dataTypeOid, 0, typeName, null));
         context.setTupleDescription(columnDescriptors);
