@@ -40,13 +40,6 @@ do
 
     for image in "${IMAGE_NAMES[@]}"
     do
-      # we need to untag ${IMAGE_TAG} first if it already exists
-      # this returns an empty value if no tags are found
-      tag_exists=$(gcloud container images list-tags gcr.io/${GOOGLE_PROJECT_ID}/gpdb-pxf-dev/${image} --filter="tags : ${IMAGE_TAG}")
-      # if the call to gcloud returned values, make sure the tag is in the output
-      if [[ -n $tag_exists && tag_exists =~ ${IMAGE_TAG} ]]; then
-        gcloud container images untag --quiet "gcr.io/${GOOGLE_PROJECT_ID}/gpdb-pxf-dev/${image}:${IMAGE_TAG}" || true
-      fi
       # tag image with ${IMAGE_TAG}
       echo "Tagging gcr.io/${GOOGLE_PROJECT_ID}/gpdb-pxf-dev/${image}:${COMMIT_SHA} with ${IMAGE_TAG}"
       gcloud container images add-tag --quiet \

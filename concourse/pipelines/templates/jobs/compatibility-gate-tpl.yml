@@ -21,3 +21,11 @@
       passed: [[job_names.tarballs[tarball]]]
     {% endif %}
 {% endfor %}
+{% for image in job_names.images.keys() | list %}
+    - get: [[image]]
+    {% if job_names.images[image] | length == 0 %}
+      passed: ['testing-gate-for-pxf-gp']
+    {% else %}
+      passed: [[job_names.images[image]]]
+    {% endif %}
+{% endfor %}

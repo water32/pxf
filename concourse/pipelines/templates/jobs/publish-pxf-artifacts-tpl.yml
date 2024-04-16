@@ -58,6 +58,20 @@
       GP_VER: [[x.gp_ver]]
     {% endif %}
 {% endcall %}
+  - task: tag-release-repackaging-images
+    image: google-cloud-sdk-slim-image
+    params:
+      ENVIRONMENT: [[environment]]
+      GOOGLE_CREDENTIALS: ((ud/pxf/secrets/pxf-cloudbuild-service-account-key))
+    config:
+      inputs:
+      - name: pxf_src
+{% for image in pxf_release_repackage_images.values() | list %}
+      - name: [[image]]
+{% endfor %}
+      platform: linux
+      run:
+        path: pxf_src/concourse/scripts/tag_release_images.bash
   - task: generate-gchat-message
     image: google-cloud-sdk-slim-image
     file: pxf_src/concourse/tasks/generate_gchat_message.yml

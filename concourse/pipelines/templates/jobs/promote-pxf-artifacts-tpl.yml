@@ -19,6 +19,14 @@
     - get: [[tarball]]
       passed: [[job_names.tarballs[tarball]]]
 {% endfor %}
+{% for image in job_names.images.keys() | list %}
+    - get: [[image]]
+    {% if job_names.images[image] | length == 0 %}
+      passed: ['compatibility-gate-for-pxf-gp']
+    {% else %}
+      passed: [[job_names.images[image]]]
+    {% endif %}
+{% endfor %}
     - get: google-cloud-sdk-slim-image
   - task: [[x.job_name]]
     image: google-cloud-sdk-slim-image
@@ -41,6 +49,20 @@
       platform: linux
       run:
         path: pxf_src/concourse/scripts/promote_pxf_artifacts.bash
+  - task: tag-release-testing-images
+    image: google-cloud-sdk-slim-image
+    params:
+      ENVIRONMENT: [[environment]]
+      GOOGLE_CREDENTIALS: ((ud/pxf/secrets/pxf-cloudbuild-service-account-key))
+    config:
+      inputs:
+      - name: pxf_src
+{% for image in job_names.images.keys() | list %}
+      - name: [[image]]
+{% endfor %}
+      platform: linux
+      run:
+        path: pxf_src/concourse/scripts/tag_release_images.bash
 {% if gchat_notification %}
   <<: *gchat_alert
 {% endif %}

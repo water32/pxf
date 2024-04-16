@@ -18,6 +18,7 @@
       resource: [[x.pxf_tarball_resource_name]]
       passed: [compatibility-gate-for-pxf-gp]
     - get: [[x.test_image_resource_name]]
+      passed: [compatibility-gate-for-pxf-gp]
     - get: singlecluster
       resource: singlecluster-hdp2
 {# start at 1 because all previous testing was done using latest-0 #}
