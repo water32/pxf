@@ -38,8 +38,7 @@ do
   if [ -n "$STATUS" ]; then
     echo "Cloud build completed with ID ${STATUS}"
 
-    for image in "${IMAGE_NAMES[@]}"
-    do
+    for image in "${IMAGE_NAMES[@]}"; do
       # tag image with ${IMAGE_TAG}
       echo "Tagging gcr.io/${GOOGLE_PROJECT_ID}/gpdb-pxf-dev/${image}:${COMMIT_SHA} with ${IMAGE_TAG}"
       gcloud container images add-tag --quiet \

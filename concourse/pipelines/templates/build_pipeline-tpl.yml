@@ -153,7 +153,7 @@ resources:
 
 {% for build_platform in supported_build_platforms %}
     {% if build_platform != 'ubuntu18.04' %}
-    [[macros.resource_registry_image('rpmrebuild-' ~ build_platform ~ '-image', 'gcr.io/data-gpdb-ud/rpmrebuild-' ~ build_platform, 'latest')]]
+    [[macros.resource_registry_image('rpmrebuild-' ~ build_platform ~ '-image', 'gcr.io/data-gpdb-ud/rpmrebuild-' ~ build_platform, '((gpdb-pxf-dev-image-tag))')]]
     {% endif %}
 {% endfor %}
 

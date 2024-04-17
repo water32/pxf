@@ -45,6 +45,7 @@ GP7_CLI                     ?= false
 LOAD                        ?= false
 # used to quickly modify the docker image tag being pulled ONLY in the dev_build_pipeline
 PXF_DEV_IMAGE_TAG           ?= latest
+RELEASE_IMAGE_TAG           ?= latest
 
 SET_PIPELINE := set-pipeline
 ifeq ($(CHECK_CREDS), true)
@@ -68,12 +69,13 @@ set-release-pipeline:
 ifndef RELEASE_BRANCH
 	$(error RELEASE_BRANCH is not set, please set a release branch)
 else
+RELEASE_IMAGE_TAG = release-$(word 2, $(subst -, , $(RELEASE_BRANCH)))
 set-release-pipeline: SHIPIT_REGEX="$(RELEASE_BRANCH)/greenplum-pxf-(.*).txt"
 set-release-pipeline: NOTIFY=true
 set-release-pipeline: PIPELINE_NAME=$(BUILD_PIPELINE_NAME)-$(RELEASE_BRANCH)
 set-release-pipeline: ENVIRONMENT=prod
 set-release-pipeline: BUCKET_PREFIX=prod
-set-release-pipeline: IMAGE_TAG=latest
+set-release-pipeline: IMAGE_TAG=${RELEASE_IMAGE_TAG}
 set-release-pipeline: set-build-pipeline-base
 endif
 
