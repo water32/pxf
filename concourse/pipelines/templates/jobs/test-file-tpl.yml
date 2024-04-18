@@ -82,6 +82,7 @@
       PXF_JVM_OPTS: ((pxf-jvm-opts))
       SKIP_HADOOP_SETUP: true
   - task: [[x.job_name]]
+    timeout: 2h
     on_success:
       <<: *destroy_gpdb_cluster
     privileged: true
