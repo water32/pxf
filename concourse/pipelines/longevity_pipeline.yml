@@ -85,7 +85,7 @@ resources:
   type: gcs
   icon: google-drive
   source:
-    bucket: ((ud/pxf/common/pivnet-artifacts-bucket-name))
+    bucket: ((ud/pxf/common/gpdb-artifacts-bucket-name))
     json_key: ((ud/pxf/secrets/pxf-storage-service-account-key))
     regexp: latest-0_gpdb6/greenplum-db-(.*)-rhel7-x86_64.rpm
 

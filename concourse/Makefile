@@ -15,7 +15,7 @@ CERTIFICATION_PIPELINE_NAME ?= pxf-certification
 CLOUDBUILD_PIPELINE_NAME    ?= cloudbuild
 DEV_CLOUDBUILD_PIPELINE_NAME ?= dev-cloudbuild-$(USER)-$(BRANCH)
 PERF_PIPELINE_NAME          ?= pxf_perf-$(SCALE)g-RHEL$(REDHAT_MAJOR_VERSION)
-PIVNET_PIPELINE_NAME        ?= pivnet_artifacts
+GPDB_ARTIFACTS_PIPELINE_NAME ?= gpdb-artifacts
 NUM_GPDB5_VERSIONS          ?= 10
 NUM_GPDB6_VERSIONS          ?= 10
 NUM_GPDB7_VERSIONS          ?= 10
@@ -52,7 +52,7 @@ ifeq ($(CHECK_CREDS), true)
 SET_PIPELINE += --check-creds
 endif
 
-.PHONY: release main certification dev-release dev pr cloudbuild dev-cloudbuild longevity
+.PHONY: release main certification dev-release dev pr cloudbuild dev-cloudbuild longevity gpdb-artifacts
 release: set-release-pipeline
 main: set-main-pipeline
 certification: set-certification-pipeline
@@ -62,6 +62,7 @@ pr: set-pr-build-pipeline
 cloudbuild: set-cloudbuild-pipeline
 dev-cloudbuild: set-dev-cloudbuild-pipeline
 longevity: set-longevity-pipeline
+gpdb-artifacts: set-gpdb-artifacts-pipeline
 
 # ============================= BUILD PIPELINE TARGETS =============================
 .PHONY: set-release-pipeline
@@ -242,28 +243,25 @@ set-cloudbuild-pipeline-base:
 		--pipeline $(PIPELINE_NAME) \
 		${FLY_OPTION_NON-INTERACTIVE} || echo "pipelines/cloudbuild_pipeline.yml has errors"
 
-.PHONY: pivnet
-pivnet: set-pivnet-pipeline
-
-.PHONY: set-pivnet-pipeline
-set-pivnet-pipeline: generate-pivnet-pipeline
+.PHONY: set-gpdb-artifacts-pipeline
+set-gpdb-artifacts-pipeline: generate-gpdb-artifacts-pipeline
 	$(FLY_CMD) --target=$(CONCOURSE) \
 		$(SET_PIPELINE) \
-		--pipeline=${PIVNET_PIPELINE_NAME} \
-		--config ./generated/get_pivnet_artifacts.yml \
+		--pipeline=${GPDB_ARTIFACTS_PIPELINE_NAME} \
+		--config ./generated/get_gpdb_artifacts.yml \
 		--var pxf-git-branch=$(BRANCH) \
 		${FLY_OPTION_NON-INTERACTIVE}
 
 	@echo using the following command to unpause the pipeline:
-	@echo -e "\t$(FLY_CMD) -t ${CONCOURSE} unpause-pipeline --pipeline ${PIVNET_PIPELINE_NAME}"
+	@echo -e "\t$(FLY_CMD) -t ${CONCOURSE} unpause-pipeline --pipeline ${GPDB_ARTIFACTS_PIPELINE_NAME}"
 
-.PHONY: generate-pivnet-pipeline
-generate-pivnet-pipeline:
+.PHONY: generate-gpdb-artifacts-pipeline
+generate-gpdb-artifacts-pipeline:
 	mkdir -p generated
-	$(TEMPLATE_CMD) --template get_pivnet_artifacts-tpl.yml --vars \
+	$(TEMPLATE_CMD) --template get_gpdb_artifacts-tpl.yml --vars \
 		num_gpdb5_versions=$(NUM_GPDB5_VERSIONS) \
 		num_gpdb6_versions=$(NUM_GPDB6_VERSIONS) \
-		num_gpdb7_versions=$(NUM_GPDB7_VERSIONS)>./generated/get_pivnet_artifacts.yml
+		num_gpdb7_versions=$(NUM_GPDB7_VERSIONS)>./generated/get_gpdb_artifacts.yml
 
 .PHONY: singlecluster
 singlecluster:

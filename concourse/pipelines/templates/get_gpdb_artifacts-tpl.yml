@@ -7,8 +7,7 @@ resource_types:
 resources:
     [[macros.resource_timer('twice-a-day', '12h')]]
     [[macros.resource_github_repo('pxf')]]
-    [[macros.resource_registry_image('ubuntu18', 'gcr.io/data-gpdb-public-images/gpdb6-ubuntu18.04-build', 'latest')]]
-    [[macros.resource_pivnet_cli()]]
+    [[macros.resource_registry_image('google-cloud-sdk-slim-image', 'google/cloud-sdk', '402.0.0-slim')]]
 
 {% set build_test_pxf_combinations = [
     {'gp_ver': '5', 'build_os': 'centos', 'test_os': 'centos', 'os_ver': '7',     'test_fdw': false, 'test_file': false, 'test_cli': false, 'test_multi': false, 'test_features': [], 'generate_release_tarball': true},
@@ -19,17 +18,9 @@ resources:
     {'gp_ver': '7', 'build_os': 'rocky' , 'test_os': 'rocky' , 'os_ver': '8',     'test_fdw': true , 'test_file': false, 'test_cli': false, 'test_multi': false, 'test_features': [], 'generate_release_tarball': false},
     {'gp_ver': '7', 'build_os': 'rocky' , 'test_os': 'rocky' , 'os_ver': '9',     'test_fdw': true , 'test_file': false, 'test_cli': false, 'test_multi': false, 'test_features': [], 'generate_release_tarball': false}] %}
 
-
 {% set gp_num_versions = { '5': num_gpdb5_versions, '6': num_gpdb6_versions, '7': num_gpdb7_versions} %}
 
-{% call(x) macros.for_each_config(build_test_pxf_combinations) %}
-    {% do x.update(gp_num_versions=gp_num_versions[x.gp_ver]) %}
-    {% include 'resources/greenplum-package-tpl.yml' %}
-{% endcall %}
-
 jobs:
-{% include 'jobs/download_latest_pivnet_cli.yml' %}
-
 {% call(x) macros.for_each_gp_ver(build_test_pxf_combinations) %}
     {% do x.update(gp_num_versions=gp_num_versions[x.gp_ver]) %}
     {% include 'jobs/get_greenplum_product_files.yml' %}

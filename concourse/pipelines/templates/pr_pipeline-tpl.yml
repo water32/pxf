@@ -87,7 +87,7 @@ resources:
   type: gcs
   icon: google-drive
   source:
-    bucket: ((ud/pxf/common/pivnet-artifacts-bucket-name))
+    bucket: ((ud/pxf/common/gpdb-artifacts-bucket-name))
     json_key: ((ud/pxf/secrets/pxf-storage-service-account-key))
     regexp: latest-[[i]]_gpdb[[gp_ver]]/greenplum-db-([[gp_ver]].*)-rhel7-x86_64.rpm
 {% endfor %} {# range(num_gpdb5_versions) #}
@@ -99,7 +99,7 @@ resources:
   type: gcs
   icon: google-drive
   source:
-    bucket: ((ud/pxf/common/pivnet-artifacts-bucket-name))
+    bucket: ((ud/pxf/common/gpdb-artifacts-bucket-name))
     json_key: ((ud/pxf/secrets/pxf-storage-service-account-key))
     regexp: latest-[[i]]_gpdb[[gp_ver]]/greenplum-db-([[gp_ver]].*)-rhel7-x86_64.rpm
 
@@ -107,7 +107,7 @@ resources:
   type: gcs
   icon: google-drive
   source:
-    bucket: ((ud/pxf/common/pivnet-artifacts-bucket-name))
+    bucket: ((ud/pxf/common/gpdb-artifacts-bucket-name))
     json_key: ((ud/pxf/secrets/pxf-storage-service-account-key))
     regexp: latest-[[i]]_gpdb[[gp_ver]]/greenplum-db-([[gp_ver]].*)-rhel8-x86_64.rpm
 
@@ -115,7 +115,7 @@ resources:
   type: gcs
   icon: google-drive
   source:
-    bucket: ((ud/pxf/common/pivnet-artifacts-bucket-name))
+    bucket: ((ud/pxf/common/gpdb-artifacts-bucket-name))
     json_key: ((ud/pxf/secrets/pxf-storage-service-account-key))
     regexp: latest-[[i]]_gpdb[[gp_ver]]/greenplum-db-([[gp_ver]].*)-ubuntu18.04-amd64.deb
 {% endfor %} {# range(num_gpdb6_versions) #}
@@ -127,7 +127,7 @@ resources:
   type: gcs
   icon: google-drive
   source:
-    bucket: ((ud/pxf/common/pivnet-artifacts-bucket-name))
+    bucket: ((ud/pxf/common/gpdb-artifacts-bucket-name))
     json_key: ((ud/pxf/secrets/pxf-storage-service-account-key))
     regexp: latest-[[i]]_gpdb[[gp_ver]]/greenplum-db-([[gp_ver]].*)-el8-x86_64.rpm
 {% endfor %} {# range(num_gpdb7_versions) #}

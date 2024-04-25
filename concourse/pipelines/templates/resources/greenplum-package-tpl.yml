@@ -16,7 +16,7 @@
   type: gcs
   icon: google-drive
   source:
-    bucket: ((ud/pxf/common/pivnet-artifacts-bucket-name))
+    bucket: ((ud/pxf/common/gpdb-artifacts-bucket-name))
     json_key: ((ud/pxf/secrets/pxf-storage-service-account-key))
     regexp: latest-[[i]]_gpdb[[x.gp_ver]]/greenplum-db-([[x.gp_ver]].*)-[[x.greenplum_platform]]-[[x.pkg_arch]].[[x.pkg_type]]
 {% endfor %}

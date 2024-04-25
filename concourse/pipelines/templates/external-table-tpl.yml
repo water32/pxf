@@ -62,7 +62,7 @@ resources:
   type: gcs
   icon: google-drive
   source:
-    bucket: ((ud/pxf/common/pivnet-artifacts-bucket-name))
+    bucket: ((ud/pxf/common/gpdb-artifacts-bucket-name))
     json_key: ((ud/pxf/secrets/gsc-ci-service-account-key))
 {% if gpdb_type == "5X_STABLE" %}
     regexp: latest-[[ version ]]_gpdb5/greenplum-db-(.*)-rhel6-x86_64.rpm
@@ -74,7 +74,7 @@ resources:
   type: gcs
   icon: google-drive
   source:
-    bucket: ((ud/pxf/common/pivnet-artifacts-bucket-name))
+    bucket: ((ud/pxf/common/gpdb-artifacts-bucket-name))
     json_key: ((ud/pxf/secrets/gsc-ci-service-account-key))
 {% if gpdb_type == "5X_STABLE" %}
     regexp: latest-[[ version ]]_gpdb5/greenplum-db-(.*)-rhel7-x86_64.rpm
@@ -86,7 +86,7 @@ resources:
   type: gcs
   icon: google-drive
   source:
-    bucket: ((ud/pxf/common/pivnet-artifacts-bucket-name))
+    bucket: ((ud/pxf/common/gpdb-artifacts-bucket-name))
     json_key: ((ud/pxf/secrets/gsc-ci-service-account-key))
     regexp: latest-[[ version ]]_gpdb6/greenplum-db-(.*)-ubuntu18.04-amd64.deb
 
