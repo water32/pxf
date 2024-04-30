@@ -49,6 +49,7 @@ The PXF JDBC connector supports the following data types:
 - VARCHAR, BPCHAR, TEXT
 - DATE
 - TIMESTAMP
+- TIMESTAMPTZ
 - BYTEA
 - UUID
 
@@ -63,6 +64,7 @@ PXF includes version 1.1.0 of the Hive JDBC driver. This version does **not** su
 | NUMERIC   | 2.3.0                     | [HIVE-13614](https://issues.apache.org/jira/browse/HIVE-13614) | Write |
 | TIMESTAMP | 2.0.0                     | [HIVE-11748](https://issues.apache.org/jira/browse/HIVE-11748) | Write |
 | DATE      | 1.3.0, 2.0.0              | [HIVE-11024](https://issues.apache.org/jira/browse/HIVE-11024) | Write |
+| TIMESTAMPTZ | N/A              | [HIVE-576](https://issues.apache.org/jira/browse/HIVE-576) | Read, Write |
 | BYTEA     | N/A                       | N/A | Read, Write |
 
 ## <a id="queryextdata"></a>Accessing an External SQL Database
@@ -102,7 +104,7 @@ You include JDBC connector custom options in the `LOCATION` URI, prefacing each 
 | BATCH_SIZE | Write | Integer that identifies the number of `INSERT` operations to batch to the external SQL database. Write batching is activated by default; the default value is 100. |
 | FETCH_SIZE | Read | Integer that identifies the number of rows to buffer when reading from an external SQL database. Read row batching is activated by default. The default read fetch size for MySQL is `-2147483648` (`Integer.MIN_VALUE`). The default read fetch size for all other databases is 1000. |
 | QUERY_TIMEOUT | Read/Write | Integer that identifies the amount of time (in seconds) that the JDBC driver waits for a statement to run. The default wait time is infinite. |
-| DATE_WIDE_RANGE | Read/Write | Boolean that enables special parsing of dates when the year contains more than four alphanumeric characters. The default value is `false`. When set to `true`, PXF uses extended classes to parse dates, and recognizes years that specify `BC` or `AD`. |
+| DATE_WIDE_RANGE | Read/Write | Boolean that enables support for `date` and `timestamp` data types that specify `BC` or `AD`. Set this value to `true` to ensure eras data is not lost and to improve performance in cases where the year contains more than 4 digits. The default value is `false`. |
 | POOL_SIZE | Write | Activate thread pooling on `INSERT` operations and identify the number of threads in the pool. Thread pooling is deactivated by default. |
 | PARTITION_BY | Read | Activates read partitioning. The partition column, \<column-name\>:\<column-type\>. You may specify only one partition column. The JDBC connector supports `date`, `int`, and `enum` \<column-type\> values, where `int` represents any JDBC integral type. If you do not identify a `PARTITION_BY` column, a single PXF instance services the read request. |
 | RANGE | Read | Required when `PARTITION_BY` is specified. The query range; used as a hint to aid the creation of partitions. The `RANGE` format is dependent upon the data type of the partition column. When the partition column is an `enum` type, `RANGE` must specify a list of values, \<value\>:\<value\>[:\<value\>[...]], each of which forms its own fragment. If the partition column is an `int` or `date` type, `RANGE` must specify \<start-value\>:\<end-value\> and represents the interval from \<start-value\> through \<end-value\>, inclusive. The `RANGE` for an `int` partition column may span any 64-bit signed integer values. If the partition column is a `date` type, use the `yyyy-MM-dd` date format. |
