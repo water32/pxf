@@ -21,7 +21,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-PXF is installed with connectors to Azure Blob Storage, Azure Data Lake, Google Cloud Storage, AWS, MinIO, and Dell ECS S3-compatible object stores.
+PXF is installed with connectors to Azure Blob Storage, Azure Data Lake Storage Gen2, Google Cloud Storage, AWS, MinIO, and Dell ECS S3-compatible object stores.
 
 ## <a id="objstore_prereq"></a>Prerequisites
 
@@ -45,21 +45,24 @@ The PXF object store connectors provide built-in profiles to support the followi
 - AvroSequenceFile
 - SequenceFile
 
-The PXF connectors to Azure expose the following profiles to read, and in many cases write, these supported data formats:
+The PXF connectors to Azure expose the following profiles to read, and in many cases write, these supported data formats.
 
-| Data Format | Azure Blob Storage | Azure Data Lake | Supported Operations |
+>**Note**:
+>ADL support has been deprecated as of PXF 7.0.0. Use the ABFSS profile instead.
+
+| Data Format | Azure Blob Storage | Azure Data Lake Storage Gen2 | Supported Operations |
 |-----|------|---------| ---------|
-| delimited single line [plain text](objstore_text.html) | wasbs:text | adl:text | Read, Write |
-| delimited single line comma-separated values of [plain text](objstore_text.html) | wasbs:csv | adl:csv | Read, Write |
-| multi-byte or multi-character delimited single line [csv](objstore_text.html#multibyte_delim) | wasbs:csv | adl:csv | Read |
-| delimited [text with quoted linefeeds](objstore_text.html) | wasbs:text:multi | adl:text:multi | Read |
-| fixed width single line [text](objstore_fixedwidth.html) | wasbs:fixedwidth | adl:fixedwidth | Read, Write |
-| [Avro](objstore_avro.html) | wasbs:avro | adl:avro | Read, Write |
-| [JSON](objstore_json.html) | wasbs:json | adl:json | Read, Write |
-| [ORC](objstore_orc.html) | wasbs:orc | adl:orc | Read, Write |
-| [Parquet](objstore_parquet.html) | wasbs:parquet | adl:parquet | Read, Write |
-| AvroSequenceFile | wasbs:AvroSequenceFile | adl:AvroSequenceFile | Read, Write |
-| [SequenceFile](objstore_seqfile.html) | wasbs:SequenceFile | adl:SequenceFile | Read, Write |
+| delimited single line [plain text](objstore_text.html) | wasbs:text | abfss:text | Read, Write |
+| delimited single line comma-separated values of [plain text](objstore_text.html) | wasbs:csv | abfss:csv | Read, Write |
+| multi-byte or multi-character delimited single line [csv](objstore_text.html#multibyte_delim) | wasbs:csv | abfss:csv | Read |
+| delimited [text with quoted linefeeds](objstore_text.html) | wasbs:text:multi | abfss:text:multi | Read |
+| fixed width single line [text](objstore_fixedwidth.html) | wasbs:fixedwidth | abfss:fixedwidth | Read, Write |
+| [Avro](objstore_avro.html) | wasbs:avro | abfss:avro | Read, Write |
+| [JSON](objstore_json.html) | wasbs:json | abfss:json | Read, Write |
+| [ORC](objstore_orc.html) | wasbs:orc | abfss:orc | Read, Write |
+| [Parquet](objstore_parquet.html) | wasbs:parquet | abfss:parquet | Read, Write |
+| AvroSequenceFile | wasbs:AvroSequenceFile | abfss:AvroSequenceFile | Read, Write |
+| [SequenceFile](objstore_seqfile.html) | wasbs:SequenceFile | abfss:SequenceFile | Read, Write |
 
 Similarly, the PXF connectors to Google Cloud Storage, and S3-compatible object stores expose these profiles:
 
@@ -99,11 +102,11 @@ CREATE EXTERNAL TABLE pxf_wasbs_text(location text, month text, num_orders int, 
 FORMAT 'TEXT';
 </pre>
 
-The following command creates an external table that references a text file on Azure Data Lake. It specifies the profile named `adl:text` and the server configuration named `adlsrvcfg`. You would provide your Azure Data Lake account name.
+The following command creates an external table that references a text file on Azure Data Lake Storage Gen2. It specifies the profile named `abfss:text` and the server configuration named `abfsssrvcfg`. You would provide your Azure Data Lake Storage Gen2 account name.
 
 <pre>
-CREATE EXTERNAL TABLE pxf_adl_text(location text, month text, num_orders int, total_sales float8)
-  LOCATION ('pxf://<b>YOUR_ADL_ACCOUNT_NAME</b>.azuredatalakestore.net/path/to/file?<b>PROFILE=adl:text&SERVER=adlsrvcfg</b>')
+CREATE EXTERNAL TABLE pxf_abfss_text(location text, month text, num_orders int, total_sales float8)
+  LOCATION ('pxf://<b>YOUR_ABFSS_ACCOUNT_NAME</b>.dfs.core.windows.net/path/to/file?<b>PROFILE=abfss:text&SERVER=abfsssrvcfg</b>')
 FORMAT 'TEXT';
 </pre>
 

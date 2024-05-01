@@ -2,7 +2,7 @@
 title: Configuring Connectors to Azure and Google Cloud Storage Object Stores (Optional)
 ---
 
-You can use PXF to access Azure Data Lake, Azure Blob Storage, and Google Cloud Storage object stores. This topic describes how to configure the PXF connectors to these external data sources.
+You can use PXF to access Azure Data Lake Storage Gen2, Azure Blob Storage, and Google Cloud Storage object stores. This topic describes how to configure the PXF connectors to these external data sources.
 
 *If you do not plan to use these PXF object store connectors, then you do not need to perform this procedure.*
 
@@ -24,16 +24,17 @@ The template configuration file for Azure Blob Storage is `<PXF_INSTALL_DIR>/tem
 | fs.AbstractFileSystem.wasbs.impl | The file system class name. | Must specify `org.apache.hadoop.fs.azure.Wasbs`. |
 
 
-### <a id="adl_cfg"></a>Azure Data Lake Server Configuration
+### <a id="abfss_cfg"></a>Azure Data Lake Storage Gen2 Server Configuration
 
-The template configuration file for Azure Data Lake is `<PXF_INSTALL_DIR>/templates/adl-site.xml`. When you configure an Azure Data Lake server, you must provide the following server configuration properties and replace the template values with your credentials:
+The template configuration file for Azure Data Lake Storage Gen2 is `<PXF_INSTALL_DIR>/templates/abfss-site.xml`. When you configure an Azure Data Lake Storage Gen2 server, you must provide the following server configuration properties and replace the template values with your credentials:
 
 | Property       | Description                                | Value |
 |----------------|--------------------------------------------|-------|
-| fs.adl.oauth2.access.token.provider.type | The type of token. | Must specify `ClientCredential`. |
-| fs.adl.oauth2.refresh.url | The Azure endpoint to which to connect. | Your refresh URL. |
-| fs.adl.oauth2.client.id | The Azure account client ID. | Your client ID (UUID). |
-| fs.adl.oauth2.credential | The password for the Azure account client ID. | Your password. |
+| fs.azure.account.auth.type | The type of account authorization. | Must specify `OAuth`. |
+| fs.azure.account.oauth.provider.type | The type of token. | Must specify `org.apache.hadoop.fs.azurebfs.oauth2.ClientCredsTokenProvider`. |
+| fs.azure.account.oauth2.client.endpoint | The Azure endpoint to which to connect. | Your refresh URL. |
+| fs.azure.account.oauth2.client.id | The Azure account client ID. | Your client ID (UUID). |
+| fs.azure.account.oauth2.client.secret | The password for the Azure account client ID. | Your password. |
 
 
 ### <a id="gcs_cfg"></a>Google Cloud Storage Server Configuration

@@ -18,7 +18,7 @@ Column projection is automatically enabled for the `pxf` external table protocol
 | Amazon S3 using S3 Select | S3-Compatible Object Store Connectors | s3:parquet, s3:text |
 | Google Cloud Storage | GCS Object Store Connector | gs:orc, gs:parquet |
 | Azure Blob Storage | Azure Object Store Connector | wasbs:orc, wasbs:parquet |
-| Azure Data Lake | Azure Object Store Connector | adl:orc, adl:parquet |
+| Azure Data Lake Storage Gen2 | Azure Object Store Connector | abfss:orc, abfss:parquet |
 
 **Note:** PXF may deactivate column projection in cases where it cannot successfully serialize a query filter; for example, when the `WHERE` clause resolves to a `boolean` type.
 
